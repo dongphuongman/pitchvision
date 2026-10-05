@@ -9,8 +9,7 @@ import pytest
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from conftest import alembic_config
-from identity_testkit import Db, Kit, Outbox, assert_problem, build_app
+from identity_testkit import Db, Kit, Outbox, alembic_config, assert_problem, build_app
 from pitchvision_identity.db.models import Base
 from pitchvision_identity.openapi import render
 from pitchvision_identity.ratelimit import MemoryRateLimiter

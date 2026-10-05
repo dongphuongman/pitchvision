@@ -10,18 +10,15 @@ import subprocess
 import time
 import uuid
 from collections.abc import AsyncIterator, Iterator
-from pathlib import Path
 
 import psycopg
 import pytest
 from alembic import command
-from alembic.config import Config
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from identity_testkit import Db, Kit, Outbox, build_app
+from identity_testkit import Db, Kit, Outbox, alembic_config, build_app
 from pitchvision_identity.ratelimit import MemoryRateLimiter
 
-IDENTITY_DIR = Path(__file__).resolve().parents[1]
 IMAGE = os.environ.get("PV_TEST_PG_IMAGE", "timescale/timescaledb:latest-pg16")
 TEST_DB = "pv_identity_test"
 TABLES = "users, orgs, memberships, invites, refresh_tokens, email_tokens, oauth_accounts"
@@ -86,12 +83,6 @@ def pg() -> Iterator[Db]:
         yield db
     finally:
         subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=60)
-
-
-def alembic_config(db: Db) -> Config:
-    cfg = Config(str(IDENTITY_DIR / "alembic.ini"))
-    cfg.set_main_option("sqlalchemy.url", db.url())
-    return cfg
 
 
 @pytest.fixture(scope="session")

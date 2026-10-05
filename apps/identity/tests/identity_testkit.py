@@ -6,12 +6,14 @@ import json
 import time
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import jwt
 import psycopg
+from alembic.config import Config
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI
 from jwt.algorithms import RSAAlgorithm
@@ -20,6 +22,7 @@ from pitchvision_identity.main import create_app
 from pitchvision_identity.ratelimit import RateLimiter
 from pitchvision_identity.settings import Settings
 
+IDENTITY_DIR = Path(__file__).resolve().parents[1]
 PASSWORD = "correct horse battery"
 WEB = "https://app.test"
 ISSUER = "https://id.test"
@@ -44,6 +47,12 @@ class Db:
         with psycopg.connect(self.conninfo(), autocommit=True) as conn:
             cur = conn.execute(sql, params)  # type: ignore[arg-type]
             return cur.fetchall() if cur.description else []
+
+
+def alembic_config(db: Db) -> Config:
+    cfg = Config(str(IDENTITY_DIR / "alembic.ini"))
+    cfg.set_main_option("sqlalchemy.url", db.url())
+    return cfg
 
 
 class Outbox:
