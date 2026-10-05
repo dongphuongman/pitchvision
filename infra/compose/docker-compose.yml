@@ -26,6 +26,32 @@ x-pv-env: &pv-env
   AWS_ACCESS_KEY_ID: ${PV_STORAGE_ACCESS_KEY}
   AWS_SECRET_ACCESS_KEY: ${PV_STORAGE_SECRET_KEY}
   AWS_DEFAULT_REGION: ${PV_STORAGE_REGION:-us-east-1}
+  # access tokens come from identity-svc (docs/contracts/identity-api.md); the api verifies them via JWKS
+  PV_JWKS_URL: http://identity:8000/.well-known/jwks.json
+  PV_JWT_ISSUER: ${PV_WEB_URL:-http://localhost:3000}
+
+# identity-svc: global control plane. Self-host = its own database on the same Postgres server.
+x-identity-env: &identity-env
+  PV_ENV: ${PV_ENV:-local}
+  PV_IDENTITY_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?set in .env}:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/${PV_IDENTITY_DB:-pitchvision_identity}
+  PV_IDENTITY_MIGRATE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?set in .env}:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/${PV_IDENTITY_DB:-pitchvision_identity}
+  # Browser-facing origin: email links, OIDC redirect, and the JWT `iss`.
+  PV_WEB_URL: ${PV_WEB_URL:-http://localhost:3000}
+  PV_JWT_ISSUER: ${PV_WEB_URL:-http://localhost:3000}
+  # Empty = ephemeral key (local/test only; sessions die when identity restarts).
+  PV_JWT_PRIVATE_KEY_PEM: ${PV_JWT_PRIVATE_KEY_PEM:-}
+  PV_JWT_KID: ${PV_JWT_KID:-}
+  PV_COOKIE_SECURE: ${PV_COOKIE_SECURE:-true}
+  PV_CORS_ORIGINS: ${PV_CORS_ORIGINS:-http://localhost:5173}
+  PV_EMAIL_BACKEND: ${PV_EMAIL_BACKEND:-smtp}
+  PV_EMAIL_FROM: ${PV_EMAIL_FROM:-PitchVision <no-reply@pitchvision.local>}
+  PV_SMTP_HOST: ${PV_SMTP_HOST:-mailpit}
+  PV_SMTP_PORT: ${PV_SMTP_PORT:-1025}
+  PV_RESEND_API_KEY: ${PV_RESEND_API_KEY:-}
+  PV_GOOGLE_CLIENT_ID: ${PV_GOOGLE_CLIENT_ID:-}
+  PV_GOOGLE_CLIENT_SECRET: ${PV_GOOGLE_CLIENT_SECRET:-}
+  # behind the web nginx on the compose network: trust its X-Forwarded-For (rate limits key on client IP)
+  FORWARDED_ALLOW_IPS: "*"
 
 x-api-image: &api-image
   image: pitchvision-api:${TAG:-dev}
@@ -153,8 +179,39 @@ services:
       redis: { condition: service_healthy }
       storage-init: { condition: service_completed_successfully }
 
-  # TODO(M1-BE): identity-svc runs from the same image (`command: identity`, AD §13.1)
-  # once it exists; until then the api serves auth in self-host single-region mode.
+  # ------------------------------------------------------------------ identity (AD §4, §13.1)
+  # One-shot: create the identity database if missing + alembic upgrade head.
+  migrate-identity:
+    <<: *api-image
+    command: ["migrate-identity"]
+    environment: *identity-env
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  identity:
+    <<: *api-image
+    command: ["identity"]
+    restart: unless-stopped
+    environment: *identity-env
+    ports:
+      - "127.0.0.1:${PV_IDENTITY_PORT:-8001}:8000"
+    depends_on:
+      migrate-identity: { condition: service_completed_successfully }
+      mailpit: { condition: service_healthy }
+
+  # Local inbox for verification / reset / invite emails: UI at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PV_MAILPIT_UI_PORT:-8025}:8025"
+      - "127.0.0.1:${PV_MAILPIT_SMTP_PORT:-1025}:1025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   web:
     image: pitchvision-web:${TAG:-dev}
@@ -164,6 +221,7 @@ services:
     restart: unless-stopped
     environment:
       PV_API_UPSTREAM: api:8000
+      PV_IDENTITY_UPSTREAM: identity:8000
     ports:
       - "127.0.0.1:${PV_WEB_PORT:-3000}:8080"
 

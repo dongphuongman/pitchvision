@@ -36,6 +36,7 @@ COPY pyproject.toml uv.lock ./
 COPY packages/schemas/pyproject.toml packages/schemas/
 COPY packages/cv-core/pyproject.toml packages/cv-core/
 COPY apps/api/pyproject.toml apps/api/
+COPY apps/identity/pyproject.toml apps/identity/
 COPY workers/pyproject.toml workers/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-workspace --package pitchvision-worker

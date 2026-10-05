@@ -72,6 +72,7 @@ jobs:
           packages/schemas/pitchvision_schemas
           packages/cv-core/cv_core
           apps/api/pitchvision_api
+          apps/identity/pitchvision_identity
           workers/pitchvision_worker
       - name: import-linter (AD §5 dependency boundaries)
         run: uv run lint-imports
