@@ -1,0 +1,89 @@
+# syntax=docker/dockerfile:1.7
+# pitchvision-worker — one image, role picked at runtime by WORKER_ROLE (AD §5.1):
+#   orchestrator | cpu | gpu | live | runpod
+# Build context: repository root.
+#
+#   # production / gpu-local (CUDA 12.4 + TensorRT runtime)
+#   docker build -f infra/docker/Dockerfile.worker -t pitchvision-worker:dev .
+#   # CPU-only dev image (Mac / no NVIDIA): no CUDA, no TensorRT
+#   docker build -f infra/docker/Dockerfile.worker --build-arg BASE=python:3.12-slim -t pitchvision-worker:dev .
+#
+# Python comes from uv's managed CPython 3.12 (/opt/python), so the same recipe works on
+# Ubuntu 22.04 (system python 3.10) and on python:3.12-slim.
+
+ARG BASE=nvidia/cuda:12.4.1-runtime-ubuntu22.04
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.9.28
+
+FROM ${UV_IMAGE} AS uv
+
+# ---------------------------------------------------------------- builder
+# Same base as runtime so uv picks wheels for the runtime's glibc.
+FROM ${BASE} AS builder
+COPY --from=uv /uv /usr/local/bin/uv
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_INSTALL_DIR=/opt/python \
+    UV_PYTHON_PREFERENCE=only-managed \
+    UV_PYTHON=3.12 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+WORKDIR /src
+
+RUN --mount=type=cache,target=/root/.cache/uv uv python install 3.12
+
+# 1) Third-party deps. Every workspace member's manifest must exist for uv to load the
+#    workspace; keep in sync with [tool.uv.workspace].members.
+COPY pyproject.toml uv.lock ./
+COPY packages/schemas/pyproject.toml packages/schemas/
+COPY packages/cv-core/pyproject.toml packages/cv-core/
+COPY apps/api/pyproject.toml apps/api/
+COPY workers/pyproject.toml workers/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-workspace --package pitchvision-worker
+
+# 2) Our code (workers + cv-core + schemas; never apps/api), non-editable.
+COPY packages/schemas packages/schemas
+COPY packages/cv-core packages/cv-core
+COPY workers workers
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable --package pitchvision-worker
+
+# ---------------------------------------------------------------- runtime
+FROM ${BASE} AS runtime
+# TensorRT runtime libs from NVIDIA's CUDA apt repo (present only in nvidia/cuda bases).
+# 10.1.0.27 is the newest TensorRT built against CUDA 12.4; .engine files must be built
+# with this exact version (models registry pins it). Empty string = skip.
+ARG TENSORRT_VERSION=10.1.0.27-1+cuda12.4
+ARG APP_UID=10001
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates tini ffmpeg; \
+    if [ -n "${TENSORRT_VERSION}" ] && ls /etc/apt/sources.list.d/ 2>/dev/null | grep -qi cuda; then \
+      apt-get install -y --no-install-recommends \
+        "libnvinfer10=${TENSORRT_VERSION}" \
+        "libnvinfer-plugin10=${TENSORRT_VERSION}" \
+        "libnvonnxparsers10=${TENSORRT_VERSION}"; \
+      apt-mark hold libnvinfer10 libnvinfer-plugin10 libnvonnxparsers10; \
+    else \
+      echo "no CUDA apt repo in base image -> CPU-only worker image (no TensorRT)"; \
+    fi; \
+    rm -rf /var/lib/apt/lists/*; \
+    groupadd --system --gid ${APP_UID} app; \
+    useradd --system --uid ${APP_UID} --gid app --home-dir /app --shell /usr/sbin/nologin app; \
+    mkdir -p /app && chown app:app /app
+
+COPY --from=builder /opt/python /opt/python
+COPY --from=builder /opt/venv /opt/venv
+
+ENV PATH=/opt/venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+
+WORKDIR /app
+USER app
+HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=3 \
+  CMD ["python", "-m", "pitchvision_worker.entrypoints", "--healthcheck"]
+
+ENTRYPOINT ["tini", "--", "python", "-m", "pitchvision_worker.entrypoints"]

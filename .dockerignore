@@ -1,0 +1,43 @@
+# Build context = repo root for all three images (infra/docker/Dockerfile.*).
+# Keep the context small and free of footage, weights and secrets.
+
+# VCS / tooling
+.git
+.github
+.claude
+**/.DS_Store
+
+# Copyrighted broadcast footage, spike scratch, model weights
+data/
+spikes/
+*.pt
+*.onnx
+*.engine
+
+# Docs (incl. docs/prototype)
+docs/
+HANDOFF.md
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.import_linter_cache
+**/*.egg-info
+
+# Node / web build output (the web image builds inside Docker)
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+
+# Local compose state
+infra/compose/.env
