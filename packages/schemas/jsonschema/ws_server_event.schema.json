@@ -31,6 +31,7 @@
       },
       "required": [
         "topic",
+        "type",
         "data"
       ],
       "title": "CompletedEvent",
@@ -42,6 +43,7 @@
         "NOT_FOUND",
         "UNAUTHENTICATED",
         "FORBIDDEN",
+        "METHOD_NOT_ALLOWED",
         "CONFLICT",
         "IDEMPOTENCY_KEY_REQUIRED",
         "IDEMPOTENCY_KEY_REUSED",
@@ -92,6 +94,7 @@
       },
       "required": [
         "topic",
+        "type",
         "data"
       ],
       "title": "FailedEvent",
@@ -170,6 +173,7 @@
       },
       "required": [
         "topic",
+        "type",
         "data"
       ],
       "title": "ProgressEvent",

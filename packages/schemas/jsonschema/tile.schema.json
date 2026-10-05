@@ -36,9 +36,8 @@
         },
         "objs": {
           "items": {
-            "maxItems": 10,
-            "minItems": 10,
-            "prefixItems": [
+            "additionalItems": false,
+            "items": [
               {
                 "type": "integer"
               },
@@ -84,6 +83,8 @@
                 ]
               }
             ],
+            "maxItems": 10,
+            "minItems": 10,
             "type": "array"
           },
           "title": "Objs",
@@ -113,9 +114,8 @@
     "shots": {
       "description": "[f0, f1_exclusive, type] runs covering this tile",
       "items": {
-        "maxItems": 3,
-        "minItems": 3,
-        "prefixItems": [
+        "additionalItems": false,
+        "items": [
           {
             "type": "integer"
           },
@@ -126,6 +126,8 @@
             "$ref": "#/$defs/ShotType"
           }
         ],
+        "maxItems": 3,
+        "minItems": 3,
         "type": "array"
       },
       "title": "Shots",

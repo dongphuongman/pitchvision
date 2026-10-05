@@ -1,7 +1,7 @@
 """WebSocket protocol (AD §10.3): one socket per tab, topic subscriptions, heartbeat 25 s."""
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from pitchvision_schemas.errors import ErrorCode
 
@@ -28,6 +28,8 @@ class ProgressData(BaseModel):
 
 
 class ProgressEvent(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)  # TS: `type` is required
+
     topic: str
     type: Literal["progress"] = "progress"
     data: ProgressData
@@ -38,6 +40,8 @@ class CompletedData(BaseModel):
 
 
 class CompletedEvent(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)  # TS: `type` is required
+
     topic: str
     type: Literal["completed"] = "completed"
     data: CompletedData
@@ -49,6 +53,8 @@ class FailedData(BaseModel):
 
 
 class FailedEvent(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)  # TS: `type` is required
+
     topic: str
     type: Literal["failed"] = "failed"
     data: FailedData

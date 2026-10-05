@@ -22,9 +22,25 @@ TARGETS: dict[str, TypeAdapter[Any]] = {
 }
 
 
+def _draft7_tuples(node: Any) -> Any:
+    """prefixItems (2020-12) → items-array tuples (draft-07) so json-schema-to-typescript emits TS tuples."""
+    if isinstance(node, dict):
+        node = {k: _draft7_tuples(v) for k, v in node.items()}
+        if "prefixItems" in node:
+            node["items"] = node.pop("prefixItems")
+            node.setdefault("additionalItems", False)
+        return node
+    if isinstance(node, list):
+        return [_draft7_tuples(v) for v in node]
+    return node
+
+
 def render() -> dict[str, str]:
-    return {f"{n}.schema.json": json.dumps(t.json_schema(), indent=2, sort_keys=True) + "\n"
-            for n, t in TARGETS.items()}
+    out = {}
+    for n, t in TARGETS.items():
+        schema = _draft7_tuples(t.json_schema(mode="serialization"))
+        out[f"{n}.schema.json"] = json.dumps(schema, indent=2, sort_keys=True) + "\n"
+    return out
 
 
 def main() -> int:
