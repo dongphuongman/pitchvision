@@ -7,6 +7,10 @@ Detection  COCO instances JSON for GT (CVAT "COCO 1.0" export) + COCO results li
            Image ``file_name`` = ``{video_id}/{frame_idx:06d}.jpg`` (or ``{video_id}_{frame_idx:06d}.jpg``).
 Teams      ``{"format": "pv-team-labels/v1", "items": [{"video", "frame_idx", "obj", "team"}]}`` for both
            GT and predictions, joined on (video, frame_idx, obj); team 0/1, -1 = not a team player.
+Pitch      ``{"format": "pv-pitch-keypoints/v1", "frames": [{"video", "t_ms"|"frame_idx", "width", "height",
+           "keypoints": [[idx, x, y], …]}], "pitch_size"?: {video: [L, W]}}`` (GT, cv_core.pitch.template index);
+           predictions ``{"format": "pv-homographies/v1", "frames": [{"video", "t_ms", "width", "height",
+           "H": 3×3 image→pitch | null, "h_quality"?, "reason"?}]}``.
 """
 from __future__ import annotations
 
@@ -120,3 +124,85 @@ def read_team_labels(path: Path) -> dict[tuple[str, int, str], int]:
     if data.get("format") != TEAM_LABELS:
         raise ValueError(f"{path}: expected format {TEAM_LABELS}")
     return {(r["video"], int(r["frame_idx"]), str(r["obj"])): int(r["team"]) for r in data["items"]}
+
+
+# --- pitch keypoints / homographies ---------------------------------------------------------------
+
+PITCH_KEYPOINTS = "pv-pitch-keypoints/v1"
+HOMOGRAPHIES = "pv-homographies/v1"
+DEFAULT_PITCH = (105.0, 68.0)
+
+
+@dataclass(frozen=True)
+class PitchLabel:
+    """GT for one frame: visible template keypoints (cv_core.pitch.template index) in pixels of a
+    ``width × height`` frame on the normalised timeline; optional real pitch size of the venue."""
+
+    video: str
+    t_ms: int
+    width: int
+    height: int
+    points: dict[int, tuple[float, float]]
+    pitch: tuple[float, float] = DEFAULT_PITCH
+
+    def scaled(self, width: int, height: int) -> dict[int, tuple[float, float]]:
+        sx, sy = width / self.width, height / self.height
+        return {i: (x * sx, y * sy) for i, (x, y) in self.points.items()}
+
+
+def _t_ms(r: Mapping[str, Any]) -> int:
+    if "t_ms" in r:
+        return int(r["t_ms"])
+    return int(r["frame_idx"]) * 40  # frame_idx on the normalised 25 fps timeline
+
+
+def read_pitch_labels(path: Path) -> list[PitchLabel]:
+    data = json.loads(Path(path).read_text())
+    if data.get("format") != PITCH_KEYPOINTS:
+        raise ValueError(f"{path}: expected format {PITCH_KEYPOINTS}")
+    sizes = {v: (float(s[0]), float(s[1])) for v, s in data.get("pitch_size", {}).items()}
+    out = []
+    for r in data["frames"]:
+        pts = {int(i): (float(x), float(y)) for i, x, y in r["keypoints"]}
+        out.append(PitchLabel(r["video"], _t_ms(r), int(r["width"]), int(r["height"]), pts,
+                              sizes.get(r["video"], DEFAULT_PITCH)))
+    return out
+
+
+def write_pitch_labels(path: Path, labels: list[PitchLabel], **meta: Any) -> None:
+    sizes = {lb.video: list(lb.pitch) for lb in labels if lb.pitch != DEFAULT_PITCH}
+    frames = [{"video": lb.video, "t_ms": lb.t_ms, "width": lb.width, "height": lb.height,
+               "keypoints": [[i, round(x, 2), round(y, 2)] for i, (x, y) in sorted(lb.points.items())]}
+              for lb in labels]
+    doc: dict[str, Any] = {"format": PITCH_KEYPOINTS, "template": "fifa-105x68", **meta, "frames": frames}
+    if sizes:
+        doc["pitch_size"] = sizes
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(doc, indent=1))
+
+
+@dataclass(frozen=True)
+class HomographyPred:
+    video: str
+    t_ms: int
+    width: int
+    height: int
+    H: list[list[float]] | None   # image → pitch metres, in pixels of width × height
+    h_quality: float | None = None
+    reason: str = ""
+
+
+def read_homographies(path: Path) -> dict[tuple[str, int], HomographyPred]:
+    data = json.loads(Path(path).read_text())
+    if data.get("format") != HOMOGRAPHIES:
+        raise ValueError(f"{path}: expected format {HOMOGRAPHIES}")
+    return {(r["video"], _t_ms(r)): HomographyPred(r["video"], _t_ms(r), int(r["width"]), int(r["height"]), r["H"],
+                                                   r.get("h_quality"), r.get("reason", ""))
+            for r in data["frames"]}
+
+
+def write_homographies(path: Path, preds: list[HomographyPred], **meta: Any) -> None:
+    frames = [{"video": p.video, "t_ms": p.t_ms, "width": p.width, "height": p.height, "H": p.H,
+               "h_quality": p.h_quality, "reason": p.reason} for p in preds]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"format": HOMOGRAPHIES, **meta, "frames": frames}, indent=1))
