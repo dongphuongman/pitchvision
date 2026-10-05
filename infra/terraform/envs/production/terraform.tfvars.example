@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+account_id = "0123456789abcdef0123456789abcdef"
+
+web_origins = [
+  "https://app.pitchvision.ai",
+]
+
+# token_expires_on    = "2027-10-01T00:00:00Z"
+# token_allowed_cidrs = []
