@@ -66,6 +66,12 @@
       "title": "Detector giấy phép mở (G-LEGAL)",
       "state": "done",
       "note": "<strong>Detector giấy phép mở khả thi → đề xuất D-FINE-M (Apache-2.0) làm nền cho M1-CV-04.</strong> 190 khung toàn cảnh (19 trận × 10), Mac M4 MPS, conf 0.35, chỉ chấm người/bóng đứng trên sân (mặt nạ cỏ); chưa có nhãn bbox nên recall đo theo đồng thuận của các họ detector khác + chấm mắt. <strong>YOLOv11-m@1280</strong> (AGPL): ~8–10 fps, 14,9 người/khung, recall người 84%, người nhỏ &lt;40px 30%, bóng ở 48% khung (gần như toàn bóng thật). <strong>D-FINE-M obj2coco@640</strong>: ~9 fps (ngang YOLO), 16,2 người/khung, recall người 98%, người nhỏ 90%, bóng ở 79% khung nhưng ~15–25% bóng giả ở ngưỡng 0.35 (cần chỉnh ngưỡng / fine-tune). RT-DETRv2-R50@640: chậm hơn (5–8 fps), kém D-FINE. Chạy @1280 cho DETR chậm 3–5× và bắt thêm khán giả → không đáng. Chưa đo: TensorRT trên NVIDIA (D-FINE có export ONNX/TRT), độ chính xác sau fine-tune. G-LEGAL cần kiểm tra thêm giấy phép dữ liệu tiền huấn luyện Objects365 của bản obj2coco. Script: <code>spikes/sp11_detectors.py</code>, kết quả + grid: <code>spikes/results/sp11/</code>."
+    },
+    {
+      "id": "M1-W1",
+      "title": "10 PR đầu tiên (nền móng M1)",
+      "state": "done",
+      "note": "Monorepo git (uv workspace + pnpm), import-linter 3 hợp đồng (schemas lá; cv-core không web/queue; api không import cv-core). <strong>schemas</strong>: PipelineConfig (detector dfine-m), GpuTask, máy trạng thái job, lỗi RFC 9457, shot timeline + coverage, tile 10 s, manifest, WS; xuất JSON Schema cho web. <strong>DB</strong>: Alembic, toàn bộ bảng AD 9.3 + <code>shots</code> + <code>idempotency_keys</code>, org_id + RLS (FORCE) trên 12 bảng, FK kép (video_id, org_id) chống liên kết chéo tổ chức; role <code>pv_app</code> không bypass RLS. Ngoại lệ: <code>positions</code> là hypertable nén nên Timescale không cho RLS → đọc qua view lọc theo org. <strong>API</strong>: FastAPI, problem+json, Request-ID, Idempotency-Key (chạy đồng thời chỉ 1 lần), openapi.json. <strong>cv-core</strong>: Runtime TensorRT → ONNX CUDA → ONNX CPU (nhánh TRT chưa chạy trên NVIDIA), VideoReader giải mã tuần tự, chỉ số khung chính xác, 60→25 fps (~358 fps phần mềm trên M4). <strong>eval</strong>: golden.json 19 trận phân tầng, mAP/phân đội/cảnh/homography; baseline cảnh chỉ tỷ lệ cỏ 84,6% (SP-09 GBM 99,1% — dùng cho M1-CV-06). <strong>web</strong>: Vite + React 18 + Tailwind, token từ prototype, 20 component Radix, router (modal qua query string), Query, client OpenAPI, i18n EN. <strong>ops</strong>: Compose (SeaweedFS tạm thay MinIO), Dockerfile api/worker CUDA 12.4 + TensorRT (8,1 GB)/web, GitHub Actions CI. Kiểm tra: Python 122 test, web 30 test, ruff/mypy/tsc/eslint sạch; <strong>stack Compose chạy thật trên Mac</strong>: 9 dịch vụ healthy, web → proxy → API, API kết nối bằng pv_app. Chưa chạy: CI trên GitHub (chưa có remote), image CUDA trên GPU thật."
     }
   ],
   "log": [
@@ -120,6 +126,10 @@
     {
       "date": "2026-10-05",
       "text": "SP-07 xong trên R2 thật: upload multipart từ trình duyệt 663 MB, 8 luồng ~21 MB/s (mạng nhà), retry khi lỗi và resume sau khi đóng tab đều đạt, md5 khớp. Bucket pitchvision-spike + CORS + token giới hạn đã cấu hình."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "M1 W1 xong sớm (kế hoạch 12–16/10): 10 PR nền móng đã merge vào main — schemas, DB + RLS, khung API, cv-core Runtime + VideoReader, golden eval, web (token, component, router, i18n), Compose + Dockerfile + CI. Stack Compose chạy healthy end-to-end."
     }
   ]
 }
