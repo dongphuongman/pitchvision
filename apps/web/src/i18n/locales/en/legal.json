@@ -1,0 +1,42 @@
+{
+  "nav": "Legal documents",
+  "toc": "On this page",
+  "draftBadge": "Draft",
+  "draft": "DRAFT — placeholder structure only. This page is not the final legal text and has no legal effect. The final wording will be provided by counsel before launch.",
+  "status": "Not yet published",
+  "placeholder": "[Placeholder — the text for this section will be provided by counsel.]",
+  "terms": {
+    "title": "Terms of Service",
+    "sections": {
+      "acceptance": "Acceptance of these terms",
+      "service": "The service",
+      "accounts": "Accounts and organizations",
+      "content": "Your content",
+      "analysis": "Rights to analyze video",
+      "dataLocation": "Data location",
+      "acceptableUse": "Acceptable use",
+      "plans": "Plans, payment and usage limits",
+      "termination": "Suspension and termination",
+      "liability": "Disclaimers and limitation of liability",
+      "changes": "Changes to these terms",
+      "contact": "Contact"
+    }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "sections": {
+      "controller": "Who is responsible",
+      "data": "Data we process",
+      "purposes": "Purposes and legal bases",
+      "residency": "Where data is stored",
+      "processors": "Processors and sharing",
+      "retention": "Retention",
+      "security": "Security",
+      "rights": "Your rights",
+      "cookies": "Cookies",
+      "children": "Minors",
+      "changes": "Changes to this policy",
+      "contact": "Contact"
+    }
+  }
+}

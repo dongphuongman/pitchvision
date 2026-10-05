@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { Upload, Video } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Page, PageHeader } from '@/app/Page';
+import { RequireRole } from '@/auth/RequireRole';
 import { Button, EmptyState } from '@/ui';
 import { YoutubeIcon } from '@/ui/icons';
 import { NewAnalysisDialog } from './NewAnalysisDialog';
@@ -19,7 +20,7 @@ export function LibraryPage() {
         title={t('empty.title')}
         description={t('empty.body')}
         actions={
-          <>
+          <RequireRole min="editor">
             <Button asChild variant="primary" size="lg">
               <Link to="/library" search={{ new: 'youtube' }} state={dialogState}>
                 <YoutubeIcon size={18} />
@@ -32,10 +33,12 @@ export function LibraryPage() {
                 {t('empty.upload')}
               </Link>
             </Button>
-          </>
+          </RequireRole>
         }
       />
-      <NewAnalysisDialog />
+      <RequireRole min="editor">
+        <NewAnalysisDialog />
+      </RequireRole>
     </Page>
   );
 }

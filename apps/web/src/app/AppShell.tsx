@@ -1,5 +1,7 @@
 import { Outlet, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { can } from '@/auth/roles';
+import { useRole } from '@/auth/session';
 import type { AppDialog } from '@/router';
 import { useSearchDialog } from '@/lib/useSearchDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
@@ -14,6 +16,8 @@ function isTypingTarget(el: EventTarget | null): boolean {
 export function AppShell() {
   const navigate = useNavigate();
   const dialog = useSearchDialog<AppDialog>('dialog');
+  // N = New analysis (SCR-11) is Editor+ only, like the top-bar button.
+  const canCreate = can(useRole(), 'editor');
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -22,7 +26,7 @@ export function AppShell() {
       if (e.key === '?') {
         e.preventDefault();
         void dialog.open('shortcuts');
-      } else if (e.key === 'n' || e.key === 'N') {
+      } else if ((e.key === 'n' || e.key === 'N') && canCreate) {
         e.preventDefault();
         void navigate({
           to: '/library',
@@ -33,7 +37,7 @@ export function AppShell() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dialog, navigate]);
+  }, [dialog, navigate, canCreate]);
 
   return (
     <div className="flex min-h-screen flex-col">
