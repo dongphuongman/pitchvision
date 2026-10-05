@@ -2,10 +2,13 @@
 /**
  * Code generation for the web app's API contracts.
  *
- *   node scripts/gen.mjs [openapi|schemas|all] [--check]
+ *   node scripts/gen.mjs [openapi|identity|schemas|all] [--check]
  *
  * openapi  apps/api/openapi.json (or openapi.placeholder.json until the API PR lands)
  *          → src/api/generated/openapi.ts                       (openapi-typescript)
+ * identity apps/identity/openapi.json → src/api/generated/identity.ts (openapi-typescript)
+ *          Skipped while the file does not exist; src/api/identity-contract.ts (hand-written
+ *          from docs/contracts/identity-api.md) stands in until then.
  * schemas  packages/schemas/jsonschema/*.schema.json
  *          → src/api/generated/schemas/<name>.ts + index.ts     (json-schema-to-typescript)
  *
@@ -23,6 +26,7 @@ const REPO = resolve(WEB, '../..');
 const OUT = join(WEB, 'src/api/generated');
 const OPENAPI_REAL = join(REPO, 'apps/api/openapi.json');
 const OPENAPI_PLACEHOLDER = join(WEB, 'openapi.placeholder.json');
+const IDENTITY_OPENAPI = join(REPO, 'apps/identity/openapi.json');
 const SCHEMA_DIR = join(REPO, 'packages/schemas/jsonschema');
 
 const args = process.argv.slice(2);
@@ -42,6 +46,19 @@ async function genOpenapi() {
   const ast = await openapiTS(spec, { alphabetize: true });
   const rel = relative(REPO, src);
   return { [join(OUT, 'openapi.ts')]: await format(BANNER(rel) + astToString(ast)) };
+}
+
+async function genIdentity() {
+  if (!existsSync(IDENTITY_OPENAPI)) {
+    console.log(
+      `· skipped identity: ${relative(REPO, IDENTITY_OPENAPI)} not found (using src/api/identity-contract.ts)`,
+    );
+    return {};
+  }
+  const spec = JSON.parse(readFileSync(IDENTITY_OPENAPI, 'utf8'));
+  const ast = await openapiTS(spec, { alphabetize: true });
+  const rel = relative(REPO, IDENTITY_OPENAPI);
+  return { [join(OUT, 'identity.ts')]: await format(BANNER(rel) + astToString(ast)) };
 }
 
 /** packages/schemas/jsonschema/shot_timeline.schema.json → ShotTimeline / shot-timeline.ts */
@@ -84,6 +101,7 @@ async function genSchemas() {
 
 const generated = {
   ...(target === 'all' || target === 'openapi' ? await genOpenapi() : {}),
+  ...(target === 'all' || target === 'identity' ? await genIdentity() : {}),
   ...(target === 'all' || target === 'schemas' ? await genSchemas() : {}),
 };
 

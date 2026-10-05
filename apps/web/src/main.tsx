@@ -9,9 +9,20 @@ import { App } from './App';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('#root element missing from index.html');
+const root = rootEl;
 
-createRoot(rootEl).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+async function enableMocks(): Promise<void> {
+  // Dead-code-eliminated in production builds (import.meta.env.DEV is statically false).
+  if (import.meta.env.DEV && import.meta.env.VITE_MOCK_API === '1') {
+    const { startMockApi } = await import('./mocks/browser');
+    await startMockApi();
+  }
+}
+
+void enableMocks().then(() => {
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+});

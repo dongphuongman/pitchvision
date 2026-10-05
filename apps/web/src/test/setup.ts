@@ -1,12 +1,23 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
 import '@/i18n';
+import { resetAuthForTests } from '@/auth/session';
+import { useOnboardingDraft } from '@/features/onboarding/draft';
+import { useToastStore } from '@/ui';
+
+// Full-app tests wait for the session bootstrap + lazily imported route chunks; the 1 s default
+// is too tight when the whole suite runs in parallel.
+configure({ asyncUtilTimeout: 4000 });
 
 afterEach(() => {
   cleanup();
   document.documentElement.removeAttribute('data-theme');
   localStorage.clear();
+  sessionStorage.clear();
+  resetAuthForTests();
+  useOnboardingDraft.getState().reset();
+  useToastStore.setState({ toasts: [] });
 });
 
 // jsdom lacks these; Radix primitives and theme code rely on them.

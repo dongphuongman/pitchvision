@@ -9,6 +9,8 @@ export interface UiStrings {
   loading: string;
   dismiss: string;
   notifications: string;
+  showPassword: string;
+  hidePassword: string;
 }
 
 export function useUiStrings(): UiStrings {
@@ -18,5 +20,7 @@ export function useUiStrings(): UiStrings {
     loading: t('loading'),
     dismiss: t('dismiss'),
     notifications: t('notifications'),
+    showPassword: t('showPassword'),
+    hidePassword: t('hidePassword'),
   };
 }

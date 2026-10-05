@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderApp } from '@/test/renderApp';
+import { renderApp, testSession } from '@/test/renderApp';
 
 describe('router + app shell', () => {
   it('redirects / to the library and renders the shell', async () => {
@@ -75,9 +75,45 @@ describe('router + app shell', () => {
   });
 
   it('renders the sign-in page without the app shell', async () => {
-    renderApp('/signin');
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    renderApp('/signin', { auth: null });
+    expect(
+      await screen.findByRole('heading', { name: 'Sign in to PitchVision' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
+  });
+});
+
+describe('route guards', () => {
+  it('sends signed-out users to /signin with return_to (path + search)', async () => {
+    const { router } = renderApp('/videos/v1/overview?t=12', { auth: null });
+    await screen.findByRole('heading', { name: 'Sign in to PitchVision' });
+    expect(router.state.location.pathname).toBe('/signin');
+    expect(router.state.location.search).toEqual({ return_to: '/videos/v1/overview?t=12' });
+  });
+
+  it('sends unverified users to /verify-email and org-less users to onboarding', async () => {
+    const unverified = renderApp('/exports', { auth: testSession({ emailVerified: false }) });
+    await waitFor(() => expect(unverified.router.state.location.pathname).toBe('/verify-email'));
+    expect(unverified.router.state.location.search).toEqual({ return_to: '/exports' });
+    unverified.unmount();
+
+    const noOrg = renderApp('/exports', { auth: testSession({ memberships: [] }) });
+    await waitFor(() =>
+      expect(noOrg.router.state.location.pathname).toBe('/onboarding/organization'),
+    );
+    expect(noOrg.router.state.location.search).toEqual({ return_to: '/exports' });
+  });
+
+  it('signed-in users skip the sign-in page', async () => {
+    const { router } = renderApp('/signin?return_to=%2Fexports');
+    await screen.findByRole('heading', { name: 'Exports' });
+    expect(router.state.location.pathname).toBe('/exports');
+  });
+
+  it('drops an off-site return_to', async () => {
+    const { router } = renderApp('/signin?return_to=%2F%2Fevil.com', { auth: null });
+    await screen.findByRole('heading', { name: 'Sign in to PitchVision' });
+    expect(router.state.location.search).toEqual({});
   });
 });
 

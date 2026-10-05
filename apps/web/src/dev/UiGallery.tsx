@@ -16,6 +16,7 @@ import {
   Video,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { passwordStrength } from '@/lib/password';
 import { useThemeStore, type ThemePreference } from '@/lib/theme';
 import {
   Badge,
@@ -31,7 +32,13 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  PasswordInput,
+  SegmentedControl,
+  StrengthMeter,
   EmptyState,
   Field,
   IconButton,
@@ -71,6 +78,8 @@ function Specimens() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sw, setSw] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [pw, setPw] = useState('Correct-Horse-9');
+  const [units, setUnits] = useState('metric');
 
   return (
     <div className="flex flex-col gap-4">
@@ -158,6 +167,37 @@ function Specimens() {
           <div className="flex flex-col gap-3">
             <Switch label="Show ball trail" checked={sw} onCheckedChange={setSw} />
             <Switch label="Disabled" disabled />
+          </div>
+          <Field
+            label="Password (show / hide + strength)"
+            help={`${['Too short', 'Weak', 'Fair', 'Good', 'Strong'][passwordStrength(pw)] ?? ''} · at least 10 characters`}
+          >
+            <PasswordInput value={pw} onChange={(e) => setPw(e.target.value)} />
+          </Field>
+          <div className="flex flex-col justify-center gap-2">
+            {([0, 1, 2, 3, 4] as const).map((s) => (
+              <StrengthMeter key={s} score={s} />
+            ))}
+          </div>
+          <div className="col-span-2 flex flex-wrap items-center gap-3">
+            <SegmentedControl
+              aria-label="Units"
+              value={units}
+              onValueChange={setUnits}
+              options={[
+                { value: 'metric', label: 'Metric (m, km/h)' },
+                { value: 'imperial', label: 'Imperial (yd, mph)' },
+              ]}
+            />
+            <SegmentedControl
+              aria-label="Type (disabled)"
+              value="club"
+              disabled
+              options={[
+                { value: 'club', label: 'Club' },
+                { value: 'academy', label: 'Academy' },
+              ]}
+            />
           </div>
         </div>
       </Section>
@@ -275,6 +315,13 @@ function Specimens() {
             <DropdownMenuItem icon={<Upload size={16} />} disabled>
               Re-upload
             </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger icon={<Video size={16} />}>Move to…</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem>Riverside FC</DropdownMenuItem>
+                <DropdownMenuItem>City Academy</DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem icon={<Trash2 size={16} />} danger>
               Delete

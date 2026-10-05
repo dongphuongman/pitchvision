@@ -1,13 +1,25 @@
 import auth from './locales/en/auth.json';
 import common from './locales/en/common.json';
 import errors from './locales/en/errors.json';
+import legal from './locales/en/legal.json';
 import library from './locales/en/library.json';
+import onboarding from './locales/en/onboarding.json';
 import settings from './locales/en/settings.json';
 import ui from './locales/en/ui.json';
 import video from './locales/en/video.json';
 
 /** English is bundled (default + fallback); other languages are lazy-loaded per namespace. */
-export const en = { common, ui, library, video, settings, auth, errors } as const;
+export const en = {
+  common,
+  ui,
+  library,
+  video,
+  settings,
+  auth,
+  onboarding,
+  legal,
+  errors,
+} as const;
 
 export const NAMESPACES = Object.keys(en) as (keyof typeof en)[];
 export type Namespace = keyof typeof en;

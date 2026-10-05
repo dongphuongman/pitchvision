@@ -18,6 +18,9 @@ export {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from './DropdownMenu';
 export { EmptyState } from './EmptyState';
@@ -25,7 +28,10 @@ export { Field } from './Field';
 export { IconButton } from './IconButton';
 export { Input, Textarea } from './Input';
 export { Kbd } from './Kbd';
+export { PasswordInput, StrengthMeter } from './PasswordInput';
 export { Progress } from './Progress';
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl';
 export { Select } from './Select';
 export type { SelectOption } from './Select';
 export { Skeleton } from './Skeleton';
