@@ -1,4 +1,5 @@
 """Authentication: identity-svc RS256 access tokens verified against its JWKS (dev header stub: local only)."""
+
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 

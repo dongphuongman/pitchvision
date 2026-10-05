@@ -1,4 +1,5 @@
 """Mint identity-style access tokens with a local RSA key and serve its JWKS through httpx.MockTransport."""
+
 import json
 import time
 import uuid

@@ -1,4 +1,5 @@
 """Real-Postgres fixtures: a throwaway TimescaleDB container per session (or PV_TEST_DATABASE_URL, a superuser DSN)."""
+import json
 import os
 import shutil
 import socket
@@ -8,6 +9,7 @@ import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import psycopg
 import pytest
@@ -119,3 +121,67 @@ def migrated(pg: Db) -> Db:
     command.upgrade(alembic_config(pg), "head")
     enable_app_login(pg)
     return pg
+
+
+# ---------------------------------------------------------------- S3 (SeaweedFS, same image as compose)
+S3_IMAGE = os.environ.get("PV_TEST_S3_IMAGE", "chrislusf/seaweedfs:4.48")
+S3_KEY, S3_SECRET, S3_BUCKET = "pvtest", "pvtest-secret-123", "pv-test-data"
+
+
+@dataclass(frozen=True)
+class S3:
+    endpoint: str
+    bucket: str = S3_BUCKET
+    access_key: str = S3_KEY
+    secret_key: str = S3_SECRET
+
+
+def s3_client(endpoint: str) -> Any:
+    import boto3
+    from botocore.config import Config
+
+    return boto3.client(
+        "s3", endpoint_url=endpoint, aws_access_key_id=S3_KEY, aws_secret_access_key=S3_SECRET, region_name="us-east-1",
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}, retries={"max_attempts": 1}),
+    )  # fmt: skip
+
+
+@pytest.fixture(scope="session")
+def s3(tmp_path_factory: pytest.TempPathFactory) -> Iterator[S3]:
+    """S3 gateway for upload tests: PV_TEST_S3_ENDPOINT (credentials pvtest/pvtest-secret-123) or a container."""
+    if endpoint := os.environ.get("PV_TEST_S3_ENDPOINT"):
+        yield S3(endpoint)
+        return
+    if reason := _docker_ok():
+        pytest.skip(f"S3 tests need Docker or PV_TEST_S3_ENDPOINT — {reason}")
+    cfg = tmp_path_factory.mktemp("s3") / "s3.json"
+    identity = {"name": "t", "credentials": [{"accessKey": S3_KEY, "secretKey": S3_SECRET}],
+                "actions": ["Admin", "Read", "Write", "List", "Tagging"]}  # fmt: skip
+    cfg.write_text(json.dumps({"identities": [identity]}))
+    port = _free_port()
+    name = f"pv-api-s3-{uuid.uuid4().hex[:8]}"
+    run = subprocess.run(
+        ["docker", "run", "-d", "--rm", "--name", name, "-p", f"127.0.0.1:{port}:8333",
+         "-v", f"{cfg}:/etc/seaweedfs/s3.json:ro", S3_IMAGE,
+         "server", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json", "-dir=/data"],
+        capture_output=True, text=True, timeout=300,
+    )  # fmt: skip
+    if run.returncode != 0:
+        pytest.skip(f"could not start {S3_IMAGE}: {run.stderr.strip()[:300]}")
+    try:
+        endpoint = f"http://127.0.0.1:{port}"
+        client = s3_client(endpoint)
+        deadline, last = time.monotonic() + 90, None
+        while time.monotonic() < deadline:
+            try:  # the gateway answers before master/volume servers are ready
+                client.create_bucket(Bucket=S3_BUCKET)
+                client.put_object(Bucket=S3_BUCKET, Key="_probe", Body=b"ok")
+                break
+            except Exception as e:
+                last = e
+                time.sleep(1)
+        else:
+            raise RuntimeError(f"SeaweedFS not ready: {last!r}")
+        yield S3(endpoint)
+    finally:
+        subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=60)

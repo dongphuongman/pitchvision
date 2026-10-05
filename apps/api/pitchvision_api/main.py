@@ -12,8 +12,9 @@ from pitchvision_api.auth import DEV_ORG_HEADER, DEV_ROLE_HEADER, DEV_USER_HEADE
 from pitchvision_api.db import make_engine, make_sessionmaker
 from pitchvision_api.errors import PROBLEM_JSON, ProblemDetails, install_error_handlers
 from pitchvision_api.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
-from pitchvision_api.routers import health, meta
+from pitchvision_api.routers import health, meta, videos
 from pitchvision_api.services.idempotency import IDEMPOTENCY_HEADER, REPLAYED_HEADER, install_idempotency
+from pitchvision_api.services.storage import Storage
 from pitchvision_api.settings import Settings
 
 API_PREFIX = "/api/v1"
@@ -24,6 +25,7 @@ def api_router() -> APIRouter:
     """Everything under /api/v1. Feature routers (videos, jobs, …) are included here."""
     router = APIRouter(prefix=API_PREFIX, responses=ERROR_RESPONSES)
     router.include_router(meta.router)
+    router.include_router(videos.router)
     return router
 
 
@@ -47,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.sessionmaker = make_sessionmaker(engine)
+    app.state.storage = Storage.from_settings(settings)
     app.state.jwks = JwksClient(settings.jwks_url, timeout_s=settings.jwks_timeout_s, ttl_s=settings.jwks_cache_ttl_s)
 
     install_error_handlers(app)

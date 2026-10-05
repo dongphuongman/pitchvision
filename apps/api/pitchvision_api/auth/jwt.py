@@ -1,4 +1,5 @@
 """Access-token verification (RS256 via identity JWKS) → Principal. Claims: docs/contracts/identity-api.md."""
+
 import uuid
 from collections.abc import Mapping
 

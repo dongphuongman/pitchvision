@@ -1,4 +1,5 @@
 """Who is calling: the verified identity + active org, and role checks (viewer < editor < admin < owner)."""
+
 import uuid
 from dataclasses import dataclass
 from enum import StrEnum

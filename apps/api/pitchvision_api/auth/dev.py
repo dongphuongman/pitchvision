@@ -3,6 +3,7 @@
 Trusts `X-Dev-Org` (+ optional `X-Dev-User`, `X-Dev-Role`) ONLY when PV_ENV=local AND PV_DEV_AUTH=1
 (Settings refuses PV_DEV_AUTH outside local). Everything else goes through identity-svc JWT verification.
 """
+
 import uuid
 
 from fastapi import Request

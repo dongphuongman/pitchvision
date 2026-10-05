@@ -1,4 +1,5 @@
 """Regional JWT check (identity contract, "Regional API side"): JWKS, iss/aud/exp, claims, region, roles."""
+
 import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated

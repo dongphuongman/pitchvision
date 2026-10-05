@@ -1,10 +1,11 @@
-"""SQLAlchemy 2.0 models mirroring migration 0001 (AD §9.3). The migration is the source of truth for DDL."""
+"""SQLAlchemy 2.0 models mirroring migrations 0001+ (AD §9.3). The migration is the source of truth for DDL."""
 import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     Column,
     ForeignKeyConstraint,
@@ -44,7 +45,11 @@ class Video(Base):
     __table_args__ = (
         UniqueConstraint("id", "org_id", name="uq_videos_id_org"),
         CheckConstraint("source_type IN ('upload', 'youtube', 'rtsp', 'import')"),
-        CheckConstraint("status IN ('uploading', 'ready', 'processing', 'done', 'failed', 'deleted')"),
+        CheckConstraint(
+            "status IN ('uploading', 'ingesting', 'ready', 'processing', 'done', 'failed', 'deleted')",
+            name="videos_status_check",
+        ),
+        CheckConstraint("size_bytes >= 0"),
         Index("ix_videos_org_created", "org_id", "created_at", "id"),
     )
 
@@ -63,6 +68,12 @@ class Video(Base):
     rights_confirmed_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     deleted_at: Mapped[datetime | None]
+    # 0002: source object + upload/ingest bookkeeping
+    object_key: Mapped[str | None]
+    upload_id: Mapped[str | None]
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger())
+    thumbnail_url: Mapped[str | None]
+    error: Mapped[dict[str, Any] | None]
 
 
 class Job(Base):
