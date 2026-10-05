@@ -452,7 +452,7 @@
 <pre><code>def infer_segment(seg: SegmentTask, rt: Runtime) -> SegmentResult:
     reader   = VideoReader(seg.video_key, seg.t0, seg.t1, stride=seg.cfg.frame_stride)
     det      = rt.model("detector")        # D-FINE-M (SP-11), TensorRT FP16, batch 16
-    kp       = rt.model("pitch_keypoints") # YOLOv11-pose, 32 điểm
+    kp       = rt.model("pitch_keypoints") # YOLOv11-pose, 32 điểm (Ultralytics Enterprise)
     teams    = TeamClassifier.load(seg.team_model_key)
     tracker  = ByteTrack(fps=reader.fps / seg.cfg.frame_stride)
     hsmooth  = HomographySmoother(window=15)

@@ -46,7 +46,7 @@ PitchVision AI = web SaaS that analyses football broadcast video (detection, tea
 
 ### Remaining Work
 
-1. DONE: PO chose D-FINE (Apache-2.0) for M1-CV-04, Ultralytics Enterprise fallback; AD/PLAN/PRD updated. Open: M1-CV-05 keypoint model is YOLOv11-pose (AGPL) — needs its own decision; Objects365 licence check. Also decide self-host storage replacement for MinIO and update AD.
+1. DONE: PO chose D-FINE (Apache-2.0) for M1-CV-04, Ultralytics Enterprise fallback; AD/PLAN/PRD updated. M1-CV-05 keypoints: PO chose YOLOv11-pose under Ultralytics Enterprise licence (sign before public beta). Open: Objects365 licence check. Also decide self-host storage replacement for MinIO and update AD.
 2. Still open: SP-08 on Safari/Firefox, SP-02/SP-06 on NVIDIA when PO is ready.
 3. DONE (05/10, ahead of 12/10): M1 W1 — 10 PRs merged on main. Checks: `uv run pytest -q` (122), `uv run ruff check packages apps workers eval`, `uv run mypy …`, `uv run lint-imports`, `pnpm -C apps/web lint|typecheck|test --run|build|gen:check`. Compose stack verified healthy (infra/compose/.env is local; host ports moved to 28000/23000/25432/26379 because other projects use the defaults).
    Notes: `positions` hypertable has no RLS (Timescale compression forbids it) → read via `positions_org` view; api must sign presigned URLs with PV_STORAGE_PUBLIC_ENDPOINT (M1-BE-07); worker CUDA image 8.1 GB (AD estimated 6); no GitHub remote yet so CI never ran.

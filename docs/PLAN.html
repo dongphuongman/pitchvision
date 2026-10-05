@@ -167,6 +167,7 @@
   </table>
   <h3>Nhật ký</h3>
   <ul>
+      <li><code>2026-10-05</code> <strong>PO chốt G-LEGAL keypoint:</strong> M1-CV-05 dùng YOLOv11-pose với giấy phép Ultralytics Enterprise (ký trước public beta). Detector vẫn là D-FINE; YOLO detector là dự phòng không tốn thêm phí giấy phép.</li>
       <li><code>2026-10-05</code> M1 W1 xong sớm (kế hoạch 12–16/10): 10 PR nền móng đã merge vào main — schemas, DB + RLS, khung API, cv-core Runtime + VideoReader, golden eval, web (token, component, router, i18n), Compose + Dockerfile + CI. Stack Compose chạy healthy end-to-end.</li>
       <li><code>2026-10-05</code> SP-07 xong trên R2 thật: upload multipart từ trình duyệt 663 MB, 8 luồng ~21 MB/s (mạng nhà), retry khi lỗi và resume sau khi đóng tab đều đạt, md5 khớp. Bucket pitchvision-spike + CORS + token giới hạn đã cấu hình.</li>
       <li><code>2026-10-05</code> <strong>PO chốt G-LEGAL detector:</strong> D-FINE (Apache-2.0) làm nền cho M1-CV-04, Ultralytics Enterprise là dự phòng. Đã cập nhật AD/PLAN/PRD. Còn mở: keypoint sân M1-CV-05 (YOLOv11-pose, AGPL), giấy phép Objects365.</li>
@@ -239,7 +240,7 @@
 
   <h3>G-LEGAL mở rộng (hạn 15/01/2027)</h3>
   <ul>
-    <li><strong>Ultralytics YOLO (v8, v11) — AGPL-3.0.</strong> <strong>PO chốt 05/10/2026:</strong> detector dùng <strong>D-FINE (Apache-2.0)</strong> làm nền cho M1-CV-04 (theo SP-11); giấy phép Enterprise của Ultralytics là phương án dự phòng nếu D-FINE sau fine-tune không đạt. Còn kiểm tra: giấy phép dữ liệu Objects365 (tiền huấn luyện bản obj2coco). Keypoint sân (M1-CV-05, YOLOv11-pose) vẫn thuộc Ultralytics AGPL — cần quyết riêng.</li>
+    <li><strong>Ultralytics YOLO (v8, v11) — AGPL-3.0.</strong> <strong>PO chốt 05/10/2026:</strong> detector dùng <strong>D-FINE (Apache-2.0)</strong> làm nền cho M1-CV-04 (theo SP-11); giấy phép Enterprise của Ultralytics là phương án dự phòng nếu D-FINE sau fine-tune không đạt. Còn kiểm tra: giấy phép dữ liệu Objects365 (tiền huấn luyện bản obj2coco). Keypoint sân (M1-CV-05): <strong>PO chốt 05/10/2026 dùng YOLOv11-pose theo giấy phép Ultralytics Enterprise</strong> — phải ký Enterprise trước khi model này chạy cho khách (public beta); dev/fine-tune làm ngay. Vì đã mua Enterprise, phương án dự phòng cho detector (YOLO) không phát sinh thêm chi phí giấy phép.</li>
     <li>Trọng số pitch-keypoint của roboflow/sports (huấn luyện bằng YOLOv8 → AGPL) — chỉ dùng cho spike.</li>
     <li>Điều khoản dataset SoccerNet (một phần chỉ cho nghiên cứu) và các baseline calibration mã mở.</li>
     <li>Không đổi: tải YouTube, bản quyền broadcast, DMCA, thời gian lưu video gốc.</li>

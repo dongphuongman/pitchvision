@@ -130,6 +130,10 @@
     {
       "date": "2026-10-05",
       "text": "M1 W1 xong sớm (kế hoạch 12–16/10): 10 PR nền móng đã merge vào main — schemas, DB + RLS, khung API, cv-core Runtime + VideoReader, golden eval, web (token, component, router, i18n), Compose + Dockerfile + CI. Stack Compose chạy healthy end-to-end."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "<strong>PO chốt G-LEGAL keypoint:</strong> M1-CV-05 dùng YOLOv11-pose với giấy phép Ultralytics Enterprise (ký trước public beta). Detector vẫn là D-FINE; YOLO detector là dự phòng không tốn thêm phí giấy phép."
     }
   ]
 }
