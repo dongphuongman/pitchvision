@@ -1,0 +1,66 @@
+# syntax=docker/dockerfile:1.7
+# pitchvision-api — FastAPI api + identity (AD §5.1). Build context: repository root.
+#
+#   docker build -f infra/docker/Dockerfile.api -t pitchvision-api:dev .
+#
+# Installs ONLY pitchvision-api and its workspace deps (pitchvision-schemas). cv-core,
+# workers, numpy/onnxruntime/CUDA never enter this image (also enforced by import-linter).
+#
+# Commands (see api-entrypoint.sh): api (default) | identity | migrate | <any command>
+
+ARG PYTHON_IMAGE=python:3.12-slim
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.9.28
+
+FROM ${UV_IMAGE} AS uv
+
+# ---------------------------------------------------------------- builder
+FROM ${PYTHON_IMAGE} AS builder
+COPY --from=uv /uv /usr/local/bin/uv
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PYTHON=python3.12 \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
+WORKDIR /src
+
+# 1) Third-party deps only — cached until uv.lock or a manifest changes.
+#    uv needs every workspace member's pyproject.toml to load the workspace, even the
+#    ones it will not install. Keep this list in sync with [tool.uv.workspace].members.
+COPY pyproject.toml uv.lock ./
+COPY packages/schemas/pyproject.toml packages/schemas/
+COPY packages/cv-core/pyproject.toml packages/cv-core/
+COPY apps/api/pyproject.toml apps/api/
+COPY workers/pyproject.toml workers/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-workspace --package pitchvision-api
+
+# 2) Our code, installed as regular (non-editable) wheels.
+COPY packages/schemas packages/schemas
+COPY apps/api apps/api
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable --package pitchvision-api
+
+# ---------------------------------------------------------------- runtime
+FROM ${PYTHON_IMAGE} AS runtime
+ARG APP_UID=10001
+RUN groupadd --system --gid ${APP_UID} app \
+ && useradd --system --uid ${APP_UID} --gid app --home-dir /app --shell /usr/sbin/nologin app
+WORKDIR /app
+
+COPY --from=builder /app/.venv /app/.venv
+# Alembic config + migration scripts are read from disk by `migrate`.
+COPY --from=builder /src/apps/api /app/apps/api
+COPY --chmod=0755 infra/docker/api-entrypoint.sh /usr/local/bin/pv-api
+
+ENV PATH=/app/.venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000
+
+USER app
+EXPOSE 8000
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen(f\"http://127.0.0.1:{os.environ.get('PORT', '8000')}/healthz\", timeout=3)"]
+
+ENTRYPOINT ["pv-api"]
+CMD ["api"]
