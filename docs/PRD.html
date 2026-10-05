@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PitchVision AI — PRD</title>
+<style>
+  :root{
+    --bg:#0b1016; --bg-2:#121a24; --bg-3:#18222e;
+    --line:#243345; --line-soft:#1b2734;
+    --fg:#e6edf5; --fg-2:#9fb0c3; --fg-3:#6e8299;
+    --accent:#3ddc84; --accent-2:#4da3ff; --warn:#ffb648; --danger:#ff6b6b;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f6f8fa; --bg-2:#ffffff; --bg-3:#eef2f6;
+      --line:#d8e0e8; --line-soft:#e6ecf2;
+      --fg:#15202b; --fg-2:#4a5d70; --fg-3:#73849a;
+      --accent:#0f9d58; --accent-2:#1a73e8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1016; --bg-2:#121a24; --bg-3:#18222e;
+    --line:#243345; --line-soft:#1b2734;
+    --fg:#e6edf5; --fg-2:#9fb0c3; --fg-3:#6e8299;
+    --accent:#3ddc84; --accent-2:#4da3ff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:80px}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:var(--sans); font-size:15px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:0 16px; display:grid; grid-template-columns:240px 1fr; gap:40px}
+  @media(max-width:900px){ .wrap{grid-template-columns:1fr; gap:0} nav.toc{display:none} }
+
+  /* header */
+  header.top{
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg,var(--bg-2),var(--bg));
+    padding:48px 0 36px; margin-bottom:28px;
+  }
+  header.top .inner{max-width:1180px;margin:0 auto;padding:0 16px}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin:0 0 10px}
+  h1{font-size:clamp(28px,5vw,44px); line-height:1.1; margin:0 0 12px; letter-spacing:-.02em}
+  .sub{color:var(--fg-2); font-size:17px; max-width:62ch; margin:0 0 20px}
+  .meta{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{font-family:var(--mono); font-size:11.5px; padding:4px 10px; border:1px solid var(--line);
+        border-radius:999px; color:var(--fg-2); background:var(--bg-3)}
+  .chip.on{border-color:var(--accent); color:var(--accent)}
+
+  /* toc */
+  nav.toc{position:sticky; top:24px; align-self:start; max-height:calc(100vh - 48px); overflow:auto; padding-bottom:40px}
+  nav.toc div.t{font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--fg-3); margin:0 0 10px}
+  nav.toc a{display:block; color:var(--fg-2); text-decoration:none; font-size:13.5px; padding:5px 10px;
+            border-left:2px solid var(--line-soft); line-height:1.4}
+  nav.toc a:hover{color:var(--fg); border-left-color:var(--accent); background:var(--bg-3)}
+
+  main{min-width:0; padding-bottom:80px}
+  section{margin:0 0 52px; scroll-margin-top:24px}
+  h2{font-size:24px; letter-spacing:-.01em; margin:0 0 6px; padding-bottom:10px; border-bottom:1px solid var(--line)}
+  h2 .n{font-family:var(--mono); font-size:14px; color:var(--accent); margin-right:10px}
+  h3{font-size:17px; margin:26px 0 8px; color:var(--fg)}
+  h4{font-size:14.5px; margin:18px 0 6px; color:var(--fg-2); font-family:var(--mono); font-weight:600}
+  p{margin:0 0 12px; color:var(--fg-2)}
+  p strong, li strong{color:var(--fg)}
+  ul,ol{margin:0 0 14px; padding-left:22px; color:var(--fg-2)}
+  li{margin:4px 0}
+  code{font-family:var(--mono); font-size:12.5px; background:var(--bg-3); border:1px solid var(--line-soft);
+       padding:1px 5px; border-radius:5px; color:var(--accent-2)}
+  pre{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px;
+      overflow:auto; font-family:var(--mono); font-size:12.5px; line-height:1.55; color:var(--fg-2); margin:0 0 16px}
+  pre code{background:none;border:none;padding:0;color:inherit}
+
+  table{width:100%; border-collapse:collapse; margin:0 0 18px; font-size:13.5px; display:block; overflow-x:auto}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line-soft); vertical-align:top}
+  th{color:var(--fg-3); font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+     border-bottom:1px solid var(--line); white-space:nowrap}
+  td{color:var(--fg-2)}
+  tbody tr:hover{background:var(--bg-2)}
+  td code{white-space:nowrap}
+
+  .card{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin:0 0 16px}
+  .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; margin-bottom:16px}
+  .card h4{margin-top:0}
+  .card p:last-child,.card ul:last-child{margin-bottom:0}
+
+  .note{border-left:3px solid var(--accent-2); background:var(--bg-2); padding:12px 16px; border-radius:0 var(--radius) var(--radius) 0; margin:0 0 16px}
+  .note.warn{border-left-color:var(--warn)}
+  .note.risk{border-left-color:var(--danger)}
+  .note p:last-child{margin-bottom:0}
+  .note .lbl{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent-2); display:block; margin-bottom:4px}
+  .note.warn .lbl{color:var(--warn)} .note.risk .lbl{color:var(--danger)}
+
+  .pill{display:inline-block; font-family:var(--mono); font-size:10.5px; padding:2px 7px; border-radius:4px;
+        border:1px solid var(--line); color:var(--fg-3); white-space:nowrap}
+  .p-must{border-color:#ff6b6b55; color:#ff8a8a; background:#ff6b6b12}
+  .p-should{border-color:#ffb64855; color:#ffc473; background:#ffb64812}
+  .p-could{border-color:#4da3ff55; color:#7dbcff; background:#4da3ff12}
+  .p-m1{border-color:#3ddc8455;color:#5fe8a0;background:#3ddc8412}
+  .p-m2{border-color:#4da3ff55;color:#7dbcff;background:#4da3ff12}
+  .p-m3{border-color:#ffb64855;color:#ffc473;background:#ffb64812}
+  .p-m4{border-color:#b07cff55;color:#c49bff;background:#b07cff12}
+
+  .ascii{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:16px;
+         overflow-x:auto; font-family:var(--mono); font-size:11.5px; line-height:1.45; color:var(--fg-2); margin:0 0 16px; white-space:pre}
+
+  .kpi{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:18px}
+  .kpi div{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:14px}
+  .kpi .v{font-size:24px; font-weight:650; color:var(--accent); letter-spacing:-.02em; font-family:var(--mono)}
+  .kpi .k{font-size:12px; color:var(--fg-3); margin-top:2px}
+
+  footer{border-top:1px solid var(--line); padding:24px 16px 60px; color:var(--fg-3); font-size:12.5px;
+         max-width:1180px; margin:0 auto; font-family:var(--mono)}
+  .theme{position:fixed; right:16px; bottom:16px; background:var(--bg-2); border:1px solid var(--line);
+         color:var(--fg-2); border-radius:999px; padding:8px 14px; font-family:var(--mono); font-size:12px; cursor:pointer; z-index:50}
+  .theme:hover{color:var(--fg); border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="inner">
+    <p class="eyebrow">Product Requirements Document · v1.3</p>
+    <h1>PitchVision AI</h1>
+    <p class="sub">Nền tảng web phân tích video bóng đá bằng Computer Vision: phát hiện cầu thủ, phân loại đội, tracking đa đối tượng, chiếu toạ độ lên sơ đồ chiến thuật 2D và sinh báo cáo chiến thuật tự động.</p>
+    <div class="meta">
+      <span class="chip on">Web App</span>
+      <span class="chip">Upload · RTSP · YouTube</span>
+      <span class="chip">D-FINE + ByteTrack</span>
+      <span class="chip">FastAPI + React</span>
+      <span class="chip on">Global · EN-first</span>
+      <span class="chip on">Đợt 1: Broadcast-first</span>
+      <span class="chip on">Self-host + Cloud GPU</span>
+      <span class="chip">Ngày: 2026-10-05</span>
+      <span class="chip">Owner: dongman</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<nav class="toc">
+  <div class="t">Mục lục</div>
+  <a href="#s1">1. Tổng quan &amp; Mục tiêu</a>
+  <a href="#s2">2. Người dùng &amp; Use case</a>
+  <a href="#s3">3. Phạm vi sản phẩm</a>
+  <a href="#s4">4. User stories</a>
+  <a href="#s5">5. Yêu cầu chức năng</a>
+  <a href="#s6">6. Pipeline xử lý CV</a>
+  <a href="#s7">7. Kiến trúc hệ thống</a>
+  <a href="#s8">8. Mô hình dữ liệu</a>
+  <a href="#s9">9. Đặc tả API</a>
+  <a href="#s10">10. Giao diện (UX)</a>
+  <a href="#s11">11. Yêu cầu phi chức năng</a>
+  <a href="#s12">12. Chỉ số thành công</a>
+  <a href="#s13">13. Lộ trình &amp; Milestone</a>
+  <a href="#s14">14. Rủi ro &amp; Giảm thiểu</a>
+  <a href="#s15">15. Ngoài phạm vi</a>
+  <a href="#s16">16. Câu hỏi mở</a>
+</nav>
+
+<main>
+
+<!-- ============ 1 ============ -->
+<section id="s1">
+  <h2><span class="n">01</span>Tổng quan &amp; Mục tiêu</h2>
+
+  <h3>1.1 Bối cảnh</h3>
+  <p>Phân tích chiến thuật bóng đá hiện nay phụ thuộc vào hai nguồn: (a) dữ liệu tracking thương mại từ Stats Perform / Second Spectrum — chính xác nhưng giá hàng chục nghìn USD/mùa và chỉ phục vụ giải đấu lớn; (b) phân tích thủ công bằng mắt — rẻ nhưng tốn hàng giờ cho mỗi trận và không tạo ra dữ liệu định lượng.</p>
+  <p>Khoảng trống nằm ở giữa: các CLB hạng dưới, học viện trẻ, đội bóng đại học, nhà phân tích độc lập và creator nội dung đều có video trận đấu (camera khán đài, broadcast, YouTube) nhưng không có công cụ biến video đó thành dữ liệu.</p>
+
+  <h3>1.2 Tuyên bố sản phẩm</h3>
+  <div class="card">
+    <p style="margin:0"><strong>PitchVision AI</strong> nhận vào một video trận đấu bất kỳ và trả ra: video đã annotate (bounding box + nhãn đội + confidence), bản đồ chiến thuật 2D thời gian thực, dữ liệu tracking theo từng cầu thủ, bộ thống kê trận đấu, và một báo cáo chiến thuật do AI sinh ra — tất cả trong trình duyệt, không cần cài đặt.</p>
+  </div>
+
+  <h3>1.3 Quyết định đã chốt</h3>
+  <table>
+    <thead><tr><th>Quyết định</th><th>Lựa chọn</th><th>Hệ quả</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Thị trường</strong></td><td>Quốc tế ngay từ đầu</td><td>Tiếng Anh là ngôn ngữ chính của UI, tài liệu, báo cáo AI; dataset fine-tune phải đa dạng nhiều giải/quốc gia/góc camera; tuân thủ GDPR/CCPA; thanh toán Stripe đa tiền tệ.</td></tr>
+      <tr><td><strong>Hạ tầng GPU</strong></td><td>Hỗ trợ cả self-host và cloud</td><td>Pipeline CV đóng gói thành container độc lập phần cứng; tầng <code>ComputeBackend</code> trừu tượng; 2 cấu hình triển khai (xem mục 7.3).</td></tr>
+      <tr><td><strong>Ưu tiên đợt 1</strong></td><td>Trận đã phát sóng (YouTube URL / file broadcast)</td><td>Persona chính: analyst, scout đối thủ, creator. Thêm phân loại cảnh (bỏ replay/cận cảnh), tracking xuyên cắt cảnh, đồng hồ trận từ scoreboard; thống kê kèm <strong>độ phủ</strong>. <strong>Live RTSP/RTMP (US-07, FR-103), camera riêng (Veo/khán đài), 9v9/7v7 → Phase C sau 1.0.</strong> Thêm cổng rà soát pháp lý YouTube/bản quyền trước public beta. Chi tiết: PLAN v1.1.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.4 Mục tiêu kinh doanh (12 tháng đầu)</h3>
+  <ul>
+    <li><strong>G1</strong> — Đạt 500 người dùng đăng ký và 100 video được phân tích hoàn chỉnh mỗi tuần.</li>
+    <li><strong>G2</strong> — Giảm thời gian từ "có video" đến "có insight chiến thuật" từ ~4 giờ thủ công xuống dưới 15 phút.</li>
+    <li><strong>G3</strong> — Chuyển đổi 5% người dùng free sang gói trả phí (Pro) trong 6 tháng sau khi ra mắt tính năng thống kê.</li>
+    <li><strong>G4</strong> — Xây dựng được bộ dataset nội bộ (có dán nhãn) ≥ 50.000 frame từ dữ liệu người dùng đóng góp, dùng để fine-tune mô hình.</li>
+  </ul>
+
+  <h3>1.5 Mục tiêu kỹ thuật</h3>
+  <div class="kpi">
+    <div><div class="v">≥ 0.85</div><div class="k">mAP@50 detect cầu thủ</div></div>
+    <div><div class="v">≥ 92%</div><div class="k">Độ chính xác phân đội</div></div>
+    <div><div class="v">≥ 70</div><div class="k">HOTA score tracking</div></div>
+    <div><div class="v">≤ 2.0 m</div><div class="k">Sai số toạ độ trên sân</div></div>
+    <div><div class="v">≥ 50 FPS</div><div class="k">Throughput offline / 1 GPU T4</div></div>
+    <div><div class="v">≤ 20 phút</div><div class="k">Trận 90' · 1× RTX 4090 hoặc 2× L4</div></div>
+    <div><div class="v">≥ 15 FPS</div><div class="k">Throughput live stream</div></div>
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="s2">
+  <h2><span class="n">02</span>Người dùng &amp; Use case</h2>
+
+  <h3>2.1 Chân dung người dùng</h3>
+  <table>
+    <thead><tr><th>Persona</th><th>Mô tả</th><th>Nhu cầu cốt lõi</th><th>Nỗi đau hiện tại</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>HLV / Trợ lý HLV</strong><br><span class="pill">Chính</span></td>
+        <td>CLB hạng 2–3, học viện trẻ, đội đại học. Không rành kỹ thuật.</td>
+        <td>Xem lại trận, hiểu đội hình đối thủ, đo quãng đường chạy của học trò.</td>
+        <td>Ngồi tua video 90 phút, ghi chép tay, không có số liệu để thuyết phục cầu thủ.</td>
+      </tr>
+      <tr>
+        <td><strong>Nhà phân tích hiệu suất</strong><br><span class="pill">Chính</span></td>
+        <td>Chuyên viên performance analysis, biết đọc dữ liệu, dùng Excel/Tableau.</td>
+        <td>Export dữ liệu thô (toạ độ, event) để tự xử lý; heatmap; so sánh giữa các trận.</td>
+        <td>Công cụ thương mại quá đắt; tool miễn phí chỉ cho xem, không cho export.</td>
+      </tr>
+      <tr>
+        <td><strong>Creator nội dung thể thao</strong><br><span class="pill">Phụ</span></td>
+        <td>YouTuber/TikToker làm nội dung phân tích chiến thuật.</td>
+        <td>Video annotate đẹp, tactical map để chèn vào clip, render nhanh.</td>
+        <td>Phải vẽ tay trên Photoshop/After Effects từng pha bóng.</td>
+      </tr>
+      <tr>
+        <td><strong>Kỹ sư ML / Nhà nghiên cứu</strong><br><span class="pill">Phụ</span></td>
+        <td>Nghiên cứu sinh, dev muốn dùng dữ liệu tracking.</td>
+        <td>Truy cập API, export JSON/CSV chuẩn, chạy batch nhiều video.</td>
+        <td>Phải tự build pipeline từ đầu, mất hàng tháng.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.2 Use case chính</h3>
+  <ol>
+    <li><strong>UC-01 — Phân tích trận sau khi đá:</strong> HLV upload file MP4 90 phút → hệ thống xử lý nền → nhận email khi xong → xem video annotate, tactical map, heatmap, báo cáo.</li>
+    <li><strong>UC-02 — Theo dõi buổi tập trực tiếp:</strong> Kết nối camera RTSP trên sân tập → xem overlay realtime và tactical map ngay trên tablet bên đường biên.</li>
+    <li><strong>UC-03 — Soi giò đối thủ:</strong> Dán link YouTube trận đấu của đối thủ → hệ thống tải, xử lý, trả về sơ đồ đội hình trung bình và vùng hoạt động.</li>
+    <li><strong>UC-04 — Trích dữ liệu thô:</strong> Analyst gọi API lấy JSON toàn bộ track → nạp vào notebook để tự tính chỉ số riêng.</li>
+    <li><strong>UC-05 — Cắt clip minh hoạ:</strong> Creator chọn khoảng 00:34–00:52, bật/tắt từng lớp overlay, export MP4 + tactical map riêng.</li>
+  </ol>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="s3">
+  <h2><span class="n">03</span>Phạm vi sản phẩm</h2>
+  <p>Toàn bộ 4 nhóm năng lực đều nằm trong phạm vi, nhưng được giao theo 4 giai đoạn để kiểm soát rủi ro. Ký hiệu: <span class="pill p-m1">M1</span> <span class="pill p-m2">M2</span> <span class="pill p-m3">M3</span> <span class="pill p-m4">M4</span></p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>A · Detection &amp; Tactical Map <span class="pill p-m1">M1</span></h4>
+      <ul>
+        <li>Phát hiện cầu thủ, thủ môn, trọng tài, bóng</li>
+        <li>Phân loại đội theo màu áo (clustering không giám sát)</li>
+        <li>Overlay bbox + nhãn + confidence (như ảnh tham chiếu)</li>
+        <li>Phát hiện đường kẻ sân &amp; keypoint → homography</li>
+        <li>Tactical map 2D đồng bộ với video</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>B · Tracking &amp; Nhận dạng <span class="pill p-m2">M2</span></h4>
+      <ul>
+        <li>Multi-object tracking, ID ổn định qua các frame</li>
+        <li>Re-identification sau khi che khuất / ra khỏi khung hình</li>
+        <li>OCR số áo, bỏ phiếu theo thời gian để chốt số</li>
+        <li>Gán tên cầu thủ thủ công từ danh sách đội hình</li>
+        <li>Theo dõi bóng &amp; xác định ai đang giữ bóng</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>C · Thống kê trận đấu <span class="pill p-m3">M3</span></h4>
+      <ul>
+        <li>Kiểm soát bóng (theo đội / theo cầu thủ / theo khu vực)</li>
+        <li>Quãng đường chạy, tốc độ tức thời &amp; tối đa, số lần nước rút</li>
+        <li>Heatmap &amp; vùng hoạt động trung bình</li>
+        <li>Phát hiện đường chuyền, sơ đồ mạng lưới chuyền bóng</li>
+        <li>Dashboard so sánh 2 đội, export CSV/JSON/PDF</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>D · Phân tích chiến thuật AI <span class="pill p-m4">M4</span></h4>
+      <ul>
+        <li>Nhận diện sơ đồ đội hình (4-3-3, 4-2-3-1, 3-5-2…)</li>
+        <li>Dòng phòng ngự, độ nén đội hình, chiều cao hàng thủ</li>
+        <li>Phát hiện khoảng trống &amp; cơ hội chuyền xuyên tuyến</li>
+        <li>Phát hiện bẫy việt vị</li>
+        <li>Báo cáo chiến thuật bằng ngôn ngữ tự nhiên (LLM)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="s4">
+  <h2><span class="n">04</span>User stories</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Story</th><th>Tiêu chí chấp nhận</th><th>Ưu tiên</th><th>Mốc</th></tr></thead>
+    <tbody>
+      <tr><td><code>US-01</code></td><td>Là HLV, tôi muốn upload file video trận đấu để hệ thống phân tích.</td><td>Hỗ trợ MP4/MKV/AVI ≤ 5GB; upload theo chunk có thể tiếp tục khi đứt mạng; hiển thị % tiến trình; báo lỗi rõ ràng nếu codec không hỗ trợ.</td><td><span class="pill p-must">Must</span></td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td><code>US-02</code></td><td>Là HLV, tôi muốn thấy khung bao quanh từng cầu thủ kèm tên đội để biết hệ thống nhận đúng.</td><td>Mỗi bbox có nhãn <code>&lt;Đội&gt; &lt;confidence&gt;</code>; màu khung theo đội; trọng tài màu riêng; bóng có marker riêng.</td><td><span class="pill p-must">Must</span></td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td><code>US-03</code></td><td>Là HLV, tôi muốn xem bản đồ chiến thuật nhìn từ trên xuống bên cạnh video.</td><td>Sân 2D tỉ lệ chuẩn 105×68m; chấm tròn theo màu đội; cập nhật đồng bộ ±1 frame với video; tua video thì map tua theo.</td><td><span class="pill p-must">Must</span></td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td><code>US-04</code></td><td>Là người dùng, tôi muốn biết công việc đang xử lý đến đâu.</td><td>Thanh tiến trình theo %, số frame đã xử lý, FPS hiện tại, thời gian còn lại ước tính; cập nhật qua WebSocket ≤ 2s một lần.</td><td><span class="pill p-must">Must</span></td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td><code>US-05</code></td><td>Là creator, tôi muốn tải về video đã annotate.</td><td>Export MP4 H.264; chọn bật/tắt từng lớp overlay; chọn khoảng thời gian; có watermark ở gói free.</td><td><span class="pill p-should">Should</span></td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td><code>US-06</code></td><td>Là HLV, tôi muốn dán link YouTube thay vì phải tải file về.</td><td>Nhận URL YouTube hợp lệ; tải ở độ phân giải ≥ 720p; báo lỗi rõ khi video bị giới hạn; tôn trọng điều khoản bản quyền (chỉ cho nội dung người dùng có quyền).</td><td><span class="pill p-should">Should</span></td><td><span class="pill p-m2">M2</span></td></tr>
+      <tr><td><code>US-07</code></td><td>Là HLV, tôi muốn kết nối camera sân tập qua RTSP để xem phân tích trực tiếp.</td><td>Nhập URL RTSP/RTMP; độ trễ đầu-cuối ≤ 3s; tự kết nối lại khi mất tín hiệu; vẫn giữ ≥ 15 FPS.</td><td><span class="pill p-should">Should</span></td><td><span class="pill p-m2">M2</span></td></tr>
+      <tr><td><code>US-08</code></td><td>Là analyst, tôi muốn mỗi cầu thủ có một ID giữ nguyên suốt trận.</td><td>HOTA ≥ 70 trên tập kiểm thử nội bộ; số lần đổi ID &lt; 5 cho mỗi cầu thủ trong 10 phút; ID giữ nguyên sau khi bị che ≤ 2 giây.</td><td><span class="pill p-must">Must</span></td><td><span class="pill p-m2">M2</span></td></tr>
+      <tr><td><code>US-09</code></td><td>Là HLV, tôi muốn hệ thống đọc số áo để biết ai là ai.</td><td>Đọc đúng ≥ 75% số áo nhìn rõ; cho phép sửa tay; sau khi gán tên, tên hiển thị thay cho ID ở mọi nơi.</td><td><span class="pill p-should">Should</span></td><td><span class="pill p-m2">M2</span></td></tr>
+      <tr><td><code>US-10</code></td><td>Là HLV, tôi muốn biết đội mình kiểm soát bóng bao nhiêu phần trăm.</td><td>Tính theo thời gian giữ bóng; chia theo hiệp/15 phút/toàn trận; sai lệch &lt; 5% so với số liệu đối chiếu thủ công.</td><td><span class="pill p-must">Must</span></td><td><span class="pill p-m3">M3</span></td></tr>
+      <tr><td><code>US-11</code></td><td>Là HLV, tôi muốn biết cầu thủ chạy bao nhiêu km và tốc độ tối đa.</td><td>Quãng đường tính từ toạ độ sân đã làm mượt; sai số &lt; 8% so với GPS vest đối chiếu; bảng xếp hạng theo cầu thủ.</td><td><span class="pill p-must">Must</span></td><td><span class="pill p-m3">M3</span></td></tr>
+      <tr><td><code>US-12</code></td><td>Là analyst, tôi muốn xem heatmap vùng hoạt động của từng cầu thủ và cả đội.</td><td>Heatmap trên sân 2D; lọc theo cầu thủ/đội/khoảng thời gian; export PNG.</td><td><span class="pill p-should">Should</span></td><td><span class="pill p-m3">M3</span></td></tr>
+      <tr><td><code>US-13</code></td><td>Là analyst, tôi muốn export toàn bộ dữ liệu thô.</td><td>JSON theo từng frame (track_id, team, x, y, conf) và CSV tổng hợp; file ≤ 200MB cho trận 90 phút; có schema version.</td><td><span class="pill p-should">Should</span></td><td><span class="pill p-m3">M3</span></td></tr>
+      <tr><td><code>US-14</code></td><td>Là HLV, tôi muốn biết đối thủ chơi sơ đồ gì.</td><td>Phát hiện sơ đồ phổ biến với độ tin cậy; hiển thị theo giai đoạn (có bóng / không bóng); vẽ vị trí trung bình.</td><td><span class="pill p-could">Could</span></td><td><span class="pill p-m4">M4</span></td></tr>
+      <tr><td><code>US-15</code></td><td>Là HLV, tôi muốn một bản tóm tắt chiến thuật bằng ngôn ngữ của mình, dễ đọc.</td><td>Mặc định tiếng Anh; hỗ trợ ES, PT, DE, FR, VI; báo cáo 300–600 từ sinh từ dữ liệu định lượng; mọi nhận định đều kèm số liệu dẫn chứng; xuất PDF.</td><td><span class="pill p-could">Could</span></td><td><span class="pill p-m4">M4</span></td></tr>
+      <tr><td><code>US-16</code></td><td>Là người dùng, tôi muốn sửa lại chỗ AI nhận sai.</td><td>Sửa nhãn đội, gộp/tách track, xoá detection sai; thay đổi được lưu và dùng lại khi tính thống kê.</td><td><span class="pill p-should">Should</span></td><td><span class="pill p-m3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="s5">
+  <h2><span class="n">05</span>Yêu cầu chức năng</h2>
+
+  <h3>5.1 Tiếp nhận video (FR-100)</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Yêu cầu</th><th>Chi tiết</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-101</code></td><td>Upload file</td><td>MP4, MKV, AVI, MOV. Tối đa 5GB / 150 phút. Upload chunked 5MB, có resume. Kiểm tra codec bằng <code>ffprobe</code> trước khi nhận.</td></tr>
+      <tr><td><code>FR-102</code></td><td>Nhập URL YouTube</td><td>Dùng <code>yt-dlp</code>. Ưu tiên luồng 720p/1080p. Chặn video &gt; 3 giờ. Yêu cầu người dùng xác nhận có quyền sử dụng nội dung.</td></tr>
+      <tr><td><code>FR-103</code></td><td>Kết nối live stream</td><td>RTSP, RTMP, HLS. Kiểm tra kết nối trước khi lưu. Tự kết nối lại tối đa 5 lần, backoff luỹ thừa.</td></tr>
+      <tr><td><code>FR-104</code></td><td>Chuẩn hoá đầu vào</td><td>Chuyển về H.264, giữ FPS gốc, scale cạnh dài về 1280px. Trích metadata: thời lượng, FPS, độ phân giải.</td></tr>
+      <tr><td><code>FR-105</code></td><td>Lấy mẫu frame</td><td>Cho phép chọn bước nhảy frame (1 = mọi frame, 2 = mỗi 2 frame…) để đánh đổi tốc độ/độ chính xác.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2 Phát hiện &amp; Phân đội (FR-200)</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Yêu cầu</th><th>Chi tiết</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-201</code></td><td>Phát hiện đối tượng</td><td>4 lớp: <code>player</code>, <code>goalkeeper</code>, <code>referee</code>, <code>ball</code>. Mô hình D-FINE-M (Apache-2.0) fine-tune trên dữ liệu bóng đá (chốt 05/10/2026 theo SP-11; Ultralytics Enterprise là dự phòng). Ngưỡng confidence mặc định 0.35, chỉnh được.</td></tr>
+      <tr><td><code>FR-202</code></td><td>Phân loại đội</td><td>Trích vector màu/đặc trưng từ vùng thân áo (phần giữa bbox) → gom cụm K-Means (k=2) hoặc so khớp embedding SigLIP + UMAP. Phải ổn định xuyên suốt video, không đảo đội giữa chừng.</td></tr>
+      <tr><td><code>FR-203</code></td><td>Gán nhãn đội</td><td>Người dùng đặt tên cho mỗi cụm (ví dụ "France" / "Switzerland") và chọn màu hiển thị. Lưu lại cho các lần xử lý sau.</td></tr>
+      <tr><td><code>FR-204</code></td><td>Tách thủ môn</td><td>Thủ môn mặc áo khác đội → nhận dạng riêng, không gom vào cụm đội, gán về đội theo vị trí trên sân (gần khung thành nào).</td></tr>
+      <tr><td><code>FR-205</code></td><td>Lọc nhiễu</td><td>Loại bỏ detection ngoài biên sân, khán giả trên khán đài, người trên băng ghế — dựa trên mask vùng sân.</td></tr>
+      <tr><td><code>FR-206</code></td><td>Overlay annotate</td><td>Bbox + nhãn <code>Đội Conf</code> + icon marker. Khớp đúng phong cách tham chiếu. Bật/tắt từng lớp độc lập.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.3 Hiệu chỉnh sân &amp; Tactical map (FR-300)</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Yêu cầu</th><th>Chi tiết</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-301</code></td><td>Phát hiện keypoint sân</td><td>Mô hình pose/keypoint phát hiện 32 điểm mốc sân (góc sân, giao điểm vạch 16m50, vòng tròn giữa sân, chấm phạt đền…).</td></tr>
+      <tr><td><code>FR-302</code></td><td>Ước lượng homography</td><td>Từ ≥ 4 keypoint hợp lệ → ma trận 3×3 bằng RANSAC. Làm mượt theo thời gian để tránh map rung khi camera di chuyển.</td></tr>
+      <tr><td><code>FR-303</code></td><td>Chiếu toạ độ</td><td>Lấy điểm giữa cạnh đáy bbox (vị trí chân) → nhân ma trận homography → toạ độ mét trên sân 105×68.</td></tr>
+      <tr><td><code>FR-304</code></td><td>Hiệu chỉnh thủ công</td><td>Khi tự động thất bại, người dùng kéo 4 điểm góc trên frame để tự chỉnh.</td></tr>
+      <tr><td><code>FR-305</code></td><td>Vẽ tactical map</td><td>Canvas 2D vẽ sân chuẩn + chấm cầu thủ + bóng. Hiển thị đuôi di chuyển (trail) 3 giây gần nhất. Đồng bộ với thanh thời gian video.</td></tr>
+      <tr><td><code>FR-306</code></td><td>Cờ chất lượng</td><td>Mỗi frame kèm điểm tin cậy homography; frame dưới ngưỡng bị đánh dấu và loại khỏi phần tính thống kê.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.4 Tracking &amp; Nhận dạng (FR-400)</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Yêu cầu</th><th>Chi tiết</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-401</code></td><td>Multi-object tracking</td><td>ByteTrack (mặc định) hoặc BoT-SORT có ReID. Mỗi đối tượng một <code>track_id</code> bền vững.</td></tr>
+      <tr><td><code>FR-402</code></td><td>Re-identification</td><td>Embedding ngoại hình (OSNet) để nối lại track sau khi bị che hoặc ra khỏi khung hình ≤ 10 giây.</td></tr>
+      <tr><td><code>FR-403</code></td><td>Theo dõi bóng</td><td>Mô hình riêng cho bóng (vật thể nhỏ, chuyển động nhanh): tile inference + nội suy Kalman khi mất dấu.</td></tr>
+      <tr><td><code>FR-404</code></td><td>OCR số áo</td><td>Cắt vùng lưng áo → mô hình nhận dạng số → bỏ phiếu đa số qua ≥ 20 frame để chốt số cho mỗi track.</td></tr>
+      <tr><td><code>FR-405</code></td><td>Gán danh tính</td><td>Nhập đội hình (tên + số áo) → tự ghép với track theo số áo đã OCR → cho sửa tay.</td></tr>
+      <tr><td><code>FR-406</code></td><td>Xác định người giữ bóng</td><td>Cầu thủ gần bóng nhất trong bán kính 2m và duy trì ≥ 0.4s được tính là đang giữ bóng.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.5 Thống kê (FR-500)</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Yêu cầu</th><th>Chi tiết</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-501</code></td><td>Kiểm soát bóng</td><td>Tỷ lệ % theo đội, theo cầu thủ, theo 1/3 sân. Biểu đồ diễn biến theo thời gian.</td></tr>
+      <tr><td><code>FR-502</code></td><td>Chỉ số thể lực</td><td>Tổng quãng đường, quãng đường theo ngưỡng tốc độ (đi bộ / chạy nhẹ / chạy / nước rút), tốc độ tối đa, số lần nước rút.</td></tr>
+      <tr><td><code>FR-503</code></td><td>Heatmap</td><td>Lưới 2D có làm mượt Gaussian. Lọc theo cầu thủ / đội / khoảng thời gian / giai đoạn có-không bóng.</td></tr>
+      <tr><td><code>FR-504</code></td><td>Vị trí trung bình</td><td>Trọng tâm vị trí của từng cầu thủ, vẽ chồng lên sân, có ellipse thể hiện độ phân tán.</td></tr>
+      <tr><td><code>FR-505</code></td><td>Phát hiện chuyền bóng</td><td>Suy ra từ chuỗi người giữ bóng: cùng đội = chuyền thành công; khác đội = mất bóng. Vẽ mạng lưới chuyền bóng.</td></tr>
+      <tr><td><code>FR-506</code></td><td>Dashboard</td><td>So sánh 2 đội cạnh nhau, bảng xếp hạng cầu thủ, biểu đồ theo thời gian, export CSV/JSON/PDF.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.6 Phân tích chiến thuật (FR-600)</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Yêu cầu</th><th>Chi tiết</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-601</code></td><td>Nhận diện sơ đồ</td><td>Gom cụm vị trí trung bình theo tuyến → so khớp với thư viện sơ đồ chuẩn. Báo riêng cho giai đoạn có bóng và không bóng.</td></tr>
+      <tr><td><code>FR-602</code></td><td>Cấu trúc đội hình</td><td>Chiều cao dòng phòng ngự, độ rộng đội hình, khoảng cách giữa các tuyến, diện tích bao lồi của đội.</td></tr>
+      <tr><td><code>FR-603</code></td><td>Phân tích không gian</td><td>Lưới Voronoi thể hiện vùng kiểm soát; phát hiện khoảng trống giữa hàng thủ và tiền vệ.</td></tr>
+      <tr><td><code>FR-604</code></td><td>Bẫy việt vị</td><td>Vẽ đường việt vị theo hậu vệ cuối cùng thứ hai; cảnh báo khi có cầu thủ đứng dưới đường đó lúc bóng được chuyền.</td></tr>
+      <tr><td><code>FR-605</code></td><td>Báo cáo ngôn ngữ tự nhiên</td><td>Đưa các chỉ số định lượng vào LLM (Claude) theo template có kiểm soát → sinh báo cáo đa ngôn ngữ (EN mặc định; ES, PT, DE, FR, VI). <strong>Mọi câu nhận định bắt buộc gắn với số liệu nguồn</strong>, không cho mô hình tự suy diễn.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="s6">
+  <h2><span class="n">06</span>Pipeline xử lý CV</h2>
+  <div class="ascii">┌──────────────┐
+│  NGUỒN VIDEO │  Upload MP4  ·  YouTube URL  ·  RTSP/RTMP
+└──────┬───────┘
+       ▼
+┌──────────────────────────┐
+│ 1. TIỀN XỬ LÝ            │  ffmpeg: chuẩn hoá codec, scale 1280px,
+│                          │  trích FPS/metadata, cắt frame theo bước nhảy
+└──────┬───────────────────┘
+       ▼
+┌──────────────────────────┐        ┌──────────────────────────┐
+│ 2. DETECTION             │        │ 3. KEYPOINT SÂN          │
+│ YOLOv11-m (4 lớp)        │        │ YOLOv11-pose (32 điểm)   │
+│ → bbox + class + conf    │        │ → điểm mốc sân            │
+└──────┬───────────────────┘        └──────┬───────────────────┘
+       ▼                                   ▼
+┌──────────────────────────┐        ┌──────────────────────────┐
+│ 4. PHÂN ĐỘI              │        │ 5. HOMOGRAPHY            │
+│ crop thân áo → embedding │        │ RANSAC → ma trận 3×3      │
+│ → KMeans(k=2) + ổn định  │        │ + làm mượt theo thời gian │
+└──────┬───────────────────┘        └──────┬───────────────────┘
+       ▼                                   │
+┌──────────────────────────┐               │
+│ 6. TRACKING              │               │
+│ ByteTrack + ReID(OSNet)  │               │
+│ → track_id bền vững      │               │
+└──────┬───────────────────┘               │
+       ▼                                   ▼
+┌──────────────────────────────────────────────────┐
+│ 7. CHIẾU TOẠ ĐỘ — điểm chân bbox × H → (x,y) mét │
+└──────┬───────────────────────────────────────────┘
+       ▼
+┌──────────────────────────┐
+│ 8. OCR SỐ ÁO + GÁN TÊN   │  (M2)
+└──────┬───────────────────┘
+       ▼
+┌──────────────────────────┐
+│ 9. TÍNH THỐNG KÊ         │  (M3) possession · quãng đường · tốc độ
+│                          │        heatmap · mạng lưới chuyền
+└──────┬───────────────────┘
+       ▼
+┌──────────────────────────┐
+│ 10. PHÂN TÍCH CHIẾN THUẬT│  (M4) sơ đồ · Voronoi · việt vị · LLM report
+└──────┬───────────────────┘
+       ▼
+┌──────────────────────────────────────────────────┐
+│ ĐẦU RA:  video annotate MP4  ·  tracks.json       │
+│          stats.csv  ·  tactical map  ·  PDF report│
+└──────────────────────────────────────────────────┘</div>
+
+  <h3>6.1 Mô hình &amp; Dữ liệu huấn luyện</h3>
+  <table>
+    <thead><tr><th>Thành phần</th><th>Mô hình</th><th>Dữ liệu</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td>Detection</td><td>YOLOv11-m</td><td>SoccerNet-v3, DFL Bundesliga (Kaggle), Roboflow football-players-detection + bộ video nghiệp dư đa quốc gia tự thu thập</td><td>Fine-tune 100 epoch, augment: mosaic, HSV, scale, nén JPEG, motion blur</td></tr>
+      <tr><td>Keypoint sân</td><td>YOLOv11-pose</td><td>SoccerNet Calibration, Roboflow football-field-detection</td><td>32 keypoint; cần nhiều góc camera khác nhau</td></tr>
+      <tr><td>Phân đội</td><td>SigLIP embedding + UMAP + KMeans</td><td>Không cần nhãn (unsupervised)</td><td>Fallback: histogram HSV vùng thân áo</td></tr>
+      <tr><td>Tracking</td><td>ByteTrack / BoT-SORT</td><td>Không cần huấn luyện</td><td>Tinh chỉnh tham số theo FPS video</td></tr>
+      <tr><td>ReID</td><td>OSNet-x0.25</td><td>Pretrained Market-1501, fine-tune nhẹ</td><td>Chỉ bật khi cần, tốn tài nguyên</td></tr>
+      <tr><td>OCR số áo</td><td>PARSeq / TrOCR nhỏ</td><td>SoccerNet Jersey Number</td><td>Độ chính xác thấp khi quay lưng xa camera</td></tr>
+      <tr><td>Báo cáo</td><td>Claude (claude-opus-5 / claude-sonnet-5-5)</td><td>Prompt template có kiểm soát</td><td>Chỉ nhận số liệu đã tính, không nhận ảnh thô</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.2 Chiến lược dataset cho thị trường quốc tế</h3>
+  <p>Dataset công khai (SoccerNet, DFL) lệch mạnh về <strong>broadcast châu Âu</strong>. Khách hàng quốc tế mục tiêu (CLB hạng dưới Anh/Mỹ/Brazil, học viện, NCAA) phần lớn dùng camera khán đài đơn hoặc camera AI tự động (Veo, Pixellot, Trace). Bộ kiểm thử bắt buộc phải phủ đủ:</p>
+  <table>
+    <thead><tr><th>Trục đa dạng</th><th>Giá trị cần phủ</th><th>Tỷ lệ tối thiểu trong test set</th></tr></thead>
+    <tbody>
+      <tr><td>Nguồn camera</td><td>Broadcast · Veo/Pixellot panoramic · camera khán đài tĩnh · điện thoại</td><td>Mỗi loại ≥ 15%</td></tr>
+      <tr><td>Khu vực</td><td>Châu Âu · Bắc Mỹ · Nam Mỹ · Châu Á · Châu Phi</td><td>Mỗi khu vực ≥ 10%</td></tr>
+      <tr><td>Điều kiện</td><td>Ban ngày · đèn sân tối · mưa/tuyết · sân cỏ nhân tạo</td><td>Mỗi loại ≥ 10%</td></tr>
+      <tr><td>Áo đấu</td><td>Cặp màu tương phản cao · cặp màu gần nhau · áo sọc/hoạ tiết</td><td>Cặp gần nhau ≥ 15%</td></tr>
+      <tr><td>Thể thức</td><td>11v11 · 9v9 · 7v7 (bóng đá trẻ)</td><td>Sân nhỏ ≥ 10%</td></tr>
+    </tbody>
+  </table>
+  <p>Chỉ số chất lượng ở mục 12 phải đạt <strong>trên từng nhóm</strong>, không chỉ trung bình toàn bộ — tránh model đẹp số trên broadcast nhưng hỏng ở camera Veo.</p>
+
+  <div class="note warn">
+    <span class="lbl">Quyết định kỹ thuật</span>
+    <p>Phân đội chạy <strong>unsupervised</strong> thay vì huấn luyện classifier theo từng CLB — vì hệ thống phải hoạt động với bất kỳ đội nào, bất kỳ bộ áo đấu nào, không thể huấn luyện trước. Cái giá phải trả: cần bước người dùng xác nhận tên đội cho mỗi cụm ở lần đầu.</p>
+  </div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="s7">
+  <h2><span class="n">07</span>Kiến trúc hệ thống</h2>
+  <div class="ascii">┌─────────────────────────────────────────────────────────────┐
+│  TRÌNH DUYỆT                                                │
+│  React 18 + TypeScript + Vite                               │
+│  ├─ VideoPlayer (video.js + canvas overlay)                 │
+│  ├─ TacticalMap (canvas 2D / PixiJS)                        │
+│  ├─ StatsDashboard (Recharts)                               │
+│  ├─ TimelineScrubber                                        │
+│  └─ WebSocket client ← tiến trình & khung realtime          │
+└───────────────┬──────────────────────┬──────────────────────┘
+          HTTPS │                      │ WSS
+                ▼                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  API GATEWAY — FastAPI (Python 3.12, async)                 │
+│  ├─ /auth        JWT, quản lý gói dịch vụ                   │
+│  ├─ /videos      upload chunked, YouTube, RTSP              │
+│  ├─ /jobs        tạo & theo dõi job                         │
+│  ├─ /results     tracks, stats, report                      │
+│  └─ /ws/{job_id} đẩy tiến trình & khung live                │
+└───────┬──────────────────────────────────┬──────────────────┘
+        │                                  │
+        ▼                                  ▼
+┌────────────────────┐          ┌──────────────────────────────┐
+│ PostgreSQL 16      │          │ Redis — hàng đợi + pub/sub   │
+│ + TimescaleDB      │          │ (Celery broker, trạng thái)  │
+│ (chuỗi thời gian   │          └──────────┬───────────────────┘
+│  toạ độ cầu thủ)   │                     │
+└────────────────────┘                     ▼
+                              ┌──────────────────────────────────┐
+┌────────────────────┐        │ WORKER POOL (Celery + GPU)       │
+│ Object Storage     │◄──────►│ ├─ worker-ingest   (CPU)         │
+│ R2 / MinIO         │        │ ├─ worker-infer    (GPU, CUDA)   │
+│ video, frame, kết  │        │ ├─ worker-stats    (CPU)         │
+│ quả export         │        │ └─ worker-report   (CPU + LLM)   │
+└────────────────────┘        └──────────────────────────────────┘
+                                             │
+                                             ▼
+                              ┌──────────────────────────────────┐
+                              │ MODEL SERVER — Triton / TorchServe│
+                              │ YOLOv11 (TensorRT FP16)          │
+                              │ batch động, nhiều worker dùng chung│
+                              └──────────────────────────────────┘</div>
+
+  <h3>7.1 Lựa chọn công nghệ</h3>
+  <table>
+    <thead><tr><th>Tầng</th><th>Công nghệ</th><th>Lý do</th></tr></thead>
+    <tbody>
+      <tr><td>Frontend</td><td>React 18 + TypeScript + Vite + TailwindCSS</td><td>Hệ sinh thái lớn, canvas overlay đồng bộ video dễ kiểm soát, build nhanh.</td></tr>
+      <tr><td>Vẽ overlay</td><td>Canvas 2D API; PixiJS (WebGL) khi &gt; 30 đối tượng</td><td>Canvas đủ cho tactical map; WebGL cần khi vẽ trail + Voronoi realtime.</td></tr>
+      <tr><td>Backend API</td><td>FastAPI + Pydantic v2 + SQLAlchemy async</td><td>Cùng ngôn ngữ Python với pipeline CV — không phải duy trì 2 stack.</td></tr>
+      <tr><td>Hàng đợi</td><td>Celery + Redis</td><td>Job nặng, chạy lâu, cần retry và theo dõi tiến trình.</td></tr>
+      <tr><td>CSDL</td><td>PostgreSQL 16 + TimescaleDB</td><td>Dữ liệu toạ độ là time-series khối lượng lớn (90 phút × 25fps × 22 người ≈ 3 triệu dòng/trận).</td></tr>
+      <tr><td>Lưu trữ</td><td>MinIO (dev, self-host) / Cloudflare R2 (cloud)</td><td>Video gốc và kết quả export lớn, không nhét vào DB.</td></tr>
+      <tr><td>CV</td><td>Ultralytics YOLOv11, OpenCV, Supervision</td><td>Supervision lo sẵn annotate, tracking, chuyển đổi toạ độ.</td></tr>
+      <tr><td>Phục vụ mô hình</td><td>Triton Inference Server + TensorRT</td><td>Nhiều worker dùng chung 1 GPU, batch động, nhanh gấp 2–3 lần PyTorch thuần.</td></tr>
+      <tr><td>Realtime</td><td>WebSocket (FastAPI) + WebRTC cho luồng live</td><td>WS cho tiến trình/dữ liệu; WebRTC khi cần độ trễ thấp cho video live.</td></tr>
+      <tr><td>Triển khai</td><td>Docker Compose (dev) → Kubernetes + GPU node pool (prod)</td><td>Worker GPU cần tự co giãn theo hàng đợi.</td></tr>
+      <tr><td>Giám sát</td><td>Prometheus + Grafana + Sentry</td><td>Theo dõi FPS worker, độ sâu hàng đợi, tỷ lệ lỗi.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>7.2 Triển khai GPU: Self-host &amp; Cloud</h3>
+  <p>Hệ thống phải chạy được trên cả GPU tự sở hữu lẫn GPU thuê, với <strong>cùng một codebase và cùng một image container</strong>. Khác biệt chỉ nằm ở cấu hình triển khai.</p>
+  <div class="ascii">                  ┌───────────────────────────────┐
+                  │  Celery queue (Redis)          │
+                  └──────────────┬────────────────┘
+                                 ▼
+                  ┌───────────────────────────────┐
+                  │  ComputeBackend (interface)    │
+                  │  submit() · status() · cancel()│
+                  └───┬───────────┬───────────┬───┘
+                      ▼           ▼           ▼
+            ┌──────────────┐ ┌──────────┐ ┌──────────────────┐
+            │ LocalGPU     │ │ RunPod   │ │ Lambda / AWS g5  │
+            │ RTX 4090/    │ │ Serverless│ │ (K8s GPU pool)   │
+            │ docker+nvidia│ │ endpoint │ │                  │
+            └──────────────┘ └──────────┘ └──────────────────┘</div>
+
+  <table>
+    <thead><tr><th></th><th>Self-host (RTX 4090)</th><th>Cloud (RunPod / Lambda / AWS)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Phù hợp</strong></td><td>Dev, demo, CLB muốn giữ dữ liệu nội bộ (on-prem), tải ổn định</td><td>Production SaaS, tải dao động, mở rộng nhiều khu vực</td></tr>
+      <tr><td><strong>Đóng gói</strong></td><td><code>docker compose --profile gpu-local up</code> — một lệnh chạy toàn bộ stack</td><td>Helm chart cho K8s; hoặc image worker đẩy lên RunPod Serverless</td></tr>
+      <tr><td><strong>Co giãn</strong></td><td>Cố định số worker = số GPU</td><td>Tự scale 0 → N theo độ sâu hàng đợi</td></tr>
+      <tr><td><strong>Model</strong></td><td>TensorRT engine build lúc khởi động cho đúng GPU</td><td>Engine build sẵn theo loại GPU (T4/A10/L4), cache trên R2</td></tr>
+      <tr><td><strong>Lưu trữ</strong></td><td>MinIO local</td><td>Cloudflare R2 (bucket EU jurisdiction / US)</td></tr>
+      <tr><td><strong>Ước tính chi phí / trận 90'</strong></td><td>~0.05 USD (điện), chưa tính khấu hao</td><td>~0.30–0.60 USD tuỳ nhà cung cấp</td></tr>
+      <tr><td><strong>Fallback</strong></td><td>Khi hàng đợi local quá tải → đẩy job sang cloud (burst), nếu được bật</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <span class="lbl">Yêu cầu bắt buộc</span>
+    <p>Mọi code CV không được gọi trực tiếp API của nhà cung cấp cloud. Chỉ đi qua <code>ComputeBackend</code>. Kiểm thử CI chạy pipeline trên cả CPU (clip ngắn) để đảm bảo không phụ thuộc phần cứng.</p>
+  </div>
+
+  <h3>7.3 Đa khu vực (quốc tế)</h3>
+  <ul>
+    <li>Khởi đầu 2 khu vực: <strong>EU (Frankfurt)</strong> và <strong>US (Virginia/Oregon)</strong>; thêm APAC khi có nhu cầu.</li>
+    <li>Video và dữ liệu tracking lưu tại khu vực khách hàng chọn (data residency) — bắt buộc với khách EU theo GDPR.</li>
+    <li>Frontend phục vụ qua CDN toàn cầu (Cloudflare); API định tuyến theo khu vực của tài khoản.</li>
+  </ul>
+
+  <h3>7.4 Chế độ xử lý</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>Offline (upload / YouTube)</h4>
+      <ul>
+        <li>Job vào hàng đợi, xử lý theo batch frame (batch = 16)</li>
+        <li>Ưu tiên độ chính xác: chạy mọi frame, bật ReID</li>
+        <li>Tiến trình đẩy qua WebSocket mỗi 2 giây</li>
+        <li>Kết quả ghi vào DB + xuất video annotate</li>
+        <li>Mục tiêu: trận 90 phút ≤ 20 phút với 1× RTX 4090 hoặc ≥ 2× L4 song song (stride 1); chế độ "nhanh" (stride 2) ≤ 15 phút trên 1× L4</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Live (RTSP / RTMP)</h4>
+      <ul>
+        <li>Đọc luồng liên tục, bỏ frame khi xử lý không kịp</li>
+        <li>Ưu tiên tốc độ: bước nhảy 2 frame, tắt ReID, model nhỏ hơn (YOLOv11-s)</li>
+        <li>Chỉ giữ cửa sổ 60 giây gần nhất trong bộ nhớ</li>
+        <li>Thống kê tính luỹ tiến, không chạy lại từ đầu</li>
+        <li>Mục tiêu: ≥ 15 FPS, độ trễ đầu-cuối ≤ 3 giây</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="s8">
+  <h2><span class="n">08</span>Mô hình dữ liệu</h2>
+<pre><code>users
+  id              uuid PK
+  email           text unique
+  password_hash   text
+  plan            enum('free','pro','team')
+  created_at      timestamptz
+
+videos
+  id              uuid PK
+  user_id         uuid FK → users
+  source_type     enum('upload','youtube','rtsp')
+  source_uri      text              -- object key R2 hoặc URL
+  title           text
+  duration_sec    numeric
+  fps             numeric
+  width, height   int
+  status          enum('uploading','ready','failed')
+  created_at      timestamptz
+
+jobs
+  id              uuid PK
+  video_id        uuid FK → videos
+  pipeline_config jsonb             -- ngưỡng conf, frame_stride, bật/tắt module
+  status          enum('queued','running','done','failed','cancelled')
+  progress_pct    numeric
+  current_fps     numeric
+  error_message   text
+  started_at, finished_at  timestamptz
+
+teams                              -- cụm đội phát hiện được trong 1 video
+  id              uuid PK
+  video_id        uuid FK
+  cluster_index   int               -- 0 hoặc 1
+  display_name    text              -- "France"
+  color_hex       text              -- "#1e3a8a"
+
+players
+  id              uuid PK
+  video_id        uuid FK
+  team_id         uuid FK → teams (nullable: trọng tài)
+  track_id        int               -- ID từ tracker
+  jersey_number   int               -- OCR hoặc nhập tay
+  display_name    text
+  role            enum('player','goalkeeper','referee')
+  confirmed_by_user bool
+
+detections          -- hypertable TimescaleDB, phân mảnh theo thời gian
+  video_id        uuid
+  frame_idx       int
+  ts_ms           int               -- mốc thời gian trong video
+  track_id        int
+  class           enum('player','goalkeeper','referee','ball')
+  team_cluster    int
+  bbox            int4range[4]      -- x1,y1,x2,y2 toạ độ ảnh
+  confidence      real
+  pitch_x         real              -- mét, 0..105
+  pitch_y         real              -- mét, 0..68
+  homography_ok   bool
+  PRIMARY KEY (video_id, frame_idx, track_id)
+
+homographies
+  video_id        uuid
+  frame_idx       int
+  matrix          real[9]
+  inlier_ratio    real
+  PRIMARY KEY (video_id, frame_idx)
+
+stats_player        -- tính sẵn sau khi job xong
+  video_id, player_id
+  distance_m, top_speed_kmh, avg_speed_kmh
+  sprint_count, possession_sec, pass_attempts, pass_completed
+  heatmap_grid    jsonb             -- lưới 105×68 đã giảm độ phân giải
+
+stats_team
+  video_id, team_id
+  possession_pct, avg_formation, defensive_line_m
+  team_width_m, compactness_m2, pass_network  jsonb
+
+reports
+  id, video_id, language, content_md, model_used, generated_at
+
+corrections         -- người dùng sửa tay
+  id, video_id, frame_range, correction_type, payload jsonb, user_id</code></pre>
+
+  <div class="note">
+    <span class="lbl">Ghi chú dung lượng</span>
+    <p>Một trận 90 phút ở 25 FPS với 23 đối tượng sinh ra khoảng <strong>3,1 triệu dòng</strong> trong bảng <code>detections</code> (~250MB chưa nén). Bắt buộc dùng TimescaleDB với nén tự động sau 7 ngày và chính sách xoá dữ liệu thô sau 90 ngày (giữ lại bảng thống kê đã tổng hợp).</p>
+  </div>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="s9">
+  <h2><span class="n">09</span>Đặc tả API</h2>
+  <table>
+    <thead><tr><th>Method</th><th>Endpoint</th><th>Mô tả</th></tr></thead>
+    <tbody>
+      <tr><td><code>POST</code></td><td><code>/api/v1/auth/register</code></td><td>Đăng ký tài khoản</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/auth/login</code></td><td>Trả về <code>access_token</code>, <code>refresh_token</code></td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/videos/upload/init</code></td><td>Khởi tạo upload chunked, trả <code>upload_id</code> + presigned URL</td></tr>
+      <tr><td><code>PUT</code></td><td><code>/api/v1/videos/upload/{upload_id}/chunk</code></td><td>Gửi một chunk</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/videos/upload/{upload_id}/complete</code></td><td>Hoàn tất, ghép file, trích metadata</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/videos/from-url</code></td><td>Body: <code>{"url": "...", "rights_confirmed": true}</code></td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/streams</code></td><td>Đăng ký nguồn RTSP/RTMP, kiểm tra kết nối</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/videos</code></td><td>Danh sách video, phân trang</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/jobs</code></td><td>Tạo job phân tích với <code>pipeline_config</code></td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/jobs/{id}</code></td><td>Trạng thái, % tiến trình, FPS hiện tại, thời gian còn lại</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/api/v1/jobs/{id}</code></td><td>Huỷ job đang chạy</td></tr>
+      <tr><td><code>WS</code></td><td><code>/api/v1/ws/jobs/{id}</code></td><td>Đẩy tiến trình; với job live đẩy luôn frame đã annotate (JPEG base64) + toạ độ map</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/results/{video_id}/tracks</code></td><td>Query: <code>?from_ms=&amp;to_ms=&amp;track_id=</code> → JSON toạ độ</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/results/{video_id}/teams</code></td><td>Danh sách cụm đội, màu, tên</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/v1/results/{video_id}/teams/{id}</code></td><td>Đặt tên &amp; màu cho đội</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/results/{video_id}/stats</code></td><td>Thống kê đội &amp; cầu thủ</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/results/{video_id}/heatmap</code></td><td>Query: <code>?player_id=&amp;from_ms=&amp;to_ms=</code></td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/results/{video_id}/corrections</code></td><td>Gửi chỉnh sửa thủ công (gộp track, đổi đội…)</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/results/{video_id}/report</code></td><td>Sinh báo cáo chiến thuật bằng LLM</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/exports</code></td><td>Yêu cầu export: <code>{"format":"mp4|csv|json|pdf", "layers":[...], "range":[a,b]}</code></td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/exports/{id}</code></td><td>Trạng thái + presigned URL tải về</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Ví dụ phản hồi — <code>GET /results/{id}/tracks</code></h4>
+<pre><code>{
+  "video_id": "a3f1...",
+  "schema_version": "1.0",
+  "pitch": { "length_m": 105, "width_m": 68 },
+  "fps": 25,
+  "frames": [
+    {
+      "frame_idx": 1240,
+      "ts_ms": 49600,
+      "homography_ok": true,
+      "objects": [
+        { "track_id": 7,  "class": "player", "team": 0,
+          "bbox": [412, 318, 448, 402], "confidence": 0.88,
+          "pitch_x": 34.2, "pitch_y": 41.7 },
+        { "track_id": 19, "class": "referee", "team": null,
+          "bbox": [640, 470, 672, 548], "confidence": 0.76,
+          "pitch_x": 52.9, "pitch_y": 30.1 },
+        { "track_id": 99, "class": "ball", "team": null,
+          "bbox": [598, 452, 610, 464], "confidence": 0.61,
+          "pitch_x": 49.8, "pitch_y": 28.4 }
+      ]
+    }
+  ]
+}</code></pre>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="s10">
+  <h2><span class="n">10</span>Giao diện (UX)</h2>
+
+  <h3>10.1 Màn hình phân tích (màn hình chính)</h3>
+  <div class="ascii">┌───────────────────────────────────────────────────────────────────────┐
+│ PitchVision   France vs Switzerland        [Export ▾] [Chia sẻ] [⚙]  │
+├─────────────────────────────────────────────┬─────────────────────────┤
+│ FPS: 24   ·   Frame 1240/135000   ·  ● Live │  TACTICAL MAP           │
+│ ┌─────────────────────────────────────────┐ │ ┌─────────────────────┐ │
+│ │                                         │ │ │ ┌─────┬─────┐       │ │
+│ │     ┌──┐  France 0.83                   │ │ │ │  ○  │     │       │ │
+│ │     │  │           ┌──┐                 │ │ │ ├──┐  │  ●  │       │ │
+│ │     └──┘           │  │ Switzerland 0.88│ │ │ │  │ ○│     │       │ │
+│ │          ┌──┐      └──┘                 │ │ │ └──┘ ●│   ○ │       │ │
+│ │          │  │  referee 0.76             │ │ │    ○  │  ●  │       │ │
+│ │          └──┘                           │ │ │ ──────┼──────       │ │
+│ │                                         │ │ │   ●   │   ○         │ │
+│ └─────────────────────────────────────────┘ │ └─────────────────────┘ │
+│ ◀◀  ▶  ▶▶  ──────●───────────────  49:36    │ ☑ Cầu thủ  ☑ Bóng      │
+├─────────────────────────────────────────────┤ ☑ Trail    ☐ Voronoi   │
+│ LỚP HIỂN THỊ:  ☑ Bbox ☑ Nhãn ☑ Conf ☐ ID    │ ☐ Đường việt vị        │
+├─────────────────────────────────────────────┴─────────────────────────┤
+│ [Tổng quan] [Cầu thủ] [Heatmap] [Chuyền bóng] [Chiến thuật] [Dữ liệu] │
+│ Kiểm soát bóng  France 58% ████████████▌──────── 42% Switzerland      │
+│ Quãng đường     France 112.4 km      ·  Switzerland 108.9 km          │
+└───────────────────────────────────────────────────────────────────────┘</div>
+
+  <h3>10.2 Các màn hình</h3>
+  <table>
+    <thead><tr><th>Màn hình</th><th>Nội dung chính</th><th>Mốc</th></tr></thead>
+    <tbody>
+      <tr><td>Đăng nhập / Đăng ký</td><td>Email + mật khẩu, OAuth Google</td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td>Thư viện video</td><td>Lưới thẻ video, trạng thái job, tìm kiếm, lọc</td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td>Tải video lên</td><td>Kéo-thả, dán URL, nhập RTSP; cấu hình pipeline</td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td>Đang xử lý</td><td>Thanh tiến trình, FPS, thời gian còn lại, xem trước frame</td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td>Phân tích (chính)</td><td>Video + overlay + tactical map + điều khiển lớp</td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td>Xác nhận đội</td><td>Hiện 2 cụm với ảnh mẫu → người dùng đặt tên &amp; chọn màu</td><td><span class="pill p-m1">M1</span></td></tr>
+      <tr><td>Quản lý đội hình</td><td>Bảng track_id ↔ số áo ↔ tên, sửa tay, gộp/tách track</td><td><span class="pill p-m2">M2</span></td></tr>
+      <tr><td>Dashboard thống kê</td><td>Biểu đồ so sánh, bảng xếp hạng cầu thủ, heatmap</td><td><span class="pill p-m3">M3</span></td></tr>
+      <tr><td>Phòng chiến thuật</td><td>Sơ đồ đội hình, Voronoi, việt vị, báo cáo AI</td><td><span class="pill p-m4">M4</span></td></tr>
+      <tr><td>Export</td><td>Chọn định dạng, lớp, khoảng thời gian; hàng chờ tải về</td><td><span class="pill p-m2">M2</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>10.3 Nguyên tắc thiết kế</h3>
+  <ul>
+    <li><strong>Video là trung tâm</strong> — mọi số liệu đều phải click được để nhảy tới đúng thời điểm trong video.</li>
+    <li><strong>Luôn hiện độ tin cậy</strong> — không bao giờ trình bày kết quả AI như sự thật tuyệt đối; frame có homography kém phải được đánh dấu rõ.</li>
+    <li><strong>Sửa được mọi thứ</strong> — mỗi kết quả tự động đều có đường dẫn để người dùng sửa tay.</li>
+    <li><strong>Hiệu năng là tính năng</strong> — tactical map phải chạy 60 FPS trên laptop tầm trung; dùng WebGL khi cần.</li>
+    <li><strong>English-first, i18n từ ngày đầu</strong> — UI tiếng Anh ở M1, khung i18n sẵn sàng; thêm ES, PT, DE, FR, VI ở M3. Đơn vị đo chuyển được (mét/yard, km/h/mph).</li>
+  </ul>
+</section>
+
+<!-- ============ 11 ============ -->
+<section id="s11">
+  <h2><span class="n">11</span>Yêu cầu phi chức năng</h2>
+  <table>
+    <thead><tr><th>Hạng mục</th><th>Yêu cầu</th><th>Ngưỡng chấp nhận</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="6"><strong>Hiệu năng</strong></td><td>Thời gian xử lý offline (chuẩn, stride 1)</td><td>Trận 90 phút ≤ 20 phút với 1× RTX 4090 hoặc ≥ 2× L4 song song (stride 1)</td></tr>
+      <tr><td>Thời gian xử lý offline (chế độ nhanh, stride 2)</td><td>Trận 90 phút ≤ 15 phút trên 1× L4</td></tr>
+      <tr><td>Throughput tối thiểu mỗi GPU</td><td>≥ 50 FPS trên 1× T4 (TensorRT FP16, 1280px)</td></tr>
+      <tr><td>Throughput live</td><td>≥ 15 FPS, độ trễ đầu-cuối ≤ 3 giây</td></tr>
+      <tr><td>Thời gian tải trang</td><td>LCP ≤ 2.5s, TTI ≤ 3.5s trên mạng 4G</td></tr>
+      <tr><td>Render tactical map</td><td>≥ 60 FPS với 23 đối tượng + trail</td></tr>
+      <tr><td rowspan="2"><strong>Khả năng mở rộng</strong></td><td>Job đồng thời</td><td>50 job offline chạy song song không giảm hiệu năng</td></tr>
+      <tr><td>Tự co giãn</td><td>Worker GPU scale theo độ sâu hàng đợi, 0 → 10 node trong ≤ 5 phút</td></tr>
+      <tr><td rowspan="3"><strong>Độ tin cậy</strong></td><td>Uptime</td><td>99.5% cho API</td></tr>
+      <tr><td>Khôi phục job</td><td>Job lỗi tự thử lại 3 lần; chạy lại từ checkpoint, không từ đầu</td></tr>
+      <tr><td>Bền vững dữ liệu</td><td>Backup PostgreSQL hằng ngày, giữ 30 ngày; R2: key bất biến (write-once) + sao chép định kỳ bucket quan trọng sang bucket backup</td></tr>
+      <tr><td rowspan="4"><strong>Bảo mật</strong></td><td>Xác thực</td><td>JWT, access token 15 phút, refresh token xoay vòng</td></tr>
+      <tr><td>Phân quyền</td><td>Người dùng chỉ truy cập video của mình / của team mình</td></tr>
+      <tr><td>Lưu trữ</td><td>Mã hoá at-rest (R2 mặc định AES-256), TLS 1.3 cho mọi kết nối</td></tr>
+      <tr><td>Giới hạn tần suất</td><td>100 req/phút cho API, 5 job/giờ với gói free</td></tr>
+      <tr><td rowspan="4"><strong>Pháp lý &amp; Riêng tư</strong></td><td>Bản quyền nội dung</td><td>Người dùng phải xác nhận có quyền sử dụng video; có quy trình gỡ bỏ theo yêu cầu</td></tr>
+      <tr><td>Dữ liệu sinh trắc</td><td><strong>Không</strong> nhận dạng khuôn mặt. Chỉ nhận dạng theo số áo và màu áo.</td></tr>
+      <tr><td>Xoá dữ liệu</td><td>Người dùng xoá video → xoá luôn mọi dữ liệu dẫn xuất trong 24 giờ</td></tr>
+      <tr><td>GDPR / CCPA</td><td>DPA cho khách tổ chức; export &amp; xoá dữ liệu cá nhân theo yêu cầu; data residency EU/US; cầu thủ vị thành niên → cần xác nhận đồng ý của đơn vị quản lý</td></tr>
+      <tr><td rowspan="2"><strong>Khả năng tiếp cận</strong></td><td>WCAG</td><td>Đạt mức AA: tương phản màu, điều hướng bàn phím, nhãn ARIA</td></tr>
+      <tr><td>Mù màu</td><td>Màu đội không chỉ dựa vào màu: thêm hình dạng/hoa văn phân biệt</td></tr>
+      <tr><td rowspan="2"><strong>Chi phí</strong></td><td>Chi phí mỗi trận</td><td>≤ 0.60 USD tính toán cho một trận 90 phút</td></tr>
+      <tr><td>Lưu trữ</td><td>Tự chuyển video gốc sang lớp lưu trữ lạnh sau 30 ngày</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 12 ============ -->
+<section id="s12">
+  <h2><span class="n">12</span>Chỉ số thành công</h2>
+  <table>
+    <thead><tr><th>Loại</th><th>Chỉ số</th><th>Mục tiêu</th><th>Cách đo</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="4">Chất lượng mô hình</td><td>mAP@50 — detect cầu thủ</td><td>≥ 0.85</td><td>Tập test giữ riêng, 2.000 frame có nhãn</td></tr>
+      <tr><td>Độ chính xác phân đội</td><td>≥ 92%</td><td>Đối chiếu thủ công 500 crop ngẫu nhiên</td></tr>
+      <tr><td>HOTA tracking</td><td>≥ 70</td><td>TrackEval trên SoccerNet-tracking</td></tr>
+      <tr><td>Sai số toạ độ sân</td><td>≤ 2.0 m trung bình</td><td>So với điểm mốc đo tay trên 200 frame</td></tr>
+      <tr><td rowspan="3">Sản phẩm</td><td>Tỷ lệ job thành công</td><td>≥ 95%</td><td>jobs.status = done / tổng số</td></tr>
+      <tr><td>Thời gian tới insight đầu tiên</td><td>≤ 15 phút</td><td>Từ lúc upload xong đến lúc mở màn hình phân tích</td></tr>
+      <tr><td>Tỷ lệ phải sửa tay</td><td>≤ 10% số track</td><td>Số correction / tổng track</td></tr>
+      <tr><td rowspan="3">Kinh doanh</td><td>Người dùng hoạt động hằng tuần</td><td>500 trong 12 tháng</td><td>Analytics</td></tr>
+      <tr><td>Video phân tích / tuần</td><td>100</td><td>Đếm job hoàn thành</td></tr>
+      <tr><td>Chuyển đổi free → Pro</td><td>5%</td><td>Dữ liệu thanh toán</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 13 ============ -->
+<section id="s13">
+  <h2><span class="n">13</span>Lộ trình &amp; Milestone</h2>
+
+  <div class="note">
+    <span class="lbl">Nguyên tắc</span>
+    <p>Mỗi milestone phải tự đứng được — kết thúc M1 là đã có sản phẩm dùng được thật, không phải nửa vời chờ M2. Không bắt đầu milestone sau khi tiêu chí thoát của milestone trước chưa đạt.</p>
+  </div>
+
+  <h3><span class="pill p-m1">M1</span> &nbsp;Nền tảng &amp; Tactical Map — <em>6 tuần</em></h3>
+  <table>
+    <thead><tr><th>Tuần</th><th>Hạng mục</th><th>Kết quả bàn giao</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Dựng nền</td><td>Monorepo, Docker Compose (Postgres + Redis + MinIO + API + worker), CI, cấu hình môi trường</td></tr>
+      <tr><td>1–2</td><td>Spike CV</td><td>Notebook chạy YOLOv11 trên clip mẫu, đo mAP, chốt mô hình detection</td></tr>
+      <tr><td>2</td><td>Upload &amp; job</td><td>Upload chunked, bảng videos/jobs, Celery worker, WebSocket tiến trình</td></tr>
+      <tr><td>3</td><td>Detection + phân đội</td><td>Pipeline detect 4 lớp + KMeans phân đội + lọc nhiễu ngoài sân</td></tr>
+      <tr><td>4</td><td>Hiệu chỉnh sân</td><td>Model keypoint, homography RANSAC + làm mượt, cờ chất lượng</td></tr>
+      <tr><td>5</td><td>Frontend</td><td>Trình phát video + canvas overlay + tactical map đồng bộ + điều khiển lớp</td></tr>
+      <tr><td>6</td><td>Hoàn thiện</td><td>Màn hình xác nhận đội, export MP4 annotate, UI tiếng Anh + khung i18n, sửa lỗi</td></tr>
+    </tbody>
+  </table>
+  <div class="card">
+    <h4>Tiêu chí thoát M1</h4>
+    <ul>
+      <li>Upload MP4 10 phút → xem được video annotate + tactical map trong ≤ 4 phút</li>
+      <li>mAP@50 ≥ 0.80, độ chính xác phân đội ≥ 88%</li>
+      <li>Homography thành công trên ≥ 85% frame của video broadcast chuẩn</li>
+      <li>Export được MP4 đã annotate</li>
+    </ul>
+  </div>
+
+  <h3><span class="pill p-m2">M2</span> &nbsp;Tracking, Nhận dạng &amp; Đa nguồn — <em>5 tuần</em></h3>
+  <table>
+    <thead><tr><th>Tuần</th><th>Hạng mục</th><th>Kết quả bàn giao</th></tr></thead>
+    <tbody>
+      <tr><td>7</td><td>Tracking</td><td>Tích hợp ByteTrack, track_id bền vững, đo HOTA trên tập chuẩn</td></tr>
+      <tr><td>8</td><td>ReID &amp; theo dõi bóng</td><td>OSNet nối lại track sau che khuất; model bóng riêng + nội suy Kalman</td></tr>
+      <tr><td>9</td><td>OCR số áo</td><td>Nhận dạng số + bỏ phiếu theo thời gian; UI gán tên cầu thủ</td></tr>
+      <tr><td>10</td><td>Nguồn YouTube</td><td>yt-dlp, kiểm tra hợp lệ, xác nhận bản quyền, xử lý lỗi</td></tr>
+      <tr><td>11</td><td>Live stream</td><td>Pipeline RTSP/RTMP, cấu hình ưu tiên tốc độ, WebSocket đẩy frame, tự kết nối lại</td></tr>
+    </tbody>
+  </table>
+  <div class="card">
+    <h4>Tiêu chí thoát M2</h4>
+    <ul>
+      <li>HOTA ≥ 70; dưới 5 lần đổi ID / cầu thủ / 10 phút</li>
+      <li>OCR số áo đúng ≥ 75% với số nhìn rõ</li>
+      <li>Live RTSP giữ ≥ 15 FPS, độ trễ ≤ 3s trong 30 phút liên tục</li>
+      <li>YouTube URL chạy end-to-end</li>
+    </ul>
+  </div>
+
+  <h3><span class="pill p-m3">M3</span> &nbsp;Thống kê &amp; Dashboard — <em>5 tuần</em></h3>
+  <table>
+    <thead><tr><th>Tuần</th><th>Hạng mục</th><th>Kết quả bàn giao</th></tr></thead>
+    <tbody>
+      <tr><td>12</td><td>Hạ tầng dữ liệu</td><td>Hypertable TimescaleDB, chính sách nén, job tổng hợp</td></tr>
+      <tr><td>13</td><td>Chỉ số thể lực</td><td>Quãng đường, tốc độ, nước rút, làm mượt quỹ đạo (Savitzky-Golay)</td></tr>
+      <tr><td>14</td><td>Kiểm soát bóng &amp; chuyền</td><td>Xác định người giữ bóng, suy ra đường chuyền, mạng lưới chuyền bóng</td></tr>
+      <tr><td>15</td><td>Trực quan hoá</td><td>Heatmap, vị trí trung bình, dashboard so sánh (Recharts)</td></tr>
+      <tr><td>16</td><td>Export &amp; sửa tay</td><td>Export CSV/JSON/PDF, UI sửa lỗi (gộp/tách track, đổi đội), tính lại thống kê</td></tr>
+    </tbody>
+  </table>
+  <div class="card">
+    <h4>Tiêu chí thoát M3</h4>
+    <ul>
+      <li>Kiểm soát bóng sai lệch &lt; 5% so với đối chiếu thủ công trên 3 trận</li>
+      <li>Quãng đường sai lệch &lt; 8% so với dữ liệu GPS vest đối chiếu</li>
+      <li>Export CSV + JSON đầy đủ, có schema version</li>
+      <li>Sửa tay cập nhật ngược vào thống kê trong ≤ 60 giây</li>
+    </ul>
+  </div>
+
+  <h3><span class="pill p-m4">M4</span> &nbsp;Trí tuệ chiến thuật — <em>4 tuần</em></h3>
+  <table>
+    <thead><tr><th>Tuần</th><th>Hạng mục</th><th>Kết quả bàn giao</th></tr></thead>
+    <tbody>
+      <tr><td>17</td><td>Nhận diện sơ đồ</td><td>Gom cụm theo tuyến, so khớp thư viện sơ đồ, tách giai đoạn có/không bóng</td></tr>
+      <tr><td>18</td><td>Phân tích không gian</td><td>Voronoi, phát hiện khoảng trống, dòng phòng ngự, độ nén đội hình</td></tr>
+      <tr><td>19</td><td>Việt vị &amp; sự kiện</td><td>Vẽ đường việt vị, phát hiện tình huống nghi vấn, đánh dấu trên timeline</td></tr>
+      <tr><td>20</td><td>Báo cáo LLM</td><td>Tầng tích hợp Claude, template prompt có kiểm soát, bắt buộc trích dẫn số liệu, export PDF</td></tr>
+    </tbody>
+  </table>
+  <div class="card">
+    <h4>Tiêu chí thoát M4</h4>
+    <ul>
+      <li>Nhận diện sơ đồ đúng ≥ 80% so với đánh giá của chuyên gia trên 20 trận</li>
+      <li>Báo cáo LLM: 100% nhận định có số liệu dẫn chứng kiểm chứng được (audit thủ công 50 báo cáo)</li>
+      <li>Không có "ảo giác" — mọi tên cầu thủ, con số trong báo cáo đều khớp dữ liệu nguồn</li>
+    </ul>
+  </div>
+
+  <div class="note warn">
+    <span class="lbl">Tổng thời lượng</span>
+    <p><strong>20 tuần (~5 tháng)</strong> cho một đội 3 người: 1 ML/CV engineer, 1 backend engineer, 1 frontend engineer. Nếu làm một mình, nhân hệ số ~2.2 → khoảng 10–11 tháng; khi đó nên dừng ở M2 làm bản phát hành công khai đầu tiên.</p>
+  </div>
+</section>
+
+<!-- ============ 14 ============ -->
+<section id="s14">
+  <h2><span class="n">14</span>Rủi ro &amp; Giảm thiểu</h2>
+  <table>
+    <thead><tr><th>#</th><th>Rủi ro</th><th>Tác động</th><th>Khả năng</th><th>Cách giảm thiểu</th></tr></thead>
+    <tbody>
+      <tr><td>R1</td><td><strong>Homography thất bại</strong> khi camera zoom/lia nhanh, hoặc góc quay thấp không thấy đủ vạch sân</td><td>Cao — không có map thì không có thống kê</td><td>Cao</td><td>Làm mượt theo thời gian + nội suy từ frame lân cận; cờ chất lượng loại frame xấu; cho hiệu chỉnh tay 4 điểm; tài liệu nêu rõ góc camera khuyến nghị</td></tr>
+      <tr><td>R2</td><td><strong>Phân đội sai</strong> khi 2 đội mặc áo màu gần giống, hoặc ánh sáng/bóng đổ thay đổi</td><td>Cao — sai đội thì mọi thống kê sai</td><td>Trung bình</td><td>Dùng embedding học sâu thay vì chỉ histogram màu; ổn định cụm xuyên thời gian (bỏ phiếu theo track); bắt buộc người dùng xác nhận ở M1</td></tr>
+      <tr><td>R3</td><td><strong>Mất dấu bóng</strong> — bóng quá nhỏ, bay nhanh, bị che</td><td>Trung bình — ảnh hưởng possession &amp; pass</td><td>Cao</td><td>Tile inference độ phân giải cao quanh vùng dự đoán; nội suy Kalman; xác định possession theo cụm cầu thủ khi mất bóng</td></tr>
+      <tr><td>R4</td><td><strong>Chi phí GPU vượt dự toán</strong></td><td>Cao — ăn mòn lợi nhuận</td><td>Trung bình</td><td>TensorRT FP16 + batch động; dùng spot instance; giới hạn job gói free; cho chọn chế độ "nhanh" (bước nhảy frame)</td></tr>
+      <tr><td>R5</td><td><strong>Vấn đề bản quyền</strong> khi người dùng upload video phát sóng</td><td>Cao — rủi ro pháp lý</td><td>Trung bình</td><td>Bắt buộc tick xác nhận quyền sử dụng; điều khoản dịch vụ rõ ràng; quy trình gỡ bỏ theo yêu cầu; không lưu trữ công khai video người dùng</td></tr>
+      <tr><td>R6</td><td><strong>Kỳ vọng độ chính xác</strong> — người dùng so sánh với dữ liệu thương mại</td><td>Trung bình — mất niềm tin</td><td>Cao</td><td>Luôn hiện confidence; nói rõ giới hạn trong onboarding; định vị là "đủ tốt để ra quyết định", không phải "chuẩn phát sóng"</td></tr>
+      <tr><td>R7</td><td><strong>Dữ liệu huấn luyện không đủ đa dạng</strong> — model chỉ tốt với video broadcast châu Âu, kém với camera khán đài nghiệp dư</td><td>Cao — hỏng đúng phân khúc mục tiêu</td><td>Cao</td><td>Test set phân tầng theo nguồn camera/khu vực (mục 6.2) và đo chỉ số trên từng nhóm; ưu tiên thu thập footage Veo/Pixellot và camera khán đài từ nhiều quốc gia; chương trình đóng góp dữ liệu đổi lấy tín dụng sử dụng; augment mạnh về chất lượng ảnh</td></tr>
+      <tr><td>R8</td><td><strong>LLM bịa số liệu</strong> trong báo cáo chiến thuật</td><td>Cao — phá hoại uy tín</td><td>Trung bình</td><td>Chỉ truyền số liệu đã tính, không truyền ảnh thô; template có chỗ trống cố định; kiểm tra tự động mọi con số trong báo cáo phải khớp DB; chặn phát hành nếu không khớp</td></tr>
+      <tr><td>R9</td><td><strong>Live stream không giữ nổi FPS</strong></td><td>Trung bình</td><td>Trung bình</td><td>Giảm cấp tự động: tăng bước nhảy frame, hạ model size, tắt ReID theo thứ tự ưu tiên; hiện rõ chế độ đang chạy cho người dùng</td></tr>
+      <tr><td>R11</td><td><strong>Hai đường triển khai lệch nhau</strong> — tính năng chạy trên cloud nhưng hỏng trên self-host hoặc ngược lại</td><td>Trung bình</td><td>Trung bình</td><td>Một image container duy nhất; CI chạy smoke test cả 2 profile; mọi khác biệt chỉ nằm trong file cấu hình</td></tr>
+      <tr><td>R12</td><td><strong>Cạnh tranh quốc tế</strong> — Veo, Hudl, Trace, Metrica đã có chỗ đứng</td><td>Cao</td><td>Cao</td><td>Khác biệt bằng: chạy trên video từ <em>bất kỳ</em> camera (không khoá phần cứng), tuỳ chọn self-host cho CLB cần giữ dữ liệu, báo cáo AI có trích dẫn số liệu, giá thấp hơn</td></tr>
+      <tr><td>R10</td><td><strong>Phình khối lượng dữ liệu</strong> — 250MB/trận</td><td>Trung bình</td><td>Cao</td><td>TimescaleDB nén; xoá detection thô sau 90 ngày, giữ bản tổng hợp; giảm tần suất lưu (lưu 10 FPS thay vì 25 FPS cho dữ liệu lịch sử)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 15 ============ -->
+<section id="s15">
+  <h2><span class="n">15</span>Ngoài phạm vi (v1.0)</h2>
+  <ul>
+    <li><strong>Nhận dạng khuôn mặt</strong> — cố ý loại bỏ vì rủi ro riêng tư và pháp lý. Chỉ dùng số áo và màu áo.</li>
+    <li><strong>Phát hiện sự kiện tự động</strong> (bàn thắng, thẻ phạt, phạm lỗi) — cần mô hình nhận dạng hành động riêng, để v2.</li>
+    <li><strong>Mô hình xG (bàn thắng kỳ vọng)</strong> — cần dữ liệu sự kiện cú sút, phụ thuộc hạng mục trên.</li>
+    <li><strong>Camera đa góc / hợp nhất nhiều nguồn</strong> — phức tạp về đồng bộ, để v2.</li>
+    <li><strong>Ứng dụng di động gốc</strong> — web responsive là đủ cho v1.</li>
+    <li><strong>Cộng tác thời gian thực</strong> (nhiều người cùng chú thích một trận) — v2.</li>
+    <li><strong>Môn thể thao khác</strong> (bóng rổ, futsal) — kiến trúc có tính đến nhưng không triển khai v1.</li>
+    <li><strong>Tích hợp dữ liệu thiết bị đeo</strong> (GPS vest, nhịp tim) — v2.</li>
+    <li><strong>Dựng lại 3D / ước lượng tư thế cầu thủ</strong> — nghiên cứu, không phải sản phẩm.</li>
+  </ul>
+</section>
+
+<!-- ============ 16 ============ -->
+<section id="s16">
+  <h2><span class="n">16</span>Câu hỏi mở</h2>
+  <table>
+    <thead><tr><th>#</th><th>Câu hỏi</th><th>Người quyết</th><th>Hạn</th></tr></thead>
+    <tbody>
+      <tr><td>Q1</td><td><s>Hạ tầng GPU: tự host hay thuê cloud?</s> <span class="pill p-m1">Đã chốt</span> Hỗ trợ cả hai qua <code>ComputeBackend</code> (mục 7.2).</td><td>Chủ sở hữu</td><td>✓</td></tr>
+      <tr><td>Q2</td><td>Mô hình kinh doanh: freemium theo số phút xử lý, hay thuê bao theo tháng, hay bán theo CLB?</td><td>Chủ sở hữu</td><td>Trước M3</td></tr>
+      <tr><td>Q3</td><td><s>Thị trường đầu tiên: Việt Nam hay quốc tế?</s> <span class="pill p-m1">Đã chốt</span> Quốc tế, English-first (mục 1.3, 6.2, 7.3).</td><td>Chủ sở hữu</td><td>✓</td></tr>
+      <tr><td>Q8</td><td>Khu vực khởi đầu: chỉ US, chỉ EU, hay cả hai ngay từ M1? EU kéo theo GDPR/data residency sớm hơn.</td><td>Chủ sở hữu</td><td>Trước M2</td></tr>
+      <tr><td>Q9</td><td>Có hỗ trợ import trực tiếp từ Veo / Hudl / Pixellot (qua API hoặc file export) không? Đây là nguồn video chính của nhiều CLB quốc tế.</td><td>Sản phẩm</td><td>Trước M2</td></tr>
+      <tr><td>Q4</td><td>Có cần hỗ trợ video dọc (quay bằng điện thoại) không? Homography khó hơn nhiều vì góc nhìn hẹp.</td><td>Sản phẩm</td><td>Trước M2</td></tr>
+      <tr><td>Q5</td><td>Có xây dựng chương trình thu thập dữ liệu người dùng để fine-tune mô hình không? Cần điều khoản đồng ý rõ ràng.</td><td>Pháp lý + Sản phẩm</td><td>Trước M2</td></tr>
+      <tr><td>Q6</td><td>Dùng model nào cho báo cáo: Claude Opus (chất lượng cao, đắt) hay Sonnet (rẻ, đủ dùng)? Nên benchmark ở M4.</td><td>Kỹ thuật</td><td>Tuần 20</td></tr>
+      <tr><td>Q7</td><td>Có mở API công khai cho bên thứ ba không? Ảnh hưởng đến thiết kế rate limit và tài liệu.</td><td>Chủ sở hữu</td><td>Sau M3</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="s17">
+  <h2><span class="n">17</span>Bước tiếp theo</h2>
+  <ol>
+    <li><strong>Chạy spike kỹ thuật 3 ngày</strong> — chạy YOLOv11 pretrained + homography trên 3 clip 2 phút (broadcast, Veo panoramic, camera khán đài), chạy được trên cả RTX 4090 local lẫn 1 instance RunPod. Đây là bước rẻ nhất để phát hiện R1, R7, R11 sớm.</li>
+    <li><strong>Dựng khung monorepo</strong> theo kiến trúc mục 7, có sẵn interface <code>ComputeBackend</code> và 2 profile triển khai.</li>
+    <li><strong>Thu thập 10 video thử nghiệm</strong> phủ các trục ở mục 6.2 làm bộ kiểm thử xuyên suốt dự án.</li>
+    <li><strong>Trả lời Q8, Q9</strong> trước khi vào M2.</li>
+  </ol>
+</section>
+
+</main>
+</div>
+
+<footer>
+  PitchVision AI — PRD v1.3 (broadcast-first) · 2026-10-05 · Đã chốt Q1 (GPU hybrid), Q3 (quốc tế), mục tiêu hiệu năng, object storage R2 · Trạng thái: Bản thảo, chờ phê duyệt
+</footer>
+
+<button class="theme" id="themeBtn">◐ Theme</button>
+<script>
+(function(){
+  var btn = document.getElementById('themeBtn');
+  var root = document.documentElement;
+  try{
+    var saved = localStorage.getItem('pv-theme');
+    if(saved) root.setAttribute('data-theme', saved);
+  }catch(e){}
+  btn.addEventListener('click', function(){
+    var cur = root.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try{ localStorage.setItem('pv-theme', next); }catch(e){}
+  });
+})();
+</script>
+</body>
+</html>

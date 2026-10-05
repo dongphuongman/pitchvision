@@ -1,0 +1,31 @@
+{
+  "properties": {
+    "op": {
+      "enum": [
+        "subscribe",
+        "unsubscribe",
+        "ping"
+      ],
+      "title": "Op",
+      "type": "string"
+    },
+    "topic": {
+      "anyOf": [
+        {
+          "pattern": "^(job|live:session):[0-9a-fA-F-]{8,}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Topic"
+    }
+  },
+  "required": [
+    "op"
+  ],
+  "title": "ClientOp",
+  "type": "object"
+}

@@ -1,0 +1,2039 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PitchVision UI/UX Design</title>
+<style>
+  :root{
+    --bg:#0b1016; --bg-2:#121a24; --bg-3:#18222e;
+    --line:#243345; --line-soft:#1b2734;
+    --fg:#e6edf5; --fg-2:#9fb0c3; --fg-3:#6e8299;
+    --accent:#3ddc84; --accent-2:#4da3ff; --warn:#ffb648; --danger:#ff6b6b; --violet:#b07cff;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f6f8fa; --bg-2:#ffffff; --bg-3:#eef2f6; --line:#d8e0e8; --line-soft:#e6ecf2;
+      --fg:#15202b; --fg-2:#4a5d70; --fg-3:#73849a;
+      --accent:#0f9d58; --accent-2:#1a73e8; --warn:#b26a00; --danger:#c62828; --violet:#6a3fc8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1016; --bg-2:#121a24; --bg-3:#18222e; --line:#243345; --line-soft:#1b2734;
+    --fg:#e6edf5; --fg-2:#9fb0c3; --fg-3:#6e8299;
+    --accent:#3ddc84; --accent-2:#4da3ff; --warn:#ffb648; --danger:#ff6b6b; --violet:#b07cff;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8fa; --bg-2:#ffffff; --bg-3:#eef2f6; --line:#d8e0e8; --line-soft:#e6ecf2;
+    --fg:#15202b; --fg-2:#4a5d70; --fg-3:#73849a;
+    --accent:#0f9d58; --accent-2:#1a73e8; --warn:#b26a00; --danger:#c62828; --violet:#6a3fc8;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans); font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1240px; margin:0 auto; padding:0 16px; display:grid; grid-template-columns:250px 1fr; gap:40px}
+  @media(max-width:900px){ .wrap{grid-template-columns:1fr; gap:0} nav.toc{display:none} }
+  header.top{border-bottom:1px solid var(--line); background:linear-gradient(180deg,var(--bg-2),var(--bg)); padding:48px 0 36px; margin-bottom:28px}
+  header.top .inner{max-width:1240px;margin:0 auto;padding:0 16px}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin:0 0 10px}
+  h1{font-size:clamp(28px,5vw,44px); line-height:1.1; margin:0 0 12px; letter-spacing:-.02em}
+  .sub{color:var(--fg-2); font-size:17px; max-width:70ch; margin:0 0 20px}
+  .meta{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{font-family:var(--mono); font-size:11.5px; padding:4px 10px; border:1px solid var(--line); border-radius:999px; color:var(--fg-2); background:var(--bg-3)}
+  .chip.on{border-color:var(--accent); color:var(--accent)}
+  nav.toc{position:sticky; top:24px; align-self:start; max-height:calc(100vh - 48px); overflow:auto; padding-bottom:40px}
+  nav.toc div.t{font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--fg-3); margin:14px 0 6px}
+  nav.toc div.t:first-child{margin-top:0}
+  nav.toc a{display:block; color:var(--fg-2); text-decoration:none; font-size:13px; padding:3px 10px; border-left:2px solid var(--line-soft); line-height:1.4}
+  nav.toc a:hover{color:var(--fg); border-left-color:var(--accent); background:var(--bg-3)}
+  main{min-width:0; padding-bottom:80px}
+  section{margin:0 0 56px; scroll-margin-top:16px}
+  h2{font-size:24px; letter-spacing:-.01em; margin:0 0 6px; padding-bottom:10px; border-bottom:1px solid var(--line)}
+  h2 .n{font-family:var(--mono); font-size:14px; color:var(--accent); margin-right:10px}
+  h3{font-size:17px; margin:28px 0 8px}
+  h4{font-size:14px; margin:18px 0 6px; color:var(--fg-2); font-family:var(--mono); font-weight:600}
+  p{margin:0 0 12px; color:var(--fg-2)}
+  p strong, li strong, td strong{color:var(--fg)}
+  ul,ol{margin:0 0 14px; padding-left:22px; color:var(--fg-2)}
+  li{margin:3px 0}
+  code{font-family:var(--mono); font-size:12.5px; background:var(--bg-3); border:1px solid var(--line-soft); padding:1px 5px; border-radius:5px; color:var(--accent-2)}
+  table{width:100%; border-collapse:collapse; margin:0 0 18px; font-size:13.3px; display:block; overflow-x:auto}
+  th,td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top}
+  th{color:var(--fg-3); font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; border-bottom:1px solid var(--line); white-space:nowrap}
+  td{color:var(--fg-2)}
+  td:first-child{font-family:var(--mono); font-size:11.5px; color:var(--fg-3); white-space:nowrap}
+  tbody tr:hover{background:var(--bg-2)}
+  .ui{color:var(--fg); font-weight:600}
+  a.d{font-family:var(--mono); font-size:11.5px; color:var(--accent); text-decoration:none; border:1px solid color-mix(in srgb,var(--accent) 35%,transparent); padding:1px 6px; border-radius:4px; white-space:nowrap; display:inline-block; margin:1px 0}
+  a.d:hover{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+  .x{font-family:var(--mono); font-size:11.5px; color:var(--violet); white-space:nowrap}
+  .s{font-family:var(--mono); font-size:11.5px; color:var(--fg-3); white-space:nowrap}
+  .t{display:inline-block; font-family:var(--mono); font-size:10px; padding:1px 6px; border-radius:4px; border:1px solid var(--line); color:var(--fg-3); white-space:nowrap}
+  .t.btn{color:var(--accent-2); border-color:color-mix(in srgb,var(--accent-2) 40%,transparent)}
+  .t.lnk{color:var(--accent); border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+  .t.tab{color:var(--warn); border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+  .t.mnu{color:var(--violet); border-color:color-mix(in srgb,var(--violet) 40%,transparent)}
+  .t.inp{color:var(--fg-2)}
+  .t.sys{color:var(--danger); border-color:color-mix(in srgb,var(--danger) 40%,transparent)}
+  .t.key{color:var(--fg-2); background:var(--bg-3)}
+  .ascii{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; overflow-x:auto; font-family:var(--mono); font-size:11.5px; line-height:1.4; color:var(--fg-2); margin:0 0 14px; white-space:pre}
+  .scr{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px 6px; margin:0 0 22px; scroll-margin-top:16px}
+  .scr > h3{margin:0 0 4px; display:flex; flex-wrap:wrap; gap:10px; align-items:baseline}
+  .scr > h3 .id{font-family:var(--mono); font-size:13px; color:var(--accent)}
+  .scr .ascii{background:var(--bg)}
+  .scr table{font-size:13px}
+  .kv{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12.5px; color:var(--fg-3); margin:0 0 12px; font-family:var(--mono)}
+  .kv b{color:var(--fg-2); font-weight:500}
+  .pill{display:inline-block; font-family:var(--mono); font-size:10.5px; padding:2px 7px; border-radius:4px; border:1px solid var(--line); color:var(--fg-3); white-space:nowrap}
+  .m1{border-color:#3ddc8455;color:#3ddc84} .m2{border-color:#4da3ff55;color:#4da3ff} .m3{border-color:#ffb64855;color:#e0a040} .m4{border-color:#b07cff55;color:#b07cff}
+  .note{border-left:3px solid var(--accent-2); background:var(--bg-2); padding:12px 16px; border-radius:0 var(--radius) var(--radius) 0; margin:0 0 16px}
+  .note.warn{border-left-color:var(--warn)}
+  .note p:last-child,.note ul:last-child{margin-bottom:0}
+  .note .lbl{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent-2); display:block; margin-bottom:4px}
+  .note.warn .lbl{color:var(--warn)}
+  .legend{display:flex; flex-wrap:wrap; gap:8px 14px; margin:0 0 16px; font-size:12.5px; color:var(--fg-2); align-items:center}
+  .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; margin-bottom:16px}
+  .card{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px}
+  .card h4{margin-top:0}
+  .card ul:last-child,.card p:last-child{margin-bottom:0}
+  .mermaid-wrap{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin:0 0 18px; overflow-x:auto}
+  pre.mermaid{margin:0; background:none; border:none; color:var(--fg-2); font-size:12px; text-align:center}
+  .swatch{display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:-2px; margin-right:6px; border:1px solid var(--line)}
+  table.matrix td, table.matrix th{text-align:center; padding:4px 6px; font-size:11px}
+  table.matrix td:first-child, table.matrix th:first-child{text-align:left}
+  table.matrix td.y{color:var(--accent); font-weight:700}
+  footer{border-top:1px solid var(--line); padding:24px 16px 60px; color:var(--fg-3); font-size:12.5px; max-width:1240px; margin:0 auto; font-family:var(--mono)}
+  .theme{position:fixed; right:16px; bottom:16px; background:var(--bg-2); border:1px solid var(--line); color:var(--fg-2); border-radius:999px; padding:8px 14px; font-family:var(--mono); font-size:12px; cursor:pointer; z-index:50}
+  .theme:hover{color:var(--fg); border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="inner">
+    <p class="eyebrow">UI/UX Design Specification · v1.1</p>
+    <h1>PitchVision AI — Thiết kế UI/UX</h1>
+    <p class="sub">Đặc tả từng màn hình, wireframe, trạng thái và <strong>toàn bộ điều hướng</strong>: mỗi button, link, tab, menu đều có mã riêng và đích đến xác định. Các mã màn hình đích là link — bấm để nhảy tới đặc tả màn hình đó.</p>
+    <div class="meta">
+      <span class="chip on">Tham chiếu: PRD v1.2 · AD v1.1</span>
+      <span class="chip">36 màn hình &amp; dialog</span>
+      <span class="chip">12 user flow</span>
+      <span class="chip">UI ngôn ngữ: English</span>
+      <span class="chip">Ngày: 2026-10-05</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<nav class="toc">
+  <div class="t">Tổng quan</div>
+  <a href="#s1">1. Quy ước tài liệu</a>
+  <a href="#s2">2. Nguyên tắc &amp; Design system</a>
+  <a href="#s3">3. Sitemap &amp; Route</a>
+  <a href="#s4">4. Thành phần toàn cục</a>
+  <div class="t">Màn hình</div>
+  <a href="#g-auth">A. Public &amp; Xác thực</a>
+  <a href="#g-lib">B. Thư viện &amp; Tạo phân tích</a>
+  <a href="#g-proc">C. Xử lý &amp; Hiệu chỉnh</a>
+  <a href="#g-ws">D. Workspace phân tích</a>
+  <a href="#g-out">E. Báo cáo, Export, Chia sẻ</a>
+  <a href="#g-live">F. Live</a>
+  <a href="#g-set">G. Cài đặt &amp; Tài khoản</a>
+  <a href="#g-sys">H. Hệ thống &amp; Dialog</a>
+  <div class="t">Flow</div>
+  <a href="#s6">6. User flow (F1–F12)</a>
+  <a href="#s7">7. Ma trận điều hướng</a>
+  <a href="#s8">8. Phím tắt</a>
+  <a href="#s9">9. Responsive</a>
+  <a href="#s10">10. Câu hỏi mở UX</a>
+</nav>
+
+<main>
+
+<!-- ============ 1 ============ -->
+<section id="s1">
+  <div class="note warn" style="margin-bottom:28px">
+    <span class="lbl">v1.1 · Broadcast-first (đợt 1)</span>
+    <ul>
+      <li><strong>Hoãn sang Phase C (ẩn, không hiện Coming soon):</strong> G.E03 mục Live, SCR-11 tab Live, SCR-30, SCR-31, SCR-32, DLG-10, flow F5; SCR-12 chọn thể thức (chỉ 11v11).</li>
+      <li><strong>SCR-11:</strong> tab <strong>YouTube URL là mặc định và có từ M1</strong>; thứ tự tab: YouTube · Upload · Import (Soon).</li>
+      <li><strong>SCR-13:</strong> thêm bước "Detect shots" giữa Prepare và Detect teams.</li>
+      <li><strong>SCR-20:</strong> timeline tô theo loại cảnh (replay / cận cảnh màu xám có nhãn); tactical map hiện "Not available — replay/close-up" ngoài cảnh toàn cảnh; nút "Skip to next live action"; từ M2 timeline hiển thị <strong>phút trận</strong> lấy từ scoreboard.</li>
+      <li><strong>SCR-20a:</strong> từ M3 có badge <strong>độ phủ</strong> ("Tactical data for 71% of match time"); số ước tính có nhãn.</li>
+      <li>Prototype chưa cập nhật các điểm trên — xem PLAN v1.1 mục 0.</li>
+    </ul>
+  </div>
+  <h2><span class="n">01</span>Quy ước tài liệu</h2>
+  <h3>1.1 Mã định danh</h3>
+  <ul>
+    <li><strong>Màn hình:</strong> <code>SCR-xx</code>. Tab con của màn hình: <code>SCR-20b</code>. Dialog / modal: <code>DLG-xx</code>.</li>
+    <li><strong>Phần tử tương tác:</strong> <code>SCR-xx.E##</code> — đánh số tuần tự trong màn hình. Phần tử toàn cục: <code>G.E##</code>.</li>
+    <li><strong>Flow:</strong> <code>F#</code>.</li>
+  </ul>
+
+  <h3>1.2 Loại phần tử</h3>
+  <div class="legend">
+    <span class="t btn">BTN</span> Button
+    <span class="t lnk">LINK</span> Link / văn bản bấm được
+    <span class="t tab">TAB</span> Tab
+    <span class="t mnu">MENU</span> Mục menu / dropdown
+    <span class="t inp">INPUT</span> Ô nhập, toggle, chọn
+    <span class="t sys">AUTO</span> Chuyển màn hình do hệ thống (không do người dùng bấm)
+    <span class="t key">KEY</span> Phím tắt
+  </div>
+
+  <h3>1.3 Cột "Đích đến"</h3>
+  <ul>
+    <li><a class="d" href="#scr-20">SCR-20</a> — chuyển sang màn hình khác (bấm để xem đặc tả).</li>
+    <li><span class="s">↺ tại chỗ</span> — thay đổi trạng thái trên chính màn hình đó, không đổi route.</li>
+    <li><span class="x">↗ ngoài</span> — mở hệ thống bên ngoài (tab mới hoặc redirect).</li>
+    <li><span class="s">⬇ tải file</span> — trình duyệt tải file về.</li>
+    <li><span class="s">✕ đóng</span> — đóng modal/drawer, quay về màn hình bên dưới.</li>
+    <li>Đích phụ thuộc điều kiện được ghi dạng <em>điều kiện → đích</em>.</li>
+  </ul>
+
+  <h3>1.4 Mốc phát hành</h3>
+  <p><span class="pill m1">M1</span> <span class="pill m2">M2</span> <span class="pill m3">M3</span> <span class="pill m4">M4</span> — theo PRD mục 13. Phần tử thuộc mốc chưa phát hành <strong>không hiển thị</strong> (không hiện dạng disabled), trừ khi ghi rõ "hiện Coming soon".</p>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="s2">
+  <h2><span class="n">02</span>Nguyên tắc &amp; Design system</h2>
+
+  <h3>2.1 Nguyên tắc UX</h3>
+  <ol>
+    <li><strong>Video là trung tâm.</strong> Mọi con số, sự kiện, biểu đồ bấm được để nhảy tới đúng thời điểm trong video.</li>
+    <li><strong>Luôn trung thực về độ tin cậy.</strong> Hiển thị confidence; đoạn homography kém được tô sọc trên timeline; tactical map mờ đi thay vì vẽ sai.</li>
+    <li><strong>Sửa được tại chỗ.</strong> Mọi kết quả AI có đường sửa trực tiếp (chuột phải / nhấn giữ trên đối tượng), có Undo.</li>
+    <li><strong>Không chặn người dùng khi chờ.</strong> Xử lý chạy nền; người dùng rời đi được và được thông báo khi xong.</li>
+    <li><strong>Một hành động chính mỗi màn hình.</strong> Nút primary duy nhất, màu accent.</li>
+    <li><strong>Huỷ được, hoàn tác được.</strong> Hành động phá huỷ luôn có confirm; hành động sửa luôn có Undo 10 giây.</li>
+  </ol>
+
+  <h3>2.2 Token</h3>
+  <table>
+    <thead><tr><th>Token</th><th>Dark</th><th>Light</th><th>Dùng cho</th></tr></thead>
+    <tbody>
+      <tr><td>--surface-0</td><td><span class="swatch" style="background:#0b1016"></span>#0B1016</td><td><span class="swatch" style="background:#f6f8fa"></span>#F6F8FA</td><td>Nền ứng dụng</td></tr>
+      <tr><td>--surface-1</td><td><span class="swatch" style="background:#121a24"></span>#121A24</td><td><span class="swatch" style="background:#ffffff"></span>#FFFFFF</td><td>Card, panel, modal</td></tr>
+      <tr><td>--accent</td><td><span class="swatch" style="background:#3ddc84"></span>#3DDC84</td><td><span class="swatch" style="background:#0f9d58"></span>#0F9D58</td><td>Primary button, trạng thái thành công, link</td></tr>
+      <tr><td>--info</td><td><span class="swatch" style="background:#4da3ff"></span>#4DA3FF</td><td><span class="swatch" style="background:#1a73e8"></span>#1A73E8</td><td>Đang xử lý, thông tin</td></tr>
+      <tr><td>--warning</td><td><span class="swatch" style="background:#ffb648"></span>#FFB648</td><td><span class="swatch" style="background:#b26a00"></span>#B26A00</td><td>Chất lượng thấp, cần xác nhận</td></tr>
+      <tr><td>--danger</td><td><span class="swatch" style="background:#ff6b6b"></span>#FF6B6B</td><td><span class="swatch" style="background:#c62828"></span>#C62828</td><td>Lỗi, xoá, live đang ghi</td></tr>
+      <tr><td>--team-a / --team-b</td><td colspan="2">Người dùng chọn ở <a class="d" href="#scr-14">SCR-14</a>; mặc định <span class="swatch" style="background:#e8eef5"></span>trắng / <span class="swatch" style="background:#2b59c3"></span>xanh</td><td>Bbox, chấm map. Hệ thống tự thêm viền tương phản nếu contrast &lt; 3:1 với cỏ</td></tr>
+      <tr><td>--referee</td><td colspan="2"><span class="swatch" style="background:#f2c94c"></span>#F2C94C (cố định)</td><td>Trọng tài</td></tr>
+      <tr><td>--ball</td><td colspan="2"><span class="swatch" style="background:#ff8a3d"></span>#FF8A3D (cố định)</td><td>Bóng</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><strong>Font:</strong> Inter (UI), JetBrains Mono (số liệu, timecode). Số luôn dùng <code>tabular-nums</code>.</li>
+    <li><strong>Cỡ chữ:</strong> 12 / 13 / 14 (body) / 16 / 20 / 24 / 32.</li>
+    <li><strong>Khoảng cách:</strong> bội số 4px. Bo góc: 6 (input), 10 (card), 14 (modal).</li>
+    <li><strong>Mù màu:</strong> trên tactical map Team A = hình tròn, Team B = hình vuông, trọng tài = tam giác, bóng = chấm nhỏ có viền. Không bao giờ phân biệt đội chỉ bằng màu.</li>
+  </ul>
+
+  <h3>2.3 Thư viện component</h3>
+  <div class="grid2">
+    <div class="card"><h4>Cơ bản</h4><ul><li>Button: primary / secondary / ghost / danger · size sm/md</li><li>Input, Select, Combobox (autocomplete), Slider, Toggle, Checkbox, Radio card</li><li>Tabs (underline), Segmented control</li><li>Badge trạng thái, Tooltip, Toast (có action Undo)</li></ul></div>
+    <div class="card"><h4>Overlay</h4><ul><li>Modal (sm 480 / md 640 / lg 880)</li><li>Drawer phải (400px)</li><li>Popover, Context menu</li><li>Confirm dialog (nút danger bên phải)</li></ul></div>
+    <div class="card"><h4>Chuyên biệt</h4><ul><li>VideoPlayer + OverlayCanvas</li><li>TacticalMap (canvas / WebGL)</li><li>Timeline (marker, vùng chất lượng thấp, vùng chọn)</li><li>SegmentMosaic (tiến trình segment)</li><li>LayerToggleBar, StatBar so sánh 2 đội</li></ul></div>
+    <div class="card"><h4>Trạng thái chuẩn</h4><ul><li>Skeleton khi tải</li><li>Empty state: minh hoạ + 1 câu + 1 CTA</li><li>Error inline: mô tả + cách khắc phục + Retry</li><li>Banner cấp trang (warning / info)</li></ul></div>
+  </div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="s3">
+  <h2><span class="n">03</span>Sitemap &amp; Route</h2>
+  <p>Bấm vào node trong sơ đồ để nhảy tới đặc tả màn hình.</p>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  subgraph PUB["Public"]
+    S01["SCR-01 Landing"]
+    S02["SCR-02 Sign in"]
+    S03["SCR-03 Sign up"]
+    S04["SCR-04 Forgot password"]
+    S05["SCR-05 Reset password"]
+    S06["SCR-06 Verify email"]
+    S52["SCR-52 Accept invite"]
+    S28["SCR-28 Shared viewer"]
+    S53["SCR-53 Legal"]
+  end
+  subgraph APP["App (đã đăng nhập)"]
+    S07["SCR-07 Onboarding"]
+    S10["SCR-10 Library"]
+    S11["SCR-11 New analysis"]
+    S12["SCR-12 Advanced settings"]
+    S13["SCR-13 Processing"]
+    S14["SCR-14 Team confirmation"]
+    S15["SCR-15 Pitch calibration"]
+    S20["SCR-20 Analysis workspace"]
+    S21["SCR-21 Roster"]
+    S23["SCR-23 Player drawer"]
+    S24["SCR-24 AI report"]
+    S25["SCR-25 Export"]
+    S26["SCR-26 Exports"]
+    S27["SCR-27 Share"]
+    S30["SCR-30 Live hub"]
+    S31["SCR-31 Live viewer"]
+    S32["SCR-32 Live summary"]
+    S40["SCR-40 Settings"]
+    S41["SCR-41 Upgrade"]
+  end
+  S01 --> S02 & S03
+  S02 --> S04 --> S05 --> S02
+  S03 --> S06 --> S07 --> S10
+  S02 --> S10
+  S52 --> S03
+  S10 --> S11 --> S13
+  S11 --> S12
+  S11 --> S30
+  S13 --> S14 --> S20
+  S13 --> S15 --> S20
+  S10 --> S20
+  S20 --> S21 & S23 & S24 & S25 & S27
+  S25 --> S26
+  S27 -.-> S28
+  S30 --> S31 --> S32 --> S13
+  S10 --> S26 & S30 & S40
+  S40 --> S41
+  click S01 "#scr-01"
+  click S02 "#scr-02"
+  click S03 "#scr-03"
+  click S04 "#scr-04"
+  click S05 "#scr-05"
+  click S06 "#scr-06"
+  click S07 "#scr-07"
+  click S10 "#scr-10"
+  click S11 "#scr-11"
+  click S12 "#scr-12"
+  click S13 "#scr-13"
+  click S14 "#scr-14"
+  click S15 "#scr-15"
+  click S20 "#scr-20"
+  click S21 "#scr-21"
+  click S23 "#scr-23"
+  click S24 "#scr-24"
+  click S25 "#scr-25"
+  click S26 "#scr-26"
+  click S27 "#scr-27"
+  click S28 "#scr-28"
+  click S30 "#scr-30"
+  click S31 "#scr-31"
+  click S32 "#scr-32"
+  click S40 "#scr-40"
+  click S41 "#scr-41"
+  click S52 "#scr-52"
+  click S53 "#scr-53"
+</pre></div>
+
+  <h3>3.1 Bảng route</h3>
+  <table>
+    <thead><tr><th>Màn hình</th><th>Route</th><th>Loại</th><th>Quyền</th><th>Mốc</th></tr></thead>
+    <tbody>
+      <tr><td><a class="d" href="#scr-01">SCR-01</a></td><td><code>/</code></td><td>Trang</td><td>Public (đã đăng nhập → redirect <code>/library</code>)</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-02">SCR-02</a></td><td><code>/signin?return_to=</code></td><td>Trang</td><td>Public</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-03">SCR-03</a></td><td><code>/signup?invite=</code></td><td>Trang</td><td>Public</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-04">SCR-04</a></td><td><code>/forgot-password</code></td><td>Trang</td><td>Public</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-05">SCR-05</a></td><td><code>/reset-password?token=</code></td><td>Trang</td><td>Public</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-06">SCR-06</a></td><td><code>/verify-email</code></td><td>Trang</td><td>Đăng nhập, chưa xác minh</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-07">SCR-07</a></td><td><code>/onboarding/:step</code></td><td>Trang (wizard)</td><td>Đã xác minh, chưa có org</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-10">SCR-10</a></td><td><code>/library</code></td><td>Trang</td><td>Thành viên org</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-11">SCR-11</a></td><td><code>/library?new=upload|youtube|live</code></td><td>Modal lg</td><td>Editor+</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-12">SCR-12</a></td><td><code>…&amp;settings=1</code></td><td>Modal md (chồng)</td><td>Editor+</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-13">SCR-13</a></td><td><code>/videos/:id/processing</code></td><td>Trang</td><td>Thành viên</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-14">SCR-14</a></td><td><code>/videos/:id/teams</code></td><td>Trang</td><td>Editor+</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-15">SCR-15</a></td><td><code>/videos/:id/calibrate</code></td><td>Trang</td><td>Editor+</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-20">SCR-20</a></td><td><code>/videos/:id/:tab?t=</code></td><td>Trang</td><td>Thành viên</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-21">SCR-21</a></td><td><code>/videos/:id/roster</code></td><td>Trang</td><td>Editor+</td><td><span class="pill m2">M2</span></td></tr>
+      <tr><td><a class="d" href="#scr-23">SCR-23</a></td><td><code>/videos/:id/:tab?player=</code></td><td>Drawer</td><td>Thành viên</td><td><span class="pill m2">M2</span></td></tr>
+      <tr><td><a class="d" href="#scr-24">SCR-24</a></td><td><code>/videos/:id/report</code></td><td>Trang</td><td>Thành viên</td><td><span class="pill m4">M4</span></td></tr>
+      <tr><td><a class="d" href="#scr-25">SCR-25</a></td><td><code>…?export=video|data|pdf</code></td><td>Modal md</td><td>Thành viên</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-26">SCR-26</a></td><td><code>/exports</code></td><td>Trang</td><td>Thành viên</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-27">SCR-27</a></td><td><code>…?share=1</code></td><td>Modal sm</td><td>Editor+</td><td><span class="pill m2">M2</span></td></tr>
+      <tr><td><a class="d" href="#scr-28">SCR-28</a></td><td><code>/s/:share_token</code></td><td>Trang</td><td>Public (có token)</td><td><span class="pill m2">M2</span></td></tr>
+      <tr><td><a class="d" href="#scr-30">SCR-30</a></td><td><code>/live</code></td><td>Trang</td><td>Thành viên</td><td><span class="pill m2">M2</span></td></tr>
+      <tr><td><a class="d" href="#scr-31">SCR-31</a></td><td><code>/live/:session_id</code></td><td>Trang</td><td>Thành viên</td><td><span class="pill m2">M2</span></td></tr>
+      <tr><td><a class="d" href="#scr-32">SCR-32</a></td><td><code>/live/:session_id/summary</code></td><td>Trang</td><td>Thành viên</td><td><span class="pill m2">M2</span></td></tr>
+      <tr><td><a class="d" href="#scr-40">SCR-40</a></td><td><code>/settings/:section</code></td><td>Trang</td><td>Theo mục (xem SCR-40)</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-41">SCR-41</a></td><td><code>…?upgrade=1&amp;reason=</code></td><td>Modal lg</td><td>Owner/Admin</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-50">SCR-50</a></td><td><code>/404</code>, <code>/403</code>, <code>/error</code></td><td>Trang</td><td>—</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-52">SCR-52</a></td><td><code>/invite/:token</code></td><td>Trang</td><td>Public</td><td><span class="pill m1">M1</span></td></tr>
+      <tr><td><a class="d" href="#scr-53">SCR-53</a></td><td><code>/terms</code>, <code>/privacy</code></td><td>Trang tĩnh</td><td>Public</td><td><span class="pill m1">M1</span></td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <span class="lbl">Quy tắc route</span>
+    <ul>
+      <li>Modal và drawer gắn vào query string → nút Back của trình duyệt đóng modal thay vì rời trang; link chia sẻ mở đúng modal.</li>
+      <li>Vào route cần đăng nhập khi chưa đăng nhập → <a class="d" href="#scr-02">SCR-02</a> với <code>return_to</code>; đăng nhập xong quay lại đúng chỗ.</li>
+      <li>Vào <code>/videos/:id/*</code> khi trạng thái video không phù hợp → tự chuyển theo bảng trạng thái ở <a class="d" href="#scr-10">SCR-10</a> (E10).</li>
+      <li>Quyền: <strong>Viewer</strong> (xem, export), <strong>Editor</strong> (tạo, sửa, chia sẻ), <strong>Admin</strong> (thành viên, API key), <strong>Owner</strong> (billing, xoá org). Phần tử không đủ quyền → ẩn.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="s4">
+  <h2><span class="n">04</span>Thành phần toàn cục</h2>
+  <div class="scr" id="g-nav">
+    <h3><span class="id">G</span>Top bar (mọi màn hình trong App)</h3>
+    <div class="ascii">┌───────────────────────────────────────────────────────────────────────────────────────┐
+│ [◆ PitchVision]   Library   Live ●   Exports          [+ New analysis]  62/120 min  🔔3  (DM▾) │
+│       E01          E02      E03       E04                   E05            E06       E07   E08 │
+└───────────────────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>G.E01</td><td class="ui">Logo PitchVision</td><td><span class="t lnk">LINK</span></td><td>Về trang chủ app</td><td><a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>G.E02</td><td class="ui">Library</td><td><span class="t lnk">LINK</span></td><td>Mục điều hướng chính; active khi route bắt đầu bằng <code>/library</code> hoặc <code>/videos</code></td><td><a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>G.E03</td><td class="ui">Live</td><td><span class="t lnk">LINK</span></td><td>Chấm đỏ nhấp nháy nếu org có phiên live đang chạy. <span class="pill m2">M2</span></td><td><a class="d" href="#scr-30">SCR-30</a></td></tr>
+        <tr><td>G.E04</td><td class="ui">Exports</td><td><span class="t lnk">LINK</span></td><td>Badge số export đang chạy</td><td><a class="d" href="#scr-26">SCR-26</a></td></tr>
+        <tr><td>G.E05</td><td class="ui">+ New analysis</td><td><span class="t btn">BTN</span></td><td>Primary. Ẩn với Viewer. Mở modal chồng lên màn hình hiện tại (route nền chuyển về <code>/library</code>)</td><td><a class="d" href="#scr-11">SCR-11</a></td></tr>
+        <tr><td>G.E06</td><td class="ui">Usage meter "62/120 min"</td><td><span class="t lnk">LINK</span></td><td>Chuyển vàng khi ≥ 80%, đỏ khi 100%. Tooltip hiển thị ngày reset</td><td><a class="d" href="#scr-40">SCR-40</a> /billing</td></tr>
+        <tr><td>G.E07</td><td class="ui">🔔 Notifications</td><td><span class="t btn">BTN</span></td><td>Mở dropdown thông báo</td><td><a class="d" href="#scr-51">SCR-51</a></td></tr>
+        <tr><td>G.E08</td><td class="ui">Avatar menu</td><td><span class="t mnu">MENU</span></td><td>Mở menu người dùng (G.E09–E17)</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>G.E09</td><td class="ui">↳ Profile</td><td><span class="t mnu">MENU</span></td><td></td><td><a class="d" href="#scr-40">SCR-40</a> /profile</td></tr>
+        <tr><td>G.E10</td><td class="ui">↳ Organization</td><td><span class="t mnu">MENU</span></td><td>Admin+</td><td><a class="d" href="#scr-40">SCR-40</a> /organization</td></tr>
+        <tr><td>G.E11</td><td class="ui">↳ Billing &amp; usage</td><td><span class="t mnu">MENU</span></td><td>Owner</td><td><a class="d" href="#scr-40">SCR-40</a> /billing</td></tr>
+        <tr><td>G.E12</td><td class="ui">↳ Preferences</td><td><span class="t mnu">MENU</span></td><td></td><td><a class="d" href="#scr-40">SCR-40</a> /preferences</td></tr>
+        <tr><td>G.E13</td><td class="ui">↳ Switch organization ▸</td><td><span class="t mnu">MENU</span></td><td>Chỉ hiện khi thuộc ≥ 2 org. Chọn org → nạp lại app (có thể đổi region API)</td><td><a class="d" href="#scr-10">SCR-10</a> của org mới</td></tr>
+        <tr><td>G.E14</td><td class="ui">↳ Keyboard shortcuts</td><td><span class="t mnu">MENU</span></td><td>Cũng mở bằng phím <code>?</code></td><td><a class="d" href="#dlg-05">DLG-05</a></td></tr>
+        <tr><td>G.E15</td><td class="ui">↳ Help &amp; docs</td><td><span class="t mnu">MENU</span></td><td>docs.pitchvision.ai, tab mới</td><td><span class="x">↗ ngoài</span></td></tr>
+        <tr><td>G.E16</td><td class="ui">↳ Theme: System / Light / Dark</td><td><span class="t mnu">MENU</span></td><td>Lưu vào preferences</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>G.E17</td><td class="ui">↳ Sign out</td><td><span class="t mnu">MENU</span></td><td>Xoá phiên. Nếu có upload đang chạy → <a class="d" href="#dlg-03">DLG-03</a> trước</td><td><a class="d" href="#scr-02">SCR-02</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="g-banner">
+    <h3><span class="id">G-B</span>Banner &amp; Toast toàn cục</h3>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>G.B01</td><td class="ui">Banner "You're offline"</td><td><span class="t sys">AUTO</span></td><td>Mất mạng; tự ẩn khi có lại. Nút <span class="ui">Retry</span> thử kết nối</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>G.B02</td><td class="ui">Banner "Quota 80% used" → <span class="ui">View usage</span></td><td><span class="t lnk">LINK</span></td><td>Hiện 1 lần / chu kỳ, đóng được</td><td><a class="d" href="#scr-40">SCR-40</a> /billing</td></tr>
+        <tr><td>G.B03</td><td class="ui">Toast "Analysis complete — <span class="ui">Open</span>"</td><td><span class="t lnk">LINK</span></td><td>Job xong khi người dùng đang ở màn hình khác</td><td><a class="d" href="#scr-20">SCR-20</a> (hoặc <a class="d" href="#scr-14">SCR-14</a> nếu chưa xác nhận đội)</td></tr>
+        <tr><td>G.B04</td><td class="ui">Toast "Analysis failed — <span class="ui">Details</span>"</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-13">SCR-13</a> trạng thái lỗi</td></tr>
+        <tr><td>G.B05</td><td class="ui">Toast "Export ready — <span class="ui">Download</span>"</td><td><span class="t lnk">LINK</span></td><td></td><td><span class="s">⬇ tải file</span></td></tr>
+        <tr><td>G.B06</td><td class="ui">Toast "… — <span class="ui">Undo</span>"</td><td><span class="t btn">BTN</span></td><td>Sau mọi correction / xoá; tồn tại 10s</td><td><span class="s">↺ hoàn tác</span></td></tr>
+        <tr><td>G.B07</td><td class="ui">Upload tray (góc dưới phải)</td><td><span class="t btn">BTN</span></td><td>Hiện khi có upload nền. Bấm 1 dòng → mở video đó</td><td><a class="d" href="#scr-13">SCR-13</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 5A ============ -->
+<section id="g-auth">
+  <h2><span class="n">05·A</span>Public &amp; Xác thực</h2>
+
+  <div class="scr" id="scr-01">
+    <h3><span class="id">SCR-01</span>Landing <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /</span><span><b>Mục đích</b> giới thiệu, chuyển đổi đăng ký</span></div>
+    <div class="ascii">┌──────────────────────────────────────────────────────────────────────────┐
+│ ◆ PitchVision          Features  Pricing  Docs          [Sign in] [Get started] │
+│                         E02       E03      E04            E05       E06          │
+├──────────────────────────────────────────────────────────────────────────┤
+│   Turn any match video into tactical data.                                 │
+│   Detection · Tracking · Tactical map · Stats · AI reports                  │
+│   [ Analyze a match free ]   [ ▶ Watch demo ]                               │
+│          E07                      E08                                       │
+│   ┌──────────────────────── demo video + tactical map ─────────────────┐   │
+├──────────────────────────────────────────────────────────────────────────┤
+│ #features   #pricing (Free / Pro / Team)  [Choose Pro] E09  [Contact sales] E10│
+├──────────────────────────────────────────────────────────────────────────┤
+│ © PitchVision · Terms E11 · Privacy E12 · Status E13 · Language ▾ E14        │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Logo</td><td><span class="t lnk">LINK</span></td><td>Cuộn lên đầu trang</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E02</td><td class="ui">Features</td><td><span class="t lnk">LINK</span></td><td>Cuộn tới <code>#features</code></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Pricing</td><td><span class="t lnk">LINK</span></td><td>Cuộn tới <code>#pricing</code></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">Docs</td><td><span class="t lnk">LINK</span></td><td>Tab mới</td><td><span class="x">↗ ngoài</span></td></tr>
+        <tr><td>E05</td><td class="ui">Sign in</td><td><span class="t btn">BTN</span></td><td></td><td><a class="d" href="#scr-02">SCR-02</a></td></tr>
+        <tr><td>E06</td><td class="ui">Get started</td><td><span class="t btn">BTN</span></td><td></td><td><a class="d" href="#scr-03">SCR-03</a></td></tr>
+        <tr><td>E07</td><td class="ui">Analyze a match free</td><td><span class="t btn">BTN</span></td><td>Chưa đăng nhập → đăng ký với <code>return_to=/library?new=upload</code>. Đã đăng nhập → thẳng vào modal</td><td><a class="d" href="#scr-03">SCR-03</a> / <a class="d" href="#scr-11">SCR-11</a></td></tr>
+        <tr><td>E08</td><td class="ui">Watch demo</td><td><span class="t btn">BTN</span></td><td>Phát video demo inline</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E09</td><td class="ui">Choose Free / Pro</td><td><span class="t btn">BTN</span></td><td>Đăng ký với <code>plan=</code>; Pro → sau onboarding mở <a class="d" href="#scr-41">SCR-41</a></td><td><a class="d" href="#scr-03">SCR-03</a></td></tr>
+        <tr><td>E10</td><td class="ui">Contact sales</td><td><span class="t btn">BTN</span></td><td>Form liên hệ (HubSpot) tab mới</td><td><span class="x">↗ ngoài</span></td></tr>
+        <tr><td>E11</td><td class="ui">Terms</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-53">SCR-53</a></td></tr>
+        <tr><td>E12</td><td class="ui">Privacy</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-53">SCR-53</a></td></tr>
+        <tr><td>E13</td><td class="ui">Status</td><td><span class="t lnk">LINK</span></td><td>status.pitchvision.ai</td><td><span class="x">↗ ngoài</span></td></tr>
+        <tr><td>E14</td><td class="ui">Language ▾</td><td><span class="t mnu">MENU</span></td><td>EN / ES / PT / DE / FR / VI (VI…: <span class="pill m3">M3</span>)</td><td><span class="s">↺ tại chỗ</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-02">
+    <h3><span class="id">SCR-02</span>Sign in <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /signin?return_to=</span></div>
+    <div class="ascii">┌──────────────── ◆ PitchVision ────────────────┐
+│ Sign in to PitchVision                         │
+│ [ G  Continue with Google ]            E01     │
+│ ───────────── or ─────────────                 │
+│ Email     [__________________]          E02    │
+│ Password  [__________________] 👁       E03    │
+│                    Forgot password?     E04    │
+│ [            Sign in            ]       E05    │
+│ No account? Create one                  E06    │
+└────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Continue with Google</td><td><span class="t btn">BTN</span></td><td>OAuth Google → quay về. Tài khoản mới → onboarding. Có <code>return_to</code> → đó. Còn lại → library</td><td><span class="x">↗ Google</span> → <a class="d" href="#scr-07">SCR-07</a> / <a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E02</td><td class="ui">Email</td><td><span class="t inp">INPUT</span></td><td>Validate định dạng khi blur</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Password + 👁</td><td><span class="t inp">INPUT</span></td><td>👁 hiện/ẩn mật khẩu</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">Forgot password?</td><td><span class="t lnk">LINK</span></td><td>Truyền email đã nhập sang</td><td><a class="d" href="#scr-04">SCR-04</a></td></tr>
+        <tr><td>E05</td><td class="ui">Sign in</td><td><span class="t btn">BTN</span></td><td>
+          Sai thông tin → lỗi inline, giữ email.<br>
+          5 lần sai → khoá 15 phút, hiện đếm ngược.<br>
+          Chưa xác minh email → <a class="d" href="#scr-06">SCR-06</a><br>
+          Chưa có org → <a class="d" href="#scr-07">SCR-07</a><br>
+          Có <code>return_to</code> → URL đó<br>
+          Còn lại → <a class="d" href="#scr-10">SCR-10</a></td><td>theo điều kiện</td></tr>
+        <tr><td>E06</td><td class="ui">Create one</td><td><span class="t lnk">LINK</span></td><td>Giữ <code>return_to</code></td><td><a class="d" href="#scr-03">SCR-03</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-03">
+    <h3><span class="id">SCR-03</span>Sign up <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /signup?invite=&amp;plan=</span></div>
+    <div class="ascii">┌──────────────── ◆ PitchVision ────────────────┐
+│ Create your account                            │
+│ [ G  Sign up with Google ]              E01    │
+│ ───────────── or ─────────────                 │
+│ Full name [__________________]          E02    │
+│ Email     [__________________]          E03    │  (khoá nếu đến từ lời mời)
+│ Password  [__________________] ▮▮▮▯ strength E04│
+│ [✓] I agree to the Terms and Privacy Policy E05 E06 E07 │
+│ [         Create account        ]       E08    │
+│ Already have an account? Sign in        E09    │
+└────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Sign up with Google</td><td><span class="t btn">BTN</span></td><td>Email Google đã xác minh → bỏ qua SCR-06. Đến từ lời mời → vào thẳng org</td><td><span class="x">↗ Google</span> → <a class="d" href="#scr-07">SCR-07</a> / <a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E02–E04</td><td class="ui">Name / Email / Password</td><td><span class="t inp">INPUT</span></td><td>Mật khẩu ≥ 10 ký tự, thanh độ mạnh. Email đã tồn tại → lỗi inline kèm link "Sign in instead" → <a class="d" href="#scr-02">SCR-02</a></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Checkbox đồng ý</td><td><span class="t inp">INPUT</span></td><td>Bắt buộc để bật E08</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E06</td><td class="ui">Terms</td><td><span class="t lnk">LINK</span></td><td>Tab mới</td><td><a class="d" href="#scr-53">SCR-53</a></td></tr>
+        <tr><td>E07</td><td class="ui">Privacy Policy</td><td><span class="t lnk">LINK</span></td><td>Tab mới</td><td><a class="d" href="#scr-53">SCR-53</a></td></tr>
+        <tr><td>E08</td><td class="ui">Create account</td><td><span class="t btn">BTN</span></td><td>Tạo tài khoản, gửi email xác minh. Đến từ lời mời (email khớp) → coi như đã xác minh → vào org</td><td><a class="d" href="#scr-06">SCR-06</a> / <a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E09</td><td class="ui">Sign in</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-02">SCR-02</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-04">
+    <h3><span class="id">SCR-04</span>Forgot password <span class="pill m1">M1</span></h3>
+    <div class="ascii">┌──────────────────────────────────────────────┐
+│ Reset your password                           │
+│ Email [__________________]             E01    │
+│ [       Send reset link       ]        E02    │
+│ ← Back to sign in                      E03    │
+│ ── trạng thái sau khi gửi ──                   │
+│ ✓ If an account exists, we sent a link.       │
+│   Didn't get it? Resend (00:59)        E04    │
+└──────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Email</td><td><span class="t inp">INPUT</span></td><td>Điền sẵn nếu đến từ SCR-02</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E02</td><td class="ui">Send reset link</td><td><span class="t btn">BTN</span></td><td>Luôn hiện cùng một thông báo (không lộ email có tồn tại hay không)</td><td><span class="s">↺ trạng thái "đã gửi"</span></td></tr>
+        <tr><td>E03</td><td class="ui">Back to sign in</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-02">SCR-02</a></td></tr>
+        <tr><td>E04</td><td class="ui">Resend</td><td><span class="t lnk">LINK</span></td><td>Khoá 60s giữa các lần</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>—</td><td class="ui">Link trong email</td><td><span class="t sys">AUTO</span></td><td>Hiệu lực 30 phút</td><td><a class="d" href="#scr-05">SCR-05</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-05">
+    <h3><span class="id">SCR-05</span>Reset password <span class="pill m1">M1</span></h3>
+    <div class="ascii">┌──────────────────────────────────────────────┐
+│ Choose a new password                         │
+│ New password     [______________]      E01    │
+│ Confirm password [______________]      E02    │
+│ [       Update password       ]        E03    │
+│ ── token hết hạn ──                            │
+│ ⚠ This link has expired. Request a new one   E04 │
+└──────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01–E02</td><td class="ui">Mật khẩu mới / xác nhận</td><td><span class="t inp">INPUT</span></td><td>Không khớp → lỗi inline</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Update password</td><td><span class="t btn">BTN</span></td><td>Thành công → đăng xuất mọi phiên khác, toast "Password updated"</td><td><a class="d" href="#scr-02">SCR-02</a></td></tr>
+        <tr><td>E04</td><td class="ui">Request a new one</td><td><span class="t lnk">LINK</span></td><td>Chỉ hiện khi token hết hạn/không hợp lệ</td><td><a class="d" href="#scr-04">SCR-04</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-06">
+    <h3><span class="id">SCR-06</span>Verify email <span class="pill m1">M1</span></h3>
+    <div class="ascii">┌──────────────────────────────────────────────┐
+│ ✉  Check your inbox                           │
+│ We sent a verification link to dm@club.com    │
+│ [ Open Gmail ] [ Open Outlook ]        E01    │
+│ Didn't get it? Resend email (00:59)    E02    │
+│ Wrong email? Change it                 E03    │
+│ Sign out                               E04    │
+└──────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Open Gmail / Outlook</td><td><span class="t btn">BTN</span></td><td>Chỉ hiện khi domain email khớp</td><td><span class="x">↗ ngoài</span></td></tr>
+        <tr><td>E02</td><td class="ui">Resend email</td><td><span class="t lnk">LINK</span></td><td>Khoá 60s</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Change it</td><td><span class="t lnk">LINK</span></td><td>Huỷ tài khoản chưa xác minh, điền sẵn tên</td><td><a class="d" href="#scr-03">SCR-03</a></td></tr>
+        <tr><td>E04</td><td class="ui">Sign out</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-02">SCR-02</a></td></tr>
+        <tr><td>—</td><td class="ui">Link trong email</td><td><span class="t sys">AUTO</span></td><td>Màn hình này tự phát hiện (polling 5s) và chuyển tiếp cả khi người dùng mở link ở thiết bị khác</td><td><a class="d" href="#scr-07">SCR-07</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-07">
+    <h3><span class="id">SCR-07</span>Onboarding (wizard 3 bước) <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /onboarding/organization → /region → /preferences</span></div>
+    <div class="ascii">┌─────────────────── Step 1 of 3 ●○○ ───────────────────┐
+│ Set up your organization                              │
+│ Name  [ Riverside FC Academy        ]          E01    │
+│ Type  ( Club ) ( Academy ) ( University ) ( Media ) ( Other )  E02 │
+│ Your role [ Coach ▾ ]                          E03    │
+│                                     [ Continue → ] E04│
+└───────────────────────────────────────────────────────┘
+┌─────────────────── Step 2 of 3 ●●○ ───────────────────┐
+│ Where should we store your data?                      │
+│ ┌──────────────────────┐ ┌──────────────────────┐     │
+│ │ 🇪🇺 European Union    │ │ 🇺🇸 United States     │ E05 │
+│ │ Frankfurt · GDPR      │ │ Virginia             │     │
+│ └──────────────────────┘ └──────────────────────┘     │
+│ ⚠ This can't be changed later.  Learn more     E06    │
+│ [ ← Back ] E07                       [ Continue → ] E08│
+└───────────────────────────────────────────────────────┘
+┌─────────────────── Step 3 of 3 ●●● ───────────────────┐
+│ Preferences                                           │
+│ Language [ English ▾ ] E09   Units ( Metric ) ( Imperial ) E10 │
+│ [ ← Back ] E11                   [ Finish setup ] E12  │
+└───────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01–E03</td><td class="ui">Tên, loại, vai trò</td><td><span class="t inp">INPUT</span></td><td>Tên bắt buộc</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">Continue</td><td><span class="t btn">BTN</span></td><td></td><td>Bước 2 (<code>/onboarding/region</code>)</td></tr>
+        <tr><td>E05</td><td class="ui">Thẻ region EU / US</td><td><span class="t inp">INPUT</span></td><td>Gợi ý sẵn theo vị trí trình duyệt; bắt buộc chọn</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E06</td><td class="ui">Learn more</td><td><span class="t lnk">LINK</span></td><td>Popover giải thích data residency</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>E07</td><td class="ui">Back</td><td><span class="t btn">BTN</span></td><td>Giữ dữ liệu đã nhập</td><td>Bước 1</td></tr>
+        <tr><td>E08</td><td class="ui">Continue</td><td><span class="t btn">BTN</span></td><td>Hiện confirm nhỏ "Store data in EU? This is permanent." [Confirm]</td><td>Bước 3</td></tr>
+        <tr><td>E09–E10</td><td class="ui">Language / Units</td><td><span class="t inp">INPUT</span></td><td>Đổi ngôn ngữ áp dụng ngay</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E11</td><td class="ui">Back</td><td><span class="t btn">BTN</span></td><td>Region đã tạo org thì không đổi được — bước 2 hiển thị read-only</td><td>Bước 2</td></tr>
+        <tr><td>E12</td><td class="ui">Finish setup</td><td><span class="t btn">BTN</span></td><td>Có <code>return_to</code> → đó. Có <code>plan=pro</code> → library + mở <a class="d" href="#scr-41">SCR-41</a>. Còn lại → library với tour giới thiệu (4 coach mark)</td><td><a class="d" href="#scr-10">SCR-10</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 5B ============ -->
+<section id="g-lib">
+  <h2><span class="n">05·B</span>Thư viện &amp; Tạo phân tích</h2>
+
+  <div class="scr" id="scr-10">
+    <h3><span class="id">SCR-10</span>Library <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /library?q=&amp;status=&amp;source=&amp;sort=&amp;view=</span><span><b>Mục đích</b> trang chủ, danh sách mọi video của org</span></div>
+    <div class="ascii">┌─ G top bar ───────────────────────────────────────────────────────────────────┐
+├────────────────────────────────────────────────────────────────────────────────┤
+│ Library                                                                        │
+│ [🔍 Search matches…  ] E01  Status ▾ E02  Source ▾ E03  Sort: Newest ▾ E04  [▦|☰] E05 │
+│                                                                                │
+│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│ │ ▓▓ thumb ▓▓  │ │ ▓▓ thumb ▓▓  │ │ ▓▓ thumb ▓▓  │ │ ▓▓ thumb ▓▓  │            │
+│ │ ● Ready      │ │ ◐ Analyzing  │ │ ⚠ Confirm    │ │ ✕ Failed     │            │
+│ │ FRA vs SUI ⋮ │ │ U17 vs Ajax ⋮│ │   teams    ⋮ │ │ Training  ⋮  │  E06 card  │
+│ │ 94:12 · Oct 4│ │ 42% · ETA 9m │ │ 88:40 · Oct 2│ │ Oct 1        │  E07 ⋮     │
+│ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘            │
+│                          ( tải thêm khi cuộn )                                  │
+├─ Empty state ─────────────────────────────────────────────────────────────────┤
+│        Analyze your first match                                                │
+│        [ Upload a video ] E08    [ Try a sample match ] E09                     │
+└────────────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Search</td><td><span class="t inp">INPUT</span></td><td>Debounce 300ms; tìm theo tiêu đề, tên đội. Cập nhật <code>?q=</code></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E02</td><td class="ui">Status ▾</td><td><span class="t mnu">MENU</span></td><td>All / Ready / Analyzing / Needs action / Failed</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Source ▾</td><td><span class="t mnu">MENU</span></td><td>All / Upload / YouTube / Live recording</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">Sort ▾</td><td><span class="t mnu">MENU</span></td><td>Newest / Oldest / Title A–Z / Duration</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Grid / List</td><td><span class="t inp">INPUT</span></td><td>Nhớ lựa chọn (localStorage)</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E06</td><td class="ui">Video card (click)</td><td><span class="t lnk">LINK</span></td><td>Đích theo trạng thái — <strong>bảng E10 bên dưới</strong></td><td>theo trạng thái</td></tr>
+        <tr><td>E07</td><td class="ui">⋮ menu card</td><td><span class="t mnu">MENU</span></td><td>Mở menu E07a–E07g</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E07a</td><td class="ui">↳ Open</td><td><span class="t mnu">MENU</span></td><td>Như E06</td><td>theo trạng thái</td></tr>
+        <tr><td>E07b</td><td class="ui">↳ Rename</td><td><span class="t mnu">MENU</span></td><td>Editor+</td><td><a class="d" href="#dlg-04">DLG-04</a></td></tr>
+        <tr><td>E07c</td><td class="ui">↳ Re-analyze</td><td><span class="t mnu">MENU</span></td><td>Editor+, chỉ khi Ready/Failed</td><td><a class="d" href="#scr-12">SCR-12</a> (chế độ re-analyze)</td></tr>
+        <tr><td>E07d</td><td class="ui">↳ Export</td><td><span class="t mnu">MENU</span></td><td>Chỉ khi Ready</td><td><a class="d" href="#scr-25">SCR-25</a></td></tr>
+        <tr><td>E07e</td><td class="ui">↳ Share</td><td><span class="t mnu">MENU</span></td><td>Editor+, chỉ khi Ready <span class="pill m2">M2</span></td><td><a class="d" href="#scr-27">SCR-27</a></td></tr>
+        <tr><td>E07f</td><td class="ui">↳ Cancel analysis</td><td><span class="t mnu">MENU</span></td><td>Chỉ khi Analyzing</td><td><a class="d" href="#dlg-02">DLG-02</a></td></tr>
+        <tr><td>E07g</td><td class="ui">↳ Delete</td><td><span class="t mnu">MENU</span></td><td>Editor+, màu danger</td><td><a class="d" href="#dlg-01">DLG-01</a></td></tr>
+        <tr><td>E08</td><td class="ui">Upload a video</td><td><span class="t btn">BTN</span></td><td>Chỉ ở empty state</td><td><a class="d" href="#scr-11">SCR-11</a> tab Upload</td></tr>
+        <tr><td>E09</td><td class="ui">Try a sample match</td><td><span class="t btn">BTN</span></td><td>Mở video mẫu đã phân tích sẵn (read-only, không tính quota)</td><td><a class="d" href="#scr-20">SCR-20</a></td></tr>
+      </tbody>
+    </table>
+
+    <h4 id="scr-10-e10">E10 — Đích khi mở video theo trạng thái</h4>
+    <table>
+      <thead><tr><th>Trạng thái</th><th>Badge trên card</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>uploading</td><td>⇧ Uploading 37%</td><td><span class="s">↺ popover tiến trình upload</span> (không đổi trang)</td></tr>
+        <tr><td>queued / analyzing</td><td>◐ Analyzing 42% · ETA</td><td><a class="d" href="#scr-13">SCR-13</a></td></tr>
+        <tr><td>needs_team_confirmation</td><td>⚠ Confirm teams</td><td><a class="d" href="#scr-14">SCR-14</a></td></tr>
+        <tr><td>needs_calibration</td><td>⚠ Calibrate pitch</td><td><a class="d" href="#scr-15">SCR-15</a></td></tr>
+        <tr><td>ready</td><td>● Ready</td><td><a class="d" href="#scr-20">SCR-20</a> tab Overview</td></tr>
+        <tr><td>ready (degraded)</td><td>● Ready · ⚠ Low pitch quality</td><td><a class="d" href="#scr-20">SCR-20</a> + banner gợi ý SCR-15</td></tr>
+        <tr><td>failed</td><td>✕ Failed</td><td><a class="d" href="#scr-13">SCR-13</a> trạng thái lỗi</td></tr>
+        <tr><td>cancelled</td><td>○ Cancelled</td><td><a class="d" href="#scr-12">SCR-12</a> (chế độ re-analyze)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-11">
+    <h3><span class="id">SCR-11</span>New analysis (modal lg, 4 tab) <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /library?new=upload|youtube|live|import</span></div>
+    <div class="ascii">┌─ New analysis ─────────────────────────────────────────────────── ✕ E01 ┐
+│  Upload file   YouTube URL   Live stream   Import (Soon)                   │
+│     E02            E03           E04          E05                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│ [TAB UPLOAD]                                                              │
+│ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐                               │
+│   Drag a match video here or Browse files  E06                            │
+│   MP4, MKV, MOV, AVI · up to 5 GB · 150 min                               │
+│ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘                               │
+│ 📄 france_switzerland.mp4 · 2.3 GB · 94:12   Remove E07                   │
+│ Title [ France vs Switzerland     ]  E08                                  │
+│ [✓] I own or have permission to use this video  E09                       │
+│ [✓] Start analysis when upload finishes         E10                       │
+│ Standard mode · ~14 min · Tracking, Stats   Advanced settings E11         │
+│ Uses 94 of your 120 remaining minutes                                     │
+│                                       [ Cancel ] E12  [ Start upload ] E13│
+├─ trạng thái đang upload ─────────────────────────────────────────────────┤
+│ Uploading… ███████████░░░░░░ 62% · 18 MB/s · 1m 20s left                  │
+│                         [ Cancel upload ] E14  [ Continue in background ] E15│
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <h4>Khung chung &amp; tab Upload</h4>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">✕ / Esc</td><td><span class="t btn">BTN</span></td><td>Đã chọn file → <a class="d" href="#dlg-03">DLG-03</a>. Đang upload → giống E15</td><td><span class="s">✕ đóng</span> → màn hình nền</td></tr>
+        <tr><td>E02</td><td class="ui">Upload file</td><td><span class="t tab">TAB</span></td><td><code>?new=upload</code></td><td><span class="s">↺ tab</span></td></tr>
+        <tr><td>E03</td><td class="ui">YouTube URL</td><td><span class="t tab">TAB</span></td><td><code>?new=youtube</code> <span class="pill m2">M2</span></td><td><span class="s">↺ tab</span></td></tr>
+        <tr><td>E04</td><td class="ui">Live stream</td><td><span class="t tab">TAB</span></td><td><code>?new=live</code> <span class="pill m2">M2</span></td><td><span class="s">↺ tab</span></td></tr>
+        <tr><td>E05</td><td class="ui">Import (Soon)</td><td><span class="t tab">TAB</span></td><td>Hiện "Coming soon" + "Notify me" — chờ PRD Q9</td><td><span class="s">↺ tab</span></td></tr>
+        <tr><td>E06</td><td class="ui">Dropzone / Browse files</td><td><span class="t inp">INPUT</span></td><td>Kiểm tra định dạng, dung lượng, thời lượng ở client; sai → lỗi inline</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E07</td><td class="ui">Remove</td><td><span class="t lnk">LINK</span></td><td>Bỏ file đã chọn</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E08</td><td class="ui">Title</td><td><span class="t inp">INPUT</span></td><td>Tự điền từ tên file</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E09</td><td class="ui">Rights checkbox</td><td><span class="t inp">INPUT</span></td><td>Bắt buộc để bật E13</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E10</td><td class="ui">Start analysis when upload finishes</td><td><span class="t inp">INPUT</span></td><td>Mặc định bật. Tắt → video chỉ lưu, trạng thái Ready-to-analyze</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E11</td><td class="ui">Advanced settings</td><td><span class="t lnk">LINK</span></td><td>Mở modal chồng</td><td><a class="d" href="#scr-12">SCR-12</a></td></tr>
+        <tr><td>E12</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td>Như E01</td><td><span class="s">✕ đóng</span></td></tr>
+        <tr><td>E13</td><td class="ui">Start upload</td><td><span class="t btn">BTN</span></td><td>
+          Vượt quota → <a class="d" href="#scr-41">SCR-41</a> (<code>reason=quota</code>).<br>
+          Hợp lệ → modal chuyển sang trạng thái đang upload.<br>
+          Upload xong khi modal còn mở, E10 bật → <a class="d" href="#scr-13">SCR-13</a>.<br>
+          Upload xong, E10 tắt → <span class="s">✕ đóng</span>, toast.</td><td>theo điều kiện</td></tr>
+        <tr><td>E14</td><td class="ui">Cancel upload</td><td><span class="t btn">BTN</span></td><td>Confirm nhỏ → huỷ multipart</td><td><span class="s">✕ đóng</span> → <a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E15</td><td class="ui">Continue in background</td><td><span class="t btn">BTN</span></td><td>Đóng modal; upload tiếp tục, hiện ở upload tray (G.B07) và card</td><td><a class="d" href="#scr-10">SCR-10</a></td></tr>
+      </tbody>
+    </table>
+
+    <h4>Tab YouTube URL <span class="pill m2">M2</span></h4>
+    <div class="ascii">│ Paste a YouTube link  [ https://youtube.com/watch?v=…        ] [ Fetch ] E16 E17 │
+│ ┌ thumb ┐  Bundesliga U19 – Full Match · 1:38:20 · 1080p available            │
+│ Title [ … ] E18   [✓] I have the rights to analyze this video E19              │
+│ Standard mode · ~15 min   Advanced settings E20                                │
+│                                         [ Cancel ] E21   [ Analyze ] E22       │</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E16</td><td class="ui">URL</td><td><span class="t inp">INPUT</span></td><td>Dán link tự kích hoạt E17</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E17</td><td class="ui">Fetch</td><td><span class="t btn">BTN</span></td><td>Lấy metadata. Lỗi: video riêng tư / giới hạn tuổi / &gt; 3 giờ / livestream đang phát → thông báo inline cụ thể</td><td><span class="s">↺ hiện preview</span></td></tr>
+        <tr><td>E18–E19</td><td class="ui">Title / Rights</td><td><span class="t inp">INPUT</span></td><td>E19 bắt buộc</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E20</td><td class="ui">Advanced settings</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-12">SCR-12</a></td></tr>
+        <tr><td>E21</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">✕ đóng</span></td></tr>
+        <tr><td>E22</td><td class="ui">Analyze</td><td><span class="t btn">BTN</span></td><td>Vượt quota → <a class="d" href="#scr-41">SCR-41</a>. Hợp lệ → tạo video + job, đóng modal</td><td><a class="d" href="#scr-13">SCR-13</a></td></tr>
+      </tbody>
+    </table>
+
+    <h4>Tab Live stream <span class="pill m2">M2</span></h4>
+    <div class="ascii">│ Analyze a live match or training session in real time.                       │
+│ Recent sources:  ● Training pitch cam  [Start] E23   ● Stadium RTMP  [Start] E23 │
+│                                  [ Cancel ] E24   [ Set up a new source → ] E25  │</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E23</td><td class="ui">Start (nguồn gần đây)</td><td><span class="t btn">BTN</span></td><td>Kiểm tra kết nối nhanh; lỗi → <a class="d" href="#scr-30">SCR-30</a> với nguồn đó mở sẵn</td><td><a class="d" href="#scr-31">SCR-31</a></td></tr>
+        <tr><td>E24</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">✕ đóng</span></td></tr>
+        <tr><td>E25</td><td class="ui">Set up a new source</td><td><span class="t btn">BTN</span></td><td>Mở form thêm nguồn</td><td><a class="d" href="#scr-30">SCR-30</a> <code>?add=1</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-12">
+    <h3><span class="id">SCR-12</span>Advanced settings (modal md) <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Mở từ</b> SCR-11 (chế độ tạo mới) · SCR-10 / SCR-20 / SCR-32 (chế độ re-analyze)</span></div>
+    <div class="ascii">┌─ Analysis settings ──────────────────────────────────── ✕ E01 ┐
+│ Mode                                                         │
+│ (●) Standard  every frame · best accuracy · ~14 min   E02     │
+│ ( ) Fast      every 2nd frame · ~7 min                         │
+│ Match format  ( 11v11 ) ( 9v9 ) ( 7v7 )               E03     │
+│ Detection confidence  ──────●──── 0.35                E04     │
+│ Modules                                                      │
+│ [✓] Tracking & re-identification            M2      E05      │
+│ [✓] Jersey number recognition               M2      E06      │
+│ [✓] Match statistics                        M3      E07      │
+│ [ ] Tactical analysis   Pro                 M4      E08      │
+│ Compute  ( Auto ) ( Local GPU only ) ( Cloud only )   E09     │
+│ [ ] Save as my default                                E10     │
+│ Reset to defaults E11          [ Cancel ] E12  [ Apply ] E13  │
+│                          (re-analyze) [ Start re-analysis ] E14 │
+└──────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">✕</td><td><span class="t btn">BTN</span></td><td>Không lưu</td><td><span class="s">✕ đóng</span> → màn hình mở nó</td></tr>
+        <tr><td>E02</td><td class="ui">Mode</td><td><span class="t inp">INPUT</span></td><td>ETA cập nhật theo thời lượng video + backend</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03–E04</td><td class="ui">Format / Confidence</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05–E07</td><td class="ui">Module toggles</td><td><span class="t inp">INPUT</span></td><td>Chỉ hiện module đã phát hành. Tắt Tracking → tự tắt Jersey và Stats (phụ thuộc)</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E08</td><td class="ui">Tactical analysis · badge Pro</td><td><span class="t inp">INPUT</span></td><td>Gói Free bấm vào → mở upgrade</td><td><a class="d" href="#scr-41">SCR-41</a> (<code>reason=feature</code>)</td></tr>
+        <tr><td>E09</td><td class="ui">Compute</td><td><span class="t inp">INPUT</span></td><td>Chỉ hiện ở bản self-host, cho Admin</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E10</td><td class="ui">Save as my default</td><td><span class="t inp">INPUT</span></td><td>Lưu vào Preferences</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E11</td><td class="ui">Reset to defaults</td><td><span class="t lnk">LINK</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E12</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">✕ đóng</span></td></tr>
+        <tr><td>E13</td><td class="ui">Apply</td><td><span class="t btn">BTN</span></td><td>Chế độ tạo mới: cập nhật dòng tóm tắt ở SCR-11</td><td><a class="d" href="#scr-11">SCR-11</a></td></tr>
+        <tr><td>E14</td><td class="ui">Start re-analysis</td><td><span class="t btn">BTN</span></td><td>Chế độ re-analyze thay cho E13. Hiện cảnh báo "Corrections will be kept" nếu có correction. Vượt quota → <a class="d" href="#scr-41">SCR-41</a></td><td><a class="d" href="#scr-13">SCR-13</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 5C ============ -->
+<section id="g-proc">
+  <h2><span class="n">05·C</span>Xử lý &amp; Hiệu chỉnh</h2>
+
+  <div class="scr" id="scr-13">
+    <h3><span class="id">SCR-13</span>Processing <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /videos/:id/processing</span><span><b>Realtime</b> WebSocket topic <code>job:{id}</code></span></div>
+    <div class="ascii">┌─ G top bar ──────────────────────────────────────────────────────────────┐
+│ ← Library E01        France vs Switzerland                     ⋮ E02     │
+├──────────────────────────────────────────────────────────────────────────┤
+│  ✓ Upload ── ✓ Prepare ── ✓ Detect teams ── ◐ Analyze ── ○ Finalize       │
+│                                                                          │
+│  42%  ██████████████░░░░░░░░░░░░░░░░░░  · 96 fps · about 9 min left       │
+│                                                                          │
+│  Segments  ■■■■■■■■■■■■■■■■■■■▣▣▣▣□□□□□□□□□□□□□□□□□□□□□□  19/45          │
+│                                                                          │
+│ ┌ info banner ─────────────────────────────────────────────────────────┐ │
+│ │ 👕 We found two teams. Confirm them now to save time.  [Confirm teams] E03│
+│ └──────────────────────────────────────────────────────────────────────┘ │
+│  Live preview (frame mới nhất đã annotate)  ┌──────────────┐             │
+│                                              │ ▓▓▓▓▓▓▓▓▓▓▓▓ │             │
+│  [✓] Email me when it's done  E04            └──────────────┘             │
+│                       [ Cancel analysis ] E05   [ Back to library ] E06   │
+├─ trạng thái lỗi ─────────────────────────────────────────────────────────┤
+│ ✕ Analysis failed at "Analyze" (segment 23)                              │
+│   GPU worker ran out of memory. Your progress is saved.                  │
+│   [ Retry ] E07  [ Change settings & retry ] E08  [ Contact support ] E09 │
+│   (TEAM_SEPARATION_FAILED)  [ Pick players manually ] E10                 │
+│   (HOMOGRAPHY_UNAVAILABLE)  [ Calibrate pitch manually ] E11              │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">← Library</td><td><span class="t lnk">LINK</span></td><td>Job vẫn chạy nền</td><td><a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E02</td><td class="ui">⋮ (Rename / Delete)</td><td><span class="t mnu">MENU</span></td><td>Rename → <a class="d" href="#dlg-04">DLG-04</a>; Delete → <a class="d" href="#dlg-01">DLG-01</a> (huỷ job trước)</td><td>dialog</td></tr>
+        <tr><td>E03</td><td class="ui">Confirm teams (banner)</td><td><span class="t btn">BTN</span></td><td>Hiện khi stage Detect teams xong và đội chưa xác nhận</td><td><a class="d" href="#scr-14">SCR-14</a></td></tr>
+        <tr><td>E04</td><td class="ui">Email me when it's done</td><td><span class="t inp">INPUT</span></td><td>Mặc định theo Preferences</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Cancel analysis</td><td><span class="t btn">BTN</span></td><td>Màu danger</td><td><a class="d" href="#dlg-02">DLG-02</a></td></tr>
+        <tr><td>E06</td><td class="ui">Back to library</td><td><span class="t btn">BTN</span></td><td></td><td><a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E07</td><td class="ui">Retry</td><td><span class="t btn">BTN</span></td><td>Chỉ khi lỗi <code>retryable</code>; chạy lại từ stage lỗi</td><td><span class="s">↺ trạng thái đang chạy</span></td></tr>
+        <tr><td>E08</td><td class="ui">Change settings &amp; retry</td><td><span class="t btn">BTN</span></td><td></td><td><a class="d" href="#scr-12">SCR-12</a> (re-analyze)</td></tr>
+        <tr><td>E09</td><td class="ui">Contact support</td><td><span class="t lnk">LINK</span></td><td>Mở form hỗ trợ, đính kèm job_id</td><td><span class="x">↗ ngoài</span></td></tr>
+        <tr><td>E10</td><td class="ui">Pick players manually</td><td><span class="t btn">BTN</span></td><td>Chỉ với lỗi TEAM_SEPARATION_FAILED</td><td><a class="d" href="#scr-14">SCR-14</a> chế độ manual</td></tr>
+        <tr><td>E11</td><td class="ui">Calibrate pitch manually</td><td><span class="t btn">BTN</span></td><td>Chỉ với lỗi HOMOGRAPHY_UNAVAILABLE</td><td><a class="d" href="#scr-15">SCR-15</a></td></tr>
+        <tr><td>A01</td><td class="ui">Job hoàn tất</td><td><span class="t sys">AUTO</span></td><td>Đội chưa xác nhận → SCR-14. Calibration degraded &gt; 30% → SCR-15. Còn lại → SCR-20</td><td><a class="d" href="#scr-14">SCR-14</a> / <a class="d" href="#scr-15">SCR-15</a> / <a class="d" href="#scr-20">SCR-20</a></td></tr>
+        <tr><td>A02</td><td class="ui">Job bị huỷ từ nơi khác</td><td><span class="t sys">AUTO</span></td><td>Toast "Analysis was cancelled by …"</td><td><a class="d" href="#scr-10">SCR-10</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-14">
+    <h3><span class="id">SCR-14</span>Team confirmation <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /videos/:id/teams?mode=confirm|manual</span><span><b>Mở từ</b> SCR-13, SCR-10, SCR-20 (menu), SCR-31 (live, dạng modal)</span></div>
+    <div class="ascii">┌─ G top bar ──────────────────────────────────────────────────────────────┐
+│ ← Back E01      Confirm teams                                             │
+│ We grouped players by kit. Name each team and pick a display color.      │
+│ ┌──────── Team 1 ────────────┐  ⇄ Swap E04  ┌──────── Team 2 ────────────┐ │
+│ │ [▯][▯][▯][▯][▯][▯][▯][▯]   │              │ [▯][▯][▯][▯][▯][▯][▯][▯]   │ │
+│ │ Name [ France        ▾] E02│              │ Name [ Switzerland   ▾] E02│ │
+│ │ Color ● ● ● ● ○  E03       │              │ Color ● ● ● ● ○  E03       │ │
+│ │ Attacking direction ← → E05│              │                            │ │
+│ └────────────────────────────┘              └────────────────────────────┘ │
+│ Referees & goalkeepers  [▯ ref][▯ GK1][▯ GK2]   Fix assignment E06         │
+│ Something's wrong? These groups mix both teams  E07                       │
+│                    [ Skip for now ] E08            [ Confirm teams ] E09  │
+├─ chế độ manual ──────────────────────────────────────────────────────────┤
+│ Click 2+ players from each team on the frame.  Frame ◀ ▶ E10              │
+│ ┌──────────── frame với bbox bấm được ─────────────┐  Team 1: 3 picked     │
+│ │  ▢ ▢   ▢      ▢    ▢                              │  Team 2: 2 picked     │
+│ └──────────────────────────────────────────────────┘  E11 (click bbox)    │
+│                     [ Cancel ] E12    [ Re-run team detection ] E13       │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">← Back</td><td><span class="t lnk">LINK</span></td><td>Có thay đổi chưa lưu → <a class="d" href="#dlg-03">DLG-03</a>. Quay về màn hình đã mở nó</td><td><a class="d" href="#scr-13">SCR-13</a> / <a class="d" href="#scr-20">SCR-20</a> / <a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E02</td><td class="ui">Name (combobox)</td><td><span class="t inp">INPUT</span></td><td>Gợi ý tên đội đã dùng trong org kèm màu đã lưu</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Color swatches + ○ custom</td><td><span class="t inp">INPUT</span></td><td>Gợi ý màu chủ đạo của áo. Cảnh báo nếu 2 đội màu quá gần nhau</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">⇄ Swap</td><td><span class="t btn">BTN</span></td><td>Hoán đổi tên/màu giữa 2 nhóm</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Attacking direction (hiệp 1)</td><td><span class="t inp">INPUT</span></td><td>Tự đoán; cần cho thống kê theo 1/3 sân</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E06</td><td class="ui">Fix assignment</td><td><span class="t lnk">LINK</span></td><td>Popover cho mỗi thủ môn chọn đội</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>E07</td><td class="ui">These groups mix both teams</td><td><span class="t lnk">LINK</span></td><td>Chuyển sang chế độ manual</td><td><span class="s">↺</span> <code>?mode=manual</code></td></tr>
+        <tr><td>E08</td><td class="ui">Skip for now</td><td><span class="t btn">BTN</span></td><td>Dùng tên "Team A / Team B". Job xong → SCR-20; chưa xong → SCR-13</td><td><a class="d" href="#scr-20">SCR-20</a> / <a class="d" href="#scr-13">SCR-13</a></td></tr>
+        <tr><td>E09</td><td class="ui">Confirm teams</td><td><span class="t btn">BTN</span></td><td>Lưu. Job chưa xong → về SCR-13 kèm toast. Job xong → SCR-20 (hoặc SCR-15 nếu cần calibrate). Mở từ SCR-20 → quay lại SCR-20, nhãn cập nhật ngay</td><td><a class="d" href="#scr-13">SCR-13</a> / <a class="d" href="#scr-20">SCR-20</a> / <a class="d" href="#scr-15">SCR-15</a></td></tr>
+        <tr><td>E10</td><td class="ui">Frame ◀ ▶</td><td><span class="t btn">BTN</span></td><td>Chuyển giữa 20 frame mẫu</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E11</td><td class="ui">Click bbox</td><td><span class="t inp">INPUT</span></td><td>Chu kỳ: Team 1 → Team 2 → Referee → bỏ chọn</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E12</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td>Về chế độ confirm</td><td><span class="s">↺</span> <code>?mode=confirm</code></td></tr>
+        <tr><td>E13</td><td class="ui">Re-run team detection</td><td><span class="t btn">BTN</span></td><td>Bật khi mỗi đội ≥ 2 mẫu. Chạy lại calibrate + infer</td><td><a class="d" href="#scr-13">SCR-13</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-15">
+    <h3><span class="id">SCR-15</span>Pitch calibration (thủ công) <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /videos/:id/calibrate</span></div>
+    <div class="ascii">┌─ G top bar ──────────────────────────────────────────────────────────────┐
+│ ← Back E01   Calibrate pitch                       Pitch quality: 41% ⚠   │
+│ Pick a frame where pitch lines are clearly visible, then match 4+ points.│
+│ ┌──────────── video frame ─────────────┐   ┌──── pitch diagram ────┐     │
+│ │      ①───────────②                   │   │ ①─────────────②        │     │
+│ │     /  (drag)     \                  │   │ │    ┌───┐    │        │     │
+│ │    ④───────────────③                 │   │ ④────┴───┴────③        │     │
+│ └──────────────────────────────────────┘   └────────────────────────┘     │
+│ Frame ──────●────────────── 34:12  E02    Point ② = [Penalty box corner ▾] E03 │
+│ [+ Add point] E04   [✓] Preview pitch lines E05   Use suggested frame E06 │
+│ Reset E07                    [ Cancel ] E08   [ Apply & recompute ] E09   │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">← Back</td><td><span class="t lnk">LINK</span></td><td>Như E08</td><td>màn hình trước</td></tr>
+        <tr><td>E02</td><td class="ui">Frame slider</td><td><span class="t inp">INPUT</span></td><td>Vùng chất lượng thấp tô sọc trên slider</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Landmark ▾</td><td><span class="t mnu">MENU</span></td><td>Chọn điểm mốc tương ứng (32 điểm chuẩn)</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">+ Add point</td><td><span class="t btn">BTN</span></td><td>Tối đa 8 điểm</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Preview pitch lines</td><td><span class="t inp">INPUT</span></td><td>Chiếu vạch sân lên frame theo điểm hiện tại</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E06</td><td class="ui">Use suggested frame</td><td><span class="t lnk">LINK</span></td><td>Nhảy tới frame thấy nhiều vạch nhất</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E07</td><td class="ui">Reset</td><td><span class="t lnk">LINK</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E08</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td>Không lưu. Video giữ trạng thái degraded</td><td><a class="d" href="#scr-20">SCR-20</a> / <a class="d" href="#scr-13">SCR-13</a></td></tr>
+        <tr><td>E09</td><td class="ui">Apply &amp; recompute</td><td><span class="t btn">BTN</span></td><td>Bật khi ≥ 4 điểm. Chỉ chạy lại chiếu toạ độ + hạ nguồn (CPU, ~1–2 phút)</td><td><a class="d" href="#scr-13">SCR-13</a> → tự về <a class="d" href="#scr-20">SCR-20</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 5D ============ -->
+<section id="g-ws">
+  <h2><span class="n">05·D</span>Workspace phân tích</h2>
+
+  <div class="scr" id="scr-20">
+    <h3><span class="id">SCR-20</span>Analysis workspace — khung chính <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /videos/:id/:tab?t=&lt;giây&gt;&amp;player=</span><span><b>Tab mặc định</b> overview</span></div>
+    <div class="ascii">┌─ G top bar ───────────────────────────────────────────────────────────────────────────┐
+│ Library / France vs Switzerland  E01   ● Ready      [✦ AI report] E02 [Export] E03 [Share] E04 ⋮ E05 │
+├──────────────────────────────────────────────────────┬────────────────────────────────┤
+│ ⚠ Pitch quality is low in 12% of the match. Calibrate E06  ✕                          │
+├──────────────────────────────────────────────────────┼────────────────────────────────┤
+│ fps 25 · frame 1240 / 141300                          │ TACTICAL MAP        ⛶ E20      │
+│ ┌──────────────────────────────────────────────────┐ │ ┌────────────────────────────┐ │
+│ │   ┌─┐ France 0.83                                 │ │ │  ○   ○      □    □         │ │
+│ │   └─┘          ┌─┐ Switzerland 0.88   E07 (bbox)  │ │ │     ○   ●     □            │ │
+│ │                └─┘                                │ │ │  ○      △   □    □  E21    │ │
+│ │        ┌─┐ referee 0.76                           │ │ │                            │ │
+│ └──────────────────────────────────────────────────┘ │ └────────────────────────────┘ │
+│ ▶ E08 ⏮ ⏭ E09  1x▾ E10  ─▒▒──●───▓──────── 49:36 E11  ⛶ E12 │ ☑Players ☑Ball ☑Trails E22 │
+│ Layers: ☑Boxes ☑Labels ☑Conf ☐IDs ☑Ball ☐Trails ☐Voronoi ☐Offside  E13 │ ☐Voronoi ☐Shape  │
+├──────────────────────────────────────────────────────┴────────────────────────────────┤
+│  Overview   Players   Heatmaps   Passing   Tactics   Data                               │
+│    E14        E15       E16        E17       E18     E19                                 │
+│  ( nội dung tab — SCR-20a … SCR-20f )                                                   │
+└───────────────────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Breadcrumb "Library"</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E02</td><td class="ui">✦ AI report</td><td><span class="t btn">BTN</span></td><td><span class="pill m4">M4</span>. Gói Free → <a class="d" href="#scr-41">SCR-41</a></td><td><a class="d" href="#scr-24">SCR-24</a></td></tr>
+        <tr><td>E03</td><td class="ui">Export</td><td><span class="t btn">BTN</span></td><td>Điền sẵn khoảng đang chọn trên timeline (nếu có)</td><td><a class="d" href="#scr-25">SCR-25</a></td></tr>
+        <tr><td>E04</td><td class="ui">Share</td><td><span class="t btn">BTN</span></td><td>Editor+ <span class="pill m2">M2</span></td><td><a class="d" href="#scr-27">SCR-27</a></td></tr>
+        <tr><td>E05</td><td class="ui">⋮ More</td><td><span class="t mnu">MENU</span></td><td>Mở menu E05a–E05g</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05a</td><td class="ui">↳ Rename</td><td><span class="t mnu">MENU</span></td><td></td><td><a class="d" href="#dlg-04">DLG-04</a></td></tr>
+        <tr><td>E05b</td><td class="ui">↳ Teams &amp; colors</td><td><span class="t mnu">MENU</span></td><td></td><td><a class="d" href="#scr-14">SCR-14</a></td></tr>
+        <tr><td>E05c</td><td class="ui">↳ Calibrate pitch</td><td><span class="t mnu">MENU</span></td><td></td><td><a class="d" href="#scr-15">SCR-15</a></td></tr>
+        <tr><td>E05d</td><td class="ui">↳ Roster &amp; corrections</td><td><span class="t mnu">MENU</span></td><td><span class="pill m2">M2</span></td><td><a class="d" href="#scr-21">SCR-21</a></td></tr>
+        <tr><td>E05e</td><td class="ui">↳ Re-analyze</td><td><span class="t mnu">MENU</span></td><td></td><td><a class="d" href="#scr-12">SCR-12</a> (re-analyze)</td></tr>
+        <tr><td>E05f</td><td class="ui">↳ Analysis details</td><td><span class="t mnu">MENU</span></td><td>Popover: model version, mode, thời gian xử lý, chi phí</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>E05g</td><td class="ui">↳ Delete</td><td><span class="t mnu">MENU</span></td><td>Danger</td><td><a class="d" href="#dlg-01">DLG-01</a> → <a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E06</td><td class="ui">Banner "Calibrate"</td><td><span class="t lnk">LINK</span></td><td>Chỉ khi degraded. ✕ ẩn cho phiên hiện tại</td><td><a class="d" href="#scr-15">SCR-15</a></td></tr>
+        <tr><td>E07</td><td class="ui">Click bbox trên video</td><td><span class="t inp">INPUT</span></td><td>Chọn đối tượng; highlight cả trên map. Click lần 2 / double-click → drawer. Chuột phải / nhấn giữ → context menu sửa</td><td><a class="d" href="#scr-23">SCR-23</a> / <a class="d" href="#scr-22">SCR-22</a></td></tr>
+        <tr><td>E08</td><td class="ui">▶ / ⏸</td><td><span class="t btn">BTN</span></td><td>Phím <code>Space</code></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E09</td><td class="ui">⏮ ⏭ frame</td><td><span class="t btn">BTN</span></td><td>Phím <code>,</code> <code>.</code>; giữ Shift = ±5 giây</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E10</td><td class="ui">Speed ▾</td><td><span class="t mnu">MENU</span></td><td>0.25 / 0.5 / 1 / 1.5 / 2</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E11</td><td class="ui">Timeline</td><td><span class="t inp">INPUT</span></td><td>Click = tua; kéo = chọn khoảng (dùng cho Export / lọc stats). Vùng sọc = chất lượng thấp; marker = sự kiện (M4) — hover xem, click tua. Cập nhật <code>?t=</code></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E12</td><td class="ui">⛶ Fullscreen video</td><td><span class="t btn">BTN</span></td><td>Phím <code>F</code>. Map thu thành picture-in-picture</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E13</td><td class="ui">Layer toggles</td><td><span class="t inp">INPUT</span></td><td>Voronoi, Offside: <span class="pill m4">M4</span>. Phím <code>L</code> mở menu nhanh</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E14</td><td class="ui">Overview</td><td><span class="t tab">TAB</span></td><td>Phím <code>1</code></td><td><a class="d" href="#scr-20a">SCR-20a</a></td></tr>
+        <tr><td>E15</td><td class="ui">Players</td><td><span class="t tab">TAB</span></td><td>Phím <code>2</code> <span class="pill m2">M2</span></td><td><a class="d" href="#scr-20b">SCR-20b</a></td></tr>
+        <tr><td>E16</td><td class="ui">Heatmaps</td><td><span class="t tab">TAB</span></td><td>Phím <code>3</code> <span class="pill m3">M3</span></td><td><a class="d" href="#scr-20c">SCR-20c</a></td></tr>
+        <tr><td>E17</td><td class="ui">Passing</td><td><span class="t tab">TAB</span></td><td>Phím <code>4</code> <span class="pill m3">M3</span></td><td><a class="d" href="#scr-20d">SCR-20d</a></td></tr>
+        <tr><td>E18</td><td class="ui">Tactics</td><td><span class="t tab">TAB</span></td><td>Phím <code>5</code> <span class="pill m4">M4</span></td><td><a class="d" href="#scr-20e">SCR-20e</a></td></tr>
+        <tr><td>E19</td><td class="ui">Data</td><td><span class="t tab">TAB</span></td><td>Phím <code>6</code> <span class="pill m3">M3</span></td><td><a class="d" href="#scr-20f">SCR-20f</a></td></tr>
+        <tr><td>E20</td><td class="ui">⛶ Expand map</td><td><span class="t btn">BTN</span></td><td>Đổi bố cục: map lớn, video nhỏ</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E21</td><td class="ui">Click chấm trên map</td><td><span class="t inp">INPUT</span></td><td>Như E07</td><td><a class="d" href="#scr-23">SCR-23</a></td></tr>
+        <tr><td>E22</td><td class="ui">Map toggles</td><td><span class="t inp">INPUT</span></td><td>Shape = đường bao đội hình (M4)</td><td><span class="s">↺ tại chỗ</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-20a">
+    <h3><span class="id">SCR-20a</span>Tab Overview <span class="pill m1">M1</span> (thống kê: <span class="pill m3">M3</span>)</h3>
+    <div class="ascii">│ France ■■■■■■■■■■■■□□□□□□□□ Switzerland                                 │
+│ Possession       58%  ████████████▌──────────  42%      E01 (M3)         │
+│ Distance      112.4 km                  108.9 km         E01              │
+│ Top speed     33.1 km/h (#10 Mbappé) E02    31.8 km/h                     │
+│ Passes        412 · 86%                 301 · 81%        E01              │
+│ Possession over time  ▁▂▅▇▆▃▂▅▆▇▅▃  E03                                   │
+│ Detection quality  Players 0.86 · Teams 94% · Pitch 88%  Details E04      │
+│ View all players → E05                                                    │</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Một dòng chỉ số</td><td><span class="t lnk">LINK</span></td><td>Possession → tab Tactics/Passing tuỳ chỉ số; Distance → tab Players sort theo distance; Passes → tab Passing</td><td><a class="d" href="#scr-20b">SCR-20b</a> / <a class="d" href="#scr-20d">SCR-20d</a></td></tr>
+        <tr><td>E02</td><td class="ui">Tên cầu thủ trong chỉ số</td><td><span class="t lnk">LINK</span></td><td>Mở drawer + tua tới thời điểm đạt chỉ số</td><td><a class="d" href="#scr-23">SCR-23</a></td></tr>
+        <tr><td>E03</td><td class="ui">Biểu đồ theo thời gian</td><td><span class="t inp">INPUT</span></td><td>Click điểm → tua video</td><td><span class="s">↺ tua video</span></td></tr>
+        <tr><td>E04</td><td class="ui">Details</td><td><span class="t lnk">LINK</span></td><td>Popover giải thích từng điểm chất lượng</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>E05</td><td class="ui">View all players</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-20b">SCR-20b</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-20b">
+    <h3><span class="id">SCR-20b</span>Tab Players <span class="pill m2">M2</span></h3>
+    <div class="ascii">│ ( All ) ( France ) ( Switzerland )  E01      Manage roster → E02          │
+│ #   Player         Team   Min   Dist km  Top km/h  Sprints  Passes  E03 sort│
+│ 10  K. Mbappé      FRA    94    10.8     33.1      28       41      ⋯ E05  │  ← E04 row
+│ 7   A. Griezmann   FRA    94    11.6     29.4      19       67      ⋯      │
+│ ?   Track 31       SUI    12    1.4      24.0      2        5   ⚠ Unassigned│</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Lọc đội</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E02</td><td class="ui">Manage roster</td><td><span class="t lnk">LINK</span></td><td>Editor+</td><td><a class="d" href="#scr-21">SCR-21</a></td></tr>
+        <tr><td>E03</td><td class="ui">Tiêu đề cột</td><td><span class="t btn">BTN</span></td><td>Sort tăng/giảm. Cột thống kê <span class="pill m3">M3</span></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">Click dòng</td><td><span class="t lnk">LINK</span></td><td>Mở drawer; video highlight cầu thủ</td><td><a class="d" href="#scr-23">SCR-23</a></td></tr>
+        <tr><td>E05</td><td class="ui">⋯ dòng</td><td><span class="t mnu">MENU</span></td><td>Jump to first appearance (↺ tua) · Show heatmap (→ <a class="d" href="#scr-20c">SCR-20c</a> lọc cầu thủ) · Assign name (→ <a class="d" href="#scr-22">SCR-22</a> Assign) · Merge into… (→ <a class="d" href="#scr-22">SCR-22</a> Merge)</td><td>theo mục</td></tr>
+        <tr><td>E06</td><td class="ui">⚠ Unassigned</td><td><span class="t lnk">LINK</span></td><td>Track chưa có tên/số áo</td><td><a class="d" href="#scr-21">SCR-21</a> lọc unassigned</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-20c">
+    <h3><span class="id">SCR-20c</span>Tab Heatmaps <span class="pill m3">M3</span></h3>
+    <div class="ascii">│ Show [ Team: France ▾ ] E01  Player [ All ▾ ] E02  Period [ Full match ▾ ] E03  Phase ( All )( In possession )( Out ) E04 │
+│ ┌──────────── pitch heatmap ────────────┐  Average positions ☐ E05             │
+│ │   ░░▒▒▓▓█▓▒░                           │  Use timeline selection ☐ E06         │
+│ └────────────────────────────────────────┘  [ Download PNG ] E07   Compare ▸ E08│</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01–E04</td><td class="ui">Bộ lọc</td><td><span class="t inp">INPUT</span></td><td>Cập nhật query string để chia sẻ được</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Average positions</td><td><span class="t inp">INPUT</span></td><td>Vẽ chồng vị trí trung bình; click chấm → drawer</td><td><a class="d" href="#scr-23">SCR-23</a></td></tr>
+        <tr><td>E06</td><td class="ui">Use timeline selection</td><td><span class="t inp">INPUT</span></td><td>Chỉ bật khi đã kéo chọn khoảng trên E11 của SCR-20</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E07</td><td class="ui">Download PNG</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">⬇ tải file</span></td></tr>
+        <tr><td>E08</td><td class="ui">Compare ▸</td><td><span class="t btn">BTN</span></td><td>Chia đôi: hiệp 1 vs hiệp 2, hoặc 2 cầu thủ</td><td><span class="s">↺ tại chỗ</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-20d">
+    <h3><span class="id">SCR-20d</span>Tab Passing <span class="pill m3">M3</span></h3>
+    <div class="ascii">│ Team [ France ▾ ] E01   Min passes per link [ 3 ▾ ] E02                  │
+│ ┌────────── pass network ─────────┐  Passes between #7 → #10 (14)          │
+│ │   (7)━━━━(10)    node E03       │  12:41  ✓ completed  ▶ E05            │
+│ │    ┃  ╲   ┃      edge E04       │  18:02  ✗ intercepted ▶                │
+│ │   (6)───(8)                     │  …                                     │
+│ └─────────────────────────────────┘                                        │</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01–E02</td><td class="ui">Bộ lọc</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Node cầu thủ</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-23">SCR-23</a></td></tr>
+        <tr><td>E04</td><td class="ui">Cạnh nối</td><td><span class="t inp">INPUT</span></td><td>Hiện danh sách đường chuyền giữa 2 cầu thủ ở panel phải</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">▶ một đường chuyền</td><td><span class="t btn">BTN</span></td><td>Tua video tới 1 giây trước đường chuyền và phát</td><td><span class="s">↺ tua video</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-20e">
+    <h3><span class="id">SCR-20e</span>Tab Tactics <span class="pill m4">M4</span></h3>
+    <div class="ascii">│ ┌ France ───────────────┐ ┌ Switzerland ──────────┐                       │
+│ │ In possession  4-3-3  │ │ In possession 3-4-2-1 │  E01 card              │
+│ │ Out of poss.   4-4-2  │ │ Out of poss.  5-4-1   │                        │
+│ └───────────────────────┘ └───────────────────────┘                        │
+│ Defensive line height  ▁▂▃▅▃▂  E02    Team width  ▃▄▅▄  E02               │
+│ Offside situations (7)   23:10 ▶  41:55 ▶ …  E03                           │
+│ Space between lines  — moments with gaps > 15 m (5)  ▶ E04                 │
+│                                    [ ✦ Generate AI report ] E05            │</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Thẻ đội hình</td><td><span class="t btn">BTN</span></td><td>Map chuyển sang hiển thị vị trí trung bình theo pha đó</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E02</td><td class="ui">Biểu đồ đường</td><td><span class="t inp">INPUT</span></td><td>Click → tua video</td><td><span class="s">↺ tua video</span></td></tr>
+        <tr><td>E03</td><td class="ui">▶ tình huống việt vị</td><td><span class="t btn">BTN</span></td><td>Tua + bật layer Offside tự động</td><td><span class="s">↺ tua video</span></td></tr>
+        <tr><td>E04</td><td class="ui">▶ khoảng trống</td><td><span class="t btn">BTN</span></td><td>Tua + bật layer Voronoi</td><td><span class="s">↺ tua video</span></td></tr>
+        <tr><td>E05</td><td class="ui">Generate AI report</td><td><span class="t btn">BTN</span></td><td>Free → <a class="d" href="#scr-41">SCR-41</a></td><td><a class="d" href="#scr-24">SCR-24</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-20f">
+    <h3><span class="id">SCR-20f</span>Tab Data <span class="pill m3">M3</span></h3>
+    <div class="ascii">│ Raw tracking data · schema v1.0 · 141,300 frames · 31 tracks              │
+│ [ Download JSON ] E01  [ Download CSV ] E02  View schema E03               │
+│ API:  curl -H "Authorization: Bearer $KEY" https://eu.api…/tracks  [Copy] E04│
+│ Need an API key? Create one → E05     API docs ↗ E06                       │</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Download JSON</td><td><span class="t btn">BTN</span></td><td>Mở export với preset Data/JSON</td><td><a class="d" href="#scr-25">SCR-25</a></td></tr>
+        <tr><td>E02</td><td class="ui">Download CSV</td><td><span class="t btn">BTN</span></td><td>Preset Data/CSV</td><td><a class="d" href="#scr-25">SCR-25</a></td></tr>
+        <tr><td>E03</td><td class="ui">View schema</td><td><span class="t lnk">LINK</span></td><td>Trang schema trong docs</td><td><span class="x">↗ ngoài</span></td></tr>
+        <tr><td>E04</td><td class="ui">Copy</td><td><span class="t btn">BTN</span></td><td>Toast "Copied"</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Create one</td><td><span class="t lnk">LINK</span></td><td>Admin+; gói Pro+</td><td><a class="d" href="#scr-40">SCR-40</a> /api-keys</td></tr>
+        <tr><td>E06</td><td class="ui">API docs</td><td><span class="t lnk">LINK</span></td><td></td><td><span class="x">↗ ngoài</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-21">
+    <h3><span class="id">SCR-21</span>Roster &amp; corrections <span class="pill m2">M2</span></h3>
+    <div class="kv"><span><b>Route</b> /videos/:id/roster?filter=</span></div>
+    <div class="ascii">┌─ G top bar ──────────────────────────────────────────────────────────────┐
+│ ← Back to analysis E01   Roster                  [ Paste lineup ] E02  Import from match ▾ E03 │
+│ ( All ) ( Unassigned 4 ) ( Low confidence 2 )  E04                        │
+│ Track  Crops       Team    Role   Jersey (OCR)   Name           On screen  │
+│ 7      [▯▯▯]       FRA ▾   Player 7  (0.94)      [A. Griezmann] 92 min  ⋯ E06│
+│ 31     [▯▯]        SUI ▾   Player ?  (—)         [__________]   12 min  ⋯   │
+│        E05 các ô inline có thể sửa                                         │
+│                                 [ Discard ] E07     [ Save changes ] E08    │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">← Back to analysis</td><td><span class="t lnk">LINK</span></td><td>Chưa lưu → <a class="d" href="#dlg-03">DLG-03</a></td><td><a class="d" href="#scr-20">SCR-20</a></td></tr>
+        <tr><td>E02</td><td class="ui">Paste lineup</td><td><span class="t btn">BTN</span></td><td></td><td><a class="d" href="#dlg-09">DLG-09</a></td></tr>
+        <tr><td>E03</td><td class="ui">Import from match ▾</td><td><span class="t mnu">MENU</span></td><td>Liệt kê video khác có cùng tên đội; chọn → ghép theo số áo</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">Bộ lọc</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Ô Team / Role / Jersey / Name</td><td><span class="t inp">INPUT</span></td><td>Sửa inline; dòng đổi có chấm "modified"</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E06</td><td class="ui">⋯ dòng</td><td><span class="t mnu">MENU</span></td><td>
+          Jump to first appearance → <a class="d" href="#scr-20">SCR-20</a> <code>?t=</code><br>
+          Merge into… → combobox chọn track đích (↺)<br>
+          Split… → <a class="d" href="#scr-20">SCR-20</a> tại track, mở <a class="d" href="#scr-22">SCR-22</a> Split<br>
+          Mark as not a player (khán giả, ball boy) → ↺</td><td>theo mục</td></tr>
+        <tr><td>E07</td><td class="ui">Discard</td><td><span class="t btn">BTN</span></td><td>Bỏ mọi thay đổi chưa lưu</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E08</td><td class="ui">Save changes</td><td><span class="t btn">BTN</span></td><td>Lưu correction; banner "Updating stats…" cho tới khi tính lại xong</td><td><span class="s">↺ tại chỗ</span> + toast Undo</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-22">
+    <h3><span class="id">SCR-22</span>Correction context menu &amp; popover (trên SCR-20) <span class="pill m2">M2</span></h3>
+    <div class="ascii">  Chuột phải / nhấn giữ trên bbox hoặc chấm map:
+  ┌─────────────────────────────┐
+  │ Track 31 · Switzerland      │
+  │ Assign player…        E01   │ → popover: combobox tên / số áo  [Assign]
+  │ Change team ▸         E02   │ → France / Switzerland / Referee / Not a player
+  │ Merge with…           E03   │ → con trỏ chuyển chế độ chọn: click đối tượng thứ hai → [Merge]
+  │ Split at this frame   E04   │ → confirm: "Frames after 49:36 become a new track" [Split]
+  │ Remove this detection E05   │ → chỉ frame hiện tại; [Remove range…] chọn khoảng
+  │ Open player details   E06   │
+  └─────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Assign player…</td><td><span class="t mnu">MENU</span></td><td>Popover chọn từ roster hoặc nhập mới. [Assign] → lưu, toast Undo. Esc → đóng</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E02</td><td class="ui">Change team ▸</td><td><span class="t mnu">MENU</span></td><td>Áp cho cả track</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Merge with…</td><td><span class="t mnu">MENU</span></td><td>Chế độ chọn; banner "Click the same player elsewhere · Esc to cancel". Khác đội → cảnh báo</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">Split at this frame</td><td><span class="t mnu">MENU</span></td><td>Confirm inline</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Remove this detection</td><td><span class="t mnu">MENU</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E06</td><td class="ui">Open player details</td><td><span class="t mnu">MENU</span></td><td></td><td><a class="d" href="#scr-23">SCR-23</a></td></tr>
+        <tr><td>—</td><td class="ui">Sau mọi correction</td><td><span class="t sys">AUTO</span></td><td>Áp ngay trên client; toast Undo 10s; badge "Stats updating…" ở tab bar tới khi server tính lại</td><td><span class="s">↺ tại chỗ</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-23">
+    <h3><span class="id">SCR-23</span>Player drawer (drawer phải 400px) <span class="pill m2">M2</span></h3>
+    <div class="kv"><span><b>Route</b> giữ tab hiện tại + <code>?player=:track_id</code></span></div>
+    <div class="ascii">┌──────────────────────────────── ✕ E01 ┐
+│ ‹ E02                            › E03│
+│ [▯ crop]  #10 Kylian Mbappé   ✎ E04   │
+│           France · Forward             │
+│ ────────────────────────────────────── │
+│ Minutes 94   Distance 10.8 km          │
+│ Top speed 33.1 km/h  ▶ E05             │
+│ Sprints 28   Passes 41 (88%)           │
+│ ┌ mini heatmap ┐  Open in Heatmaps E06 │
+│ [✓] Follow on video   E07              │
+│ ▶ Jump to first appearance  E08        │
+│ ▶ Next appearance after gap E09        │
+│ Show passes → E10                      │
+│ Fix something…  E11                    │
+└────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">✕ / Esc</td><td><span class="t btn">BTN</span></td><td>Bỏ <code>?player=</code></td><td><span class="s">✕ đóng</span> → <a class="d" href="#scr-20">SCR-20</a></td></tr>
+        <tr><td>E02–E03</td><td class="ui">‹ ›</td><td><span class="t btn">BTN</span></td><td>Cầu thủ trước/sau trong cùng đội (theo số áo)</td><td><span class="s">↺ đổi nội dung</span></td></tr>
+        <tr><td>E04</td><td class="ui">✎ Edit</td><td><span class="t btn">BTN</span></td><td>Sửa tên/số áo inline; Editor+</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">▶ cạnh chỉ số</td><td><span class="t btn">BTN</span></td><td>Tua tới thời điểm đạt chỉ số</td><td><span class="s">↺ tua video</span></td></tr>
+        <tr><td>E06</td><td class="ui">Open in Heatmaps</td><td><span class="t lnk">LINK</span></td><td>Lọc sẵn cầu thủ này</td><td><a class="d" href="#scr-20c">SCR-20c</a></td></tr>
+        <tr><td>E07</td><td class="ui">Follow on video</td><td><span class="t inp">INPUT</span></td><td>Làm mờ đối tượng khác, vẽ vòng sáng quanh cầu thủ</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E08–E09</td><td class="ui">Jump to …</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">↺ tua video</span></td></tr>
+        <tr><td>E10</td><td class="ui">Show passes</td><td><span class="t lnk">LINK</span></td><td>Highlight node cầu thủ</td><td><a class="d" href="#scr-20d">SCR-20d</a></td></tr>
+        <tr><td>E11</td><td class="ui">Fix something…</td><td><span class="t lnk">LINK</span></td><td>Mở context menu sửa cho track này</td><td><a class="d" href="#scr-22">SCR-22</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 5E ============ -->
+<section id="g-out">
+  <h2><span class="n">05·E</span>Báo cáo, Export, Chia sẻ</h2>
+
+  <div class="scr" id="scr-24">
+    <h3><span class="id">SCR-24</span>AI tactical report <span class="pill m4">M4</span></h3>
+    <div class="kv"><span><b>Route</b> /videos/:id/report?lang=</span></div>
+    <div class="ascii">┌─ G top bar ──────────────────────────────────────────────────────────────┐
+│ ← Back to analysis E01   Tactical report   Language [ English ▾ ] E02     │
+│                    [ Regenerate ] E03  [ Copy ] E04  [ PDF ] E05  [ Share ] E06 │
+├──────────────────────────────────────────────────────────────────────────┤
+│ ✓ All 23 figures verified against match data                             │
+│ ## Summary                                                               │
+│ France controlled possession (58% [f:3]) and pressed high, holding a     │
+│ defensive line 41.2 m from their goal [f:12] …                E07 citation│
+│ ## Key players  …  K. Mbappé E08 …                                        │
+├─ chưa tạo ───────────────────────────────────────────────────────────────┤
+│ Generate a tactical summary from this match's data. ~30 s                │
+│                                   [ ✦ Generate report ] E09              │
+├─ đang tạo ─ ◐ Writing report… (step 2/3: verifying figures)  [Cancel] E10 │
+├─ cần xem lại ─ ⚠ 2 statements could not be verified. [Show] E11           │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">← Back to analysis</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-20">SCR-20</a></td></tr>
+        <tr><td>E02</td><td class="ui">Language ▾</td><td><span class="t mnu">MENU</span></td><td>Đã có bản ngôn ngữ đó → hiện; chưa có → trạng thái "chưa tạo"</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03</td><td class="ui">Regenerate</td><td><span class="t btn">BTN</span></td><td>Confirm nhỏ; tính vào quota báo cáo</td><td><span class="s">↺ đang tạo</span></td></tr>
+        <tr><td>E04</td><td class="ui">Copy</td><td><span class="t btn">BTN</span></td><td>Copy Markdown</td><td><span class="s">↺ toast</span></td></tr>
+        <tr><td>E05</td><td class="ui">PDF</td><td><span class="t btn">BTN</span></td><td>Mở export preset PDF</td><td><a class="d" href="#scr-25">SCR-25</a></td></tr>
+        <tr><td>E06</td><td class="ui">Share</td><td><span class="t btn">BTN</span></td><td>Link chia sẻ mở thẳng báo cáo</td><td><a class="d" href="#scr-27">SCR-27</a></td></tr>
+        <tr><td>E07</td><td class="ui">Citation chip [f:n]</td><td><span class="t lnk">LINK</span></td><td>Popover: tên chỉ số, giá trị, nguồn. Trong popover: <span class="ui">Show in video</span> → <a class="d" href="#scr-20">SCR-20</a> <code>?t=</code>; <span class="ui">Show in stats</span> → tab liên quan</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>E08</td><td class="ui">Tên cầu thủ</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-20">SCR-20</a> + <a class="d" href="#scr-23">SCR-23</a></td></tr>
+        <tr><td>E09</td><td class="ui">Generate report</td><td><span class="t btn">BTN</span></td><td>Gói Free → <a class="d" href="#scr-41">SCR-41</a></td><td><span class="s">↺ đang tạo</span></td></tr>
+        <tr><td>E10</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">↺ chưa tạo</span></td></tr>
+        <tr><td>E11</td><td class="ui">Show</td><td><span class="t btn">BTN</span></td><td>Tô vàng các câu chưa kiểm chứng; Editor có thể xoá câu đó</td><td><span class="s">↺ tại chỗ</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-25">
+    <h3><span class="id">SCR-25</span>Export (modal md) <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> …?export=video|data|pdf|map</span></div>
+    <div class="ascii">┌─ Export ─────────────────────────────────────────────── ✕ E01 ┐
+│  Video   Data   Report PDF   Tactical map video                 │
+│   E02    E03      E04             E05                           │
+│ Range ( Full match ) ( Selection 34:00–34:52 ) ( Custom… ) E06  │
+│ Layers [✓]Boxes [✓]Labels [ ]Conf [✓]Ball [ ]Trails      E07    │
+│ Layout ( Video only ) ( Video + map side by side )       E08    │
+│ Quality ( 720p ) ( 1080p  Pro )                          E09    │
+│ ⓘ Free plan exports include a watermark.  Upgrade E10           │
+│ ── tab Data ── Format ( JSON ) ( CSV ) · Rate ( 25 Hz )( 5 Hz ) E11 │
+│                              [ Cancel ] E12   [ Start export ] E13 │
+└────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">✕</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">✕ đóng</span></td></tr>
+        <tr><td>E02–E05</td><td class="ui">Tab loại export</td><td><span class="t tab">TAB</span></td><td>Data <span class="pill m3">M3</span>; PDF <span class="pill m4">M4</span>; Map video <span class="pill m2">M2</span></td><td><span class="s">↺ tab</span></td></tr>
+        <tr><td>E06</td><td class="ui">Range</td><td><span class="t inp">INPUT</span></td><td>Custom… mở picker timeline mini</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E07–E09</td><td class="ui">Layers / Layout / Quality</td><td><span class="t inp">INPUT</span></td><td>Mặc định theo layer đang bật ở SCR-20. 1080p trên Free → mở upgrade</td><td><span class="s">↺</span> / <a class="d" href="#scr-41">SCR-41</a></td></tr>
+        <tr><td>E10</td><td class="ui">Upgrade</td><td><span class="t lnk">LINK</span></td><td>Chỉ gói Free</td><td><a class="d" href="#scr-41">SCR-41</a></td></tr>
+        <tr><td>E11</td><td class="ui">Format / Rate</td><td><span class="t inp">INPUT</span></td><td>Chỉ tab Data</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E12</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">✕ đóng</span></td></tr>
+        <tr><td>E13</td><td class="ui">Start export</td><td><span class="t btn">BTN</span></td><td>Đóng modal; toast "Export started — <span class="ui">View exports</span>" (link → SCR-26). Khi xong: toast G.B05 + thông báo</td><td><span class="s">✕ đóng</span> (+ toast → <a class="d" href="#scr-26">SCR-26</a>)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-26">
+    <h3><span class="id">SCR-26</span>Exports <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /exports</span></div>
+    <div class="ascii">┌─ G top bar ──────────────────────────────────────────────────────────────┐
+│ Exports                                         Status ( All )( Active )( Done ) E01 │
+│ File                         Source              Status         Expires          │
+│ fra_sui_full.mp4  1.1 GB     France vs Sui E02   ✓ Ready        6 days  [⬇] E03 ⋯ E04│
+│ fra_sui_tracks.json          France vs Sui       ◐ 64%          —        [Cancel] E05 │
+│ training_clip.mp4            Training Oct 1      ✕ Failed       —        [Retry] E06  │
+├─ empty ─ No exports yet. Exports from any match appear here. [ Go to library ] E07 ┤
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Bộ lọc trạng thái</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E02</td><td class="ui">Tên video nguồn</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-20">SCR-20</a></td></tr>
+        <tr><td>E03</td><td class="ui">⬇ Download</td><td><span class="t btn">BTN</span></td><td>Presigned URL R2, TTL 15 phút</td><td><span class="s">⬇ tải file</span></td></tr>
+        <tr><td>E04</td><td class="ui">⋯ (Copy link / Delete)</td><td><span class="t mnu">MENU</span></td><td>Copy link: link nội bộ yêu cầu đăng nhập. Delete: confirm nhỏ</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E06</td><td class="ui">Retry</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E07</td><td class="ui">Go to library</td><td><span class="t btn">BTN</span></td><td>Empty state</td><td><a class="d" href="#scr-10">SCR-10</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-27">
+    <h3><span class="id">SCR-27</span>Share (modal sm) <span class="pill m2">M2</span></h3>
+    <div class="ascii">┌─ Share "France vs Switzerland" ─────────────── ✕ E01 ┐
+│ People in Riverside FC already have access.          │
+│ Link access  [ Only my organization ▾ ] E02          │
+│              · Only my organization                  │
+│              · Anyone with the link (view only)  Pro │
+│ Include  [✓] Analysis  [✓] Report  [ ] Raw data E03  │
+│ Link expires [ Never ▾ ] E04                         │
+│ https://app.pitchvision.ai/s/k3J9…   [ Copy link ] E05│
+│ Revoke link  E06                         [ Done ] E07 │
+└──────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">✕</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">✕ đóng</span></td></tr>
+        <tr><td>E02</td><td class="ui">Link access ▾</td><td><span class="t mnu">MENU</span></td><td>"Anyone with link" trên Free → <a class="d" href="#scr-41">SCR-41</a></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E03–E04</td><td class="ui">Include / Expiry</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E05</td><td class="ui">Copy link</td><td><span class="t btn">BTN</span></td><td>Người nhận mở link → <a class="d" href="#scr-28">SCR-28</a> (public) hoặc <a class="d" href="#scr-20">SCR-20</a> (cùng org)</td><td><span class="s">↺ toast</span></td></tr>
+        <tr><td>E06</td><td class="ui">Revoke link</td><td><span class="t lnk">LINK</span></td><td>Confirm; tạo link mới khi bật lại</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E07</td><td class="ui">Done</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">✕ đóng</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-28">
+    <h3><span class="id">SCR-28</span>Shared viewer (public, read-only) <span class="pill m2">M2</span></h3>
+    <div class="kv"><span><b>Route</b> /s/:share_token</span><span><b>Khác SCR-20</b> không có top bar G, không sửa, không export</span></div>
+    <div class="ascii">┌──────────────────────────────────────────────────────────────────────────┐
+│ ◆ PitchVision  E01   France vs Switzerland · shared by Riverside FC       │
+│                                    [ Analyze your own match ] E02  Sign in E03 │
+├──────────────────────────────────────────────────────────────────────────┤
+│  (video + overlay + tactical map — giống SCR-20, các tab được chia sẻ)    │
+│  Overview  Players  Heatmaps  Report     E04                              │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Logo</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-01">SCR-01</a></td></tr>
+        <tr><td>E02</td><td class="ui">Analyze your own match</td><td><span class="t btn">BTN</span></td><td>Ghi nguồn giới thiệu</td><td><a class="d" href="#scr-03">SCR-03</a></td></tr>
+        <tr><td>E03</td><td class="ui">Sign in</td><td><span class="t lnk">LINK</span></td><td>Sau đăng nhập, nếu cùng org → <a class="d" href="#scr-20">SCR-20</a> bản đầy đủ</td><td><a class="d" href="#scr-02">SCR-02</a></td></tr>
+        <tr><td>E04</td><td class="ui">Tab</td><td><span class="t tab">TAB</span></td><td>Chỉ các phần được bật ở SCR-27.E03. Tương tác video/map như SCR-20 nhưng không có context menu sửa</td><td><span class="s">↺ tab</span></td></tr>
+        <tr><td>—</td><td class="ui">Token hết hạn / bị thu hồi</td><td><span class="t sys">AUTO</span></td><td></td><td><a class="d" href="#scr-50">SCR-50</a> (410 Link expired)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 5F ============ -->
+<section id="g-live">
+  <h2><span class="n">05·F</span>Live <span class="pill m2">M2</span></h2>
+
+  <div class="scr" id="scr-30">
+    <h3><span class="id">SCR-30</span>Live hub (nguồn &amp; phiên) <span class="pill m2">M2</span></h3>
+    <div class="kv"><span><b>Route</b> /live?add=1&amp;edit=:source_id</span></div>
+    <div class="ascii">┌─ G top bar ──────────────────────────────────────────────────────────────┐
+│ Live                                                  [ + Add source ] E01 │
+│ ● LIVE NOW  U17 Training · 00:42:10 · 3 viewers         [ Open ] E02       │
+│ Sources                                                                   │
+│ Training pitch cam   rtsp://…  ● Online    [ Start session ] E03  ⋯ E04   │
+│ Stadium feed         RTMP push ○ Idle      [ Start session ]       ⋯      │
+│ Past sessions                                                             │
+│ Oct 3 · U17 Training · 85 min · Recording ✓    → E05                      │
+├─ form Add / Edit source (panel phải) ────────────────────────────────────┤
+│ Name [ Training pitch cam ]                                     E06       │
+│ How does video reach us?  ( We pull from a URL ) ( Camera pushes to us ) E07│
+│  · Pull: URL [ rtsp://192.… ]  Username/Password (optional)              │
+│  · Push: RTMP URL rtmp://eu.live…/in  Key ●●●●●  [Copy] [Show] E08       │
+│ Match format ( 11v11 )( 9v9 )( 7v7 )  [✓] Record session                  │
+│ [ Test connection ] E09  → ✓ 1920×1080 · 25 fps · preview ▓▓              │
+│                               [ Cancel ] E10   [ Save source ] E11        │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">+ Add source</td><td><span class="t btn">BTN</span></td><td>Editor+. Mở panel form</td><td><span class="s">↺</span> <code>?add=1</code></td></tr>
+        <tr><td>E02</td><td class="ui">Open (phiên đang chạy)</td><td><span class="t btn">BTN</span></td><td></td><td><a class="d" href="#scr-31">SCR-31</a></td></tr>
+        <tr><td>E03</td><td class="ui">Start session</td><td><span class="t btn">BTN</span></td><td>Nguồn offline → lỗi inline "Camera unreachable" + Test. Hết GPU live → thông báo xếp hàng. Gói không có live → <a class="d" href="#scr-41">SCR-41</a></td><td><a class="d" href="#scr-31">SCR-31</a></td></tr>
+        <tr><td>E04</td><td class="ui">⋯ (Edit / Delete)</td><td><span class="t mnu">MENU</span></td><td>Edit → panel <code>?edit=</code>. Delete → <a class="d" href="#dlg-01">DLG-01</a> biến thể "source"</td><td><span class="s">↺</span> / dialog</td></tr>
+        <tr><td>E05</td><td class="ui">Dòng phiên cũ</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-32">SCR-32</a></td></tr>
+        <tr><td>E06–E07</td><td class="ui">Name / Pull–Push</td><td><span class="t inp">INPUT</span></td><td>Cloud: URL pull trỏ IP nội bộ → lỗi (chống SSRF), gợi ý chọn Push</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E08</td><td class="ui">Copy / Show key</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E09</td><td class="ui">Test connection</td><td><span class="t btn">BTN</span></td><td>Pull: kết nối thử 10s. Push: chờ tín hiệu tới tối đa 60s</td><td><span class="s">↺ kết quả inline</span></td></tr>
+        <tr><td>E10</td><td class="ui">Cancel</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">↺ đóng panel</span></td></tr>
+        <tr><td>E11</td><td class="ui">Save source</td><td><span class="t btn">BTN</span></td><td>Lưu; nếu mở từ SCR-11 với ý định bắt đầu → hiện thêm nút "Save &amp; start" → SCR-31</td><td><span class="s">↺</span> / <a class="d" href="#scr-31">SCR-31</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-31">
+    <h3><span class="id">SCR-31</span>Live viewer <span class="pill m2">M2</span></h3>
+    <div class="kv"><span><b>Route</b> /live/:session_id</span><span><b>Thiết bị chính</b> tablet ngang bên đường biên</span></div>
+    <div class="ascii">┌──────────────────────────────────────────────────────────────────────────┐
+│ ← Live E01  ● LIVE 00:42:10   latency 1.8 s · 21 fps · Full quality  ⓘ E02 │
+│                               [ ⚑ Marker ] E03  [ ■ End session ] E04       │
+├──────────────────────────────────────────────┬───────────────────────────┤
+│ ┌ info ─ Learning team colors… 14 s ─ [ Name teams ] E05 ┐ │ TACTICAL MAP        │
+│ ┌──────────── WebRTC video + overlay ─────────┐ │ ┌─────────────────────┐ │
+│ │   ┌─┐ Team A 0.81        ┌─┐ Team B 0.84    │ │ │  ○  ○   □   □       │ │
+│ └─────────────────────────────────────────────┘ │ └─────────────────────┘ │
+│ Layers ☑Boxes ☑Labels ☐Conf ☑Ball  E06          │ Possession (live) 54–46 │
+│ Markers: 12:04 Pressing trigger · 31:40 Goal  E07│ Distance leaders …      │
+├─ mất kết nối ─ ⚠ Reconnecting to camera (attempt 3/5)…                      │
+│               (sau 5 lần)  [ Retry ] E08   [ End session ] E04              │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">← Live</td><td><span class="t lnk">LINK</span></td><td>Phiên <strong>vẫn chạy</strong> (đánh dấu LIVE NOW ở SCR-30 và chấm đỏ G.E03)</td><td><a class="d" href="#scr-30">SCR-30</a></td></tr>
+        <tr><td>E02</td><td class="ui">ⓘ chất lượng</td><td><span class="t btn">BTN</span></td><td>Popover giải thích chế độ hiện tại (Full / Reduced 1–4) và lý do</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>E03</td><td class="ui">⚑ Marker</td><td><span class="t btn">BTN</span></td><td>Phím <code>M</code>. Thêm mốc thời gian + ô ghi chú nhanh</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E04</td><td class="ui">■ End session</td><td><span class="t btn">BTN</span></td><td>Danger</td><td><a class="d" href="#dlg-10">DLG-10</a></td></tr>
+        <tr><td>E05</td><td class="ui">Name teams</td><td><span class="t btn">BTN</span></td><td>Hiện sau khi học xong màu áo (~20s). Mở SCR-14 dạng modal; xác nhận xong quay lại</td><td><a class="d" href="#scr-14">SCR-14</a> (modal)</td></tr>
+        <tr><td>E06</td><td class="ui">Layers</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>E07</td><td class="ui">Marker trong danh sách</td><td><span class="t lnk">LINK</span></td><td>Không tua live; mở popover ghi chú, sửa/xoá</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>E08</td><td class="ui">Retry</td><td><span class="t btn">BTN</span></td><td>Chỉ sau 5 lần tự kết nối lại thất bại</td><td><span class="s">↺ tại chỗ</span></td></tr>
+        <tr><td>A01</td><td class="ui">Phiên kết thúc từ thiết bị khác</td><td><span class="t sys">AUTO</span></td><td>Toast</td><td><a class="d" href="#scr-32">SCR-32</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-32">
+    <h3><span class="id">SCR-32</span>Live session summary <span class="pill m2">M2</span></h3>
+    <div class="kv"><span><b>Route</b> /live/:session_id/summary</span></div>
+    <div class="ascii">┌─ G top bar ──────────────────────────────────────────────────────────────┐
+│ ← Live E01   U17 Training · Oct 3 · 85 min                               │
+│ Recording saved ✓   Live-quality data (reduced accuracy)                 │
+│ Possession 54–46 · Distance 98.2 / 95.1 km · 12 markers                  │
+│ ┌ info ─ Get full accuracy: run a complete analysis on the recording.  ┐  │
+│ │                                     [ Run full analysis ] E02        │  │
+│ └──────────────────────────────────────────────────────────────────────┘  │
+│ [ Open recording ] E03     Markers: 12:04 ▶ 31:40 ▶ … E04   Delete session E05 │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">← Live</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-30">SCR-30</a></td></tr>
+        <tr><td>E02</td><td class="ui">Run full analysis</td><td><span class="t btn">BTN</span></td><td>Tạo video từ bản ghi, giữ marker và tên đội</td><td><a class="d" href="#scr-12">SCR-12</a> → <a class="d" href="#scr-13">SCR-13</a></td></tr>
+        <tr><td>E03</td><td class="ui">Open recording</td><td><span class="t btn">BTN</span></td><td>Xem bản ghi với dữ liệu live (badge "Live data")</td><td><a class="d" href="#scr-20">SCR-20</a></td></tr>
+        <tr><td>E04</td><td class="ui">▶ marker</td><td><span class="t btn">BTN</span></td><td></td><td><a class="d" href="#scr-20">SCR-20</a> <code>?t=</code></td></tr>
+        <tr><td>E05</td><td class="ui">Delete session</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#dlg-01">DLG-01</a> → <a class="d" href="#scr-30">SCR-30</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 5G ============ -->
+<section id="g-set">
+  <h2><span class="n">05·G</span>Cài đặt &amp; Tài khoản</h2>
+
+  <div class="scr" id="scr-40">
+    <h3><span class="id">SCR-40</span>Settings (7 mục) <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> /settings/profile|organization|members|billing|api-keys|preferences|privacy</span></div>
+    <div class="ascii">┌─ G top bar ──────────────────────────────────────────────────────────────┐
+│ Settings                                                                 │
+│ ┌──────────────────┐ ┌──────────────────────────────────────────────────┐ │
+│ │ Profile      E01 │ │ (nội dung mục đang chọn)                          │ │
+│ │ Organization E02 │ │                                                  │ │
+│ │ Members      E03 │ │                                                  │ │
+│ │ Billing      E04 │ │                                                  │ │
+│ │ API keys     E05 │ │                                                  │ │
+│ │ Preferences  E06 │ │                                                  │ │
+│ │ Data&privacy E07 │ │                                                  │ │
+│ └──────────────────┘ └──────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01–E07</td><td class="ui">Mục bên trái</td><td><span class="t tab">TAB</span></td><td>Ẩn mục không đủ quyền: Organization/Members/API keys = Admin+; Billing = Owner. Có thay đổi chưa lưu → <a class="d" href="#dlg-03">DLG-03</a></td><td><span class="s">↺</span> <code>/settings/:section</code></td></tr>
+      </tbody>
+    </table>
+
+    <h4>Profile</h4>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>P01</td><td class="ui">Name, Avatar</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺</span></td></tr>
+        <tr><td>P02</td><td class="ui">Change email</td><td><span class="t btn">BTN</span></td><td>Popover nhập email mới + mật khẩu → gửi link xác minh tới email mới</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>P03</td><td class="ui">Change password</td><td><span class="t btn">BTN</span></td><td>Popover: mật khẩu cũ / mới</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>P04</td><td class="ui">Sign out of all other sessions</td><td><span class="t btn">BTN</span></td><td>Confirm</td><td><span class="s">↺ toast</span></td></tr>
+        <tr><td>P05</td><td class="ui">Save</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">↺ toast</span></td></tr>
+      </tbody>
+    </table>
+
+    <h4>Organization (Admin+)</h4>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>O01</td><td class="ui">Name, Logo, Type</td><td><span class="t inp">INPUT</span></td><td>Logo dùng trên PDF export</td><td><span class="s">↺</span></td></tr>
+        <tr><td>O02</td><td class="ui">Data region (read-only) · Why?</td><td><span class="t lnk">LINK</span></td><td>Popover giải thích không đổi được</td><td><span class="s">↺ popover</span></td></tr>
+        <tr><td>O03</td><td class="ui">Saved teams</td><td><span class="t lnk">LINK</span></td><td>Danh sách tên đội + màu đã lưu; sửa/xoá inline</td><td><span class="s">↺</span></td></tr>
+        <tr><td>O04</td><td class="ui">Save</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">↺ toast</span></td></tr>
+      </tbody>
+    </table>
+
+    <h4>Members (Admin+)</h4>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>M01</td><td class="ui">Invite members</td><td><span class="t btn">BTN</span></td><td>Vượt số ghế của gói → <a class="d" href="#scr-41">SCR-41</a></td><td><a class="d" href="#dlg-06">DLG-06</a></td></tr>
+        <tr><td>M02</td><td class="ui">Role ▾ (mỗi dòng)</td><td><span class="t mnu">MENU</span></td><td>Viewer / Editor / Admin. Không tự hạ quyền Owner cuối cùng</td><td><span class="s">↺</span></td></tr>
+        <tr><td>M03</td><td class="ui">Remove</td><td><span class="t btn">BTN</span></td><td>Confirm</td><td><span class="s">↺</span></td></tr>
+        <tr><td>M04</td><td class="ui">Pending invite: Resend / Revoke</td><td><span class="t lnk">LINK</span></td><td></td><td><span class="s">↺</span></td></tr>
+        <tr><td>M05</td><td class="ui">Transfer ownership</td><td><span class="t btn">BTN</span></td><td>Owner only; nhập mật khẩu xác nhận</td><td><span class="s">↺ dialog</span></td></tr>
+      </tbody>
+    </table>
+
+    <h4>Billing &amp; usage (Owner)</h4>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>B01</td><td class="ui">Plan card · Change plan</td><td><span class="t btn">BTN</span></td><td></td><td><a class="d" href="#scr-41">SCR-41</a></td></tr>
+        <tr><td>B02</td><td class="ui">Usage chart</td><td><span class="t inp">INPUT</span></td><td>Click cột theo ngày → danh sách job ngày đó; click job → video</td><td><a class="d" href="#scr-20">SCR-20</a></td></tr>
+        <tr><td>B03</td><td class="ui">Manage payment &amp; invoices</td><td><span class="t btn">BTN</span></td><td>Stripe Customer Portal; return_url quay về đây</td><td><span class="x">↗ Stripe</span> → <a class="d" href="#scr-40">SCR-40</a></td></tr>
+        <tr><td>B04</td><td class="ui">Invoice ⬇</td><td><span class="t lnk">LINK</span></td><td></td><td><span class="s">⬇ tải file</span></td></tr>
+      </tbody>
+    </table>
+
+    <h4>API keys (Admin+, gói Pro+)</h4>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>K01</td><td class="ui">Create API key</td><td><span class="t btn">BTN</span></td><td>Gói Free → <a class="d" href="#scr-41">SCR-41</a></td><td><a class="d" href="#dlg-07">DLG-07</a></td></tr>
+        <tr><td>K02</td><td class="ui">Revoke</td><td><span class="t btn">BTN</span></td><td>Confirm</td><td><span class="s">↺</span></td></tr>
+        <tr><td>K03</td><td class="ui">API docs</td><td><span class="t lnk">LINK</span></td><td></td><td><span class="x">↗ ngoài</span></td></tr>
+      </tbody>
+    </table>
+
+    <h4>Preferences</h4>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>R01</td><td class="ui">Language, Units, Theme, Time format</td><td><span class="t inp">INPUT</span></td><td>Áp dụng ngay, tự lưu</td><td><span class="s">↺</span></td></tr>
+        <tr><td>R02</td><td class="ui">Default analysis settings · Edit</td><td><span class="t btn">BTN</span></td><td></td><td><a class="d" href="#scr-12">SCR-12</a> (chế độ mặc định)</td></tr>
+        <tr><td>R03</td><td class="ui">Email notifications (job done / failed / export ready / weekly summary)</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺</span></td></tr>
+      </tbody>
+    </table>
+
+    <h4>Data &amp; privacy</h4>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>D01</td><td class="ui">Help improve PitchVision (dùng correction để huấn luyện)</td><td><span class="t inp">INPUT</span></td><td>Mặc định tắt; Admin+ — chờ PRD Q5</td><td><span class="s">↺</span></td></tr>
+        <tr><td>D02</td><td class="ui">Export all data</td><td><span class="t btn">BTN</span></td><td>Gửi email link tải khi xong (GDPR)</td><td><span class="s">↺ toast</span></td></tr>
+        <tr><td>D03</td><td class="ui">Delete my account</td><td><span class="t btn">BTN</span></td><td>Owner duy nhất của org → phải chuyển quyền/xoá org trước</td><td><a class="d" href="#dlg-08">DLG-08</a> → <a class="d" href="#scr-01">SCR-01</a></td></tr>
+        <tr><td>D04</td><td class="ui">Delete organization</td><td><span class="t btn">BTN</span></td><td>Owner</td><td><a class="d" href="#dlg-08">DLG-08</a> → <a class="d" href="#scr-01">SCR-01</a></td></tr>
+        <tr><td>D05</td><td class="ui">Privacy policy · DPA</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-53">SCR-53</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-41">
+    <h3><span class="id">SCR-41</span>Upgrade (modal lg) <span class="pill m1">M1</span></h3>
+    <div class="kv"><span><b>Route</b> …?upgrade=1&amp;reason=quota|feature|seats|quality</span><span><b>Không phải Owner</b> hiện "Ask your owner to upgrade" + [Notify owner]</span></div>
+    <div class="ascii">┌─ Upgrade your plan ─────────────────────────────────────────── ✕ E01 ┐
+│ ⓘ You've used 118 of 120 minutes this month.   (theo reason)          │
+│              ( Monthly ) ( Annual · save 20% )  E02                   │
+│ ┌ Free ──────────┐ ┌ Pro ───────────┐ ┌ Team ──────────┐              │
+│ │ 120 min/mo     │ │ 900 min/mo     │ │ Custom         │              │
+│ │ Watermark      │ │ AI reports     │ │ SSO · Self-host│              │
+│ │ Current plan   │ │ [ Choose Pro ] │ │ [Contact sales]│              │
+│ └────────────────┘ └──────E03───────┘ └──────E04───────┘              │
+│ Compare all features E05                     Maybe later E06          │
+└──────────────────────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">✕</td><td><span class="t btn">BTN</span></td><td></td><td><span class="s">✕ đóng</span> → màn hình gốc</td></tr>
+        <tr><td>E02</td><td class="ui">Monthly / Annual</td><td><span class="t inp">INPUT</span></td><td></td><td><span class="s">↺</span></td></tr>
+        <tr><td>E03</td><td class="ui">Choose Pro</td><td><span class="t btn">BTN</span></td><td>Stripe Checkout. Thành công → quay lại màn hình gốc, tự thử lại hành động bị chặn (vd. Start upload). Huỷ → quay lại modal</td><td><span class="x">↗ Stripe</span> → màn hình gốc</td></tr>
+        <tr><td>E04</td><td class="ui">Contact sales</td><td><span class="t btn">BTN</span></td><td></td><td><span class="x">↗ ngoài</span></td></tr>
+        <tr><td>E05</td><td class="ui">Compare all features</td><td><span class="t lnk">LINK</span></td><td>Tab mới</td><td><a class="d" href="#scr-01">SCR-01</a> #pricing</td></tr>
+        <tr><td>E06</td><td class="ui">Maybe later</td><td><span class="t lnk">LINK</span></td><td></td><td><span class="s">✕ đóng</span></td></tr>
+        <tr><td>E07</td><td class="ui">Notify owner</td><td><span class="t btn">BTN</span></td><td>Chỉ khi không phải Owner</td><td><span class="s">↺ toast</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 5H ============ -->
+<section id="g-sys">
+  <h2><span class="n">05·H</span>Hệ thống &amp; Dialog</h2>
+
+  <div class="scr" id="scr-50">
+    <h3><span class="id">SCR-50</span>Trang lỗi <span class="pill m1">M1</span></h3>
+    <table>
+      <thead><tr><th>Mã</th><th>Thông điệp</th><th>Phần tử</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>404</td><td>We couldn't find that page.</td><td><span class="ui">Go to library</span> <span class="t btn">BTN</span></td><td><a class="d" href="#scr-10">SCR-10</a> (chưa đăng nhập → <a class="d" href="#scr-01">SCR-01</a>)</td></tr>
+        <tr><td>403</td><td>You don't have access to this match.</td><td><span class="ui">Request access</span> <span class="t btn">BTN</span> · <span class="ui">Switch organization</span> <span class="t lnk">LINK</span> · <span class="ui">Go to library</span></td><td><span class="s">↺ "Request sent"</span> · G.E13 · <a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>410</td><td>This shared link has expired.</td><td><span class="ui">Go to PitchVision</span></td><td><a class="d" href="#scr-01">SCR-01</a></td></tr>
+        <tr><td>500</td><td>Something went wrong on our side.</td><td><span class="ui">Try again</span> (reload) · <span class="ui">Status page</span></td><td><span class="s">↺</span> · <span class="x">↗ ngoài</span></td></tr>
+        <tr><td>Region</td><td>This match is stored in another region.</td><td><span class="ui">Open in EU workspace</span></td><td><a class="d" href="#scr-20">SCR-20</a> ở region đúng</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-51">
+    <h3><span class="id">SCR-51</span>Notification center (dropdown) <span class="pill m1">M1</span></h3>
+    <div class="ascii">┌ Notifications ─────────────── Mark all as read E01 ┐
+│ ● France vs Switzerland is ready          2m  E02   │
+│ ● U17 vs Ajax failed during analysis      1h        │
+│   Export fra_sui_full.mp4 is ready        3h        │
+│   Alex joined Riverside FC                1d        │
+│   You've used 80% of this month's minutes 2d        │
+│ Notification settings E03                           │
+└─────────────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Mark all as read</td><td><span class="t lnk">LINK</span></td><td></td><td><span class="s">↺</span></td></tr>
+        <tr><td>E02</td><td class="ui">Một thông báo</td><td><span class="t lnk">LINK</span></td><td>
+          job ready → <a class="d" href="#scr-20">SCR-20</a> ·
+          job failed → <a class="d" href="#scr-13">SCR-13</a> ·
+          needs teams → <a class="d" href="#scr-14">SCR-14</a> ·
+          export ready → <a class="d" href="#scr-26">SCR-26</a> ·
+          member joined → <a class="d" href="#scr-40">SCR-40</a> /members ·
+          quota → <a class="d" href="#scr-40">SCR-40</a> /billing ·
+          access request → <a class="d" href="#scr-27">SCR-27</a> của video đó ·
+          live started → <a class="d" href="#scr-31">SCR-31</a></td><td>theo loại</td></tr>
+        <tr><td>E03</td><td class="ui">Notification settings</td><td><span class="t lnk">LINK</span></td><td></td><td><a class="d" href="#scr-40">SCR-40</a> /preferences</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-52">
+    <h3><span class="id">SCR-52</span>Accept invitation <span class="pill m1">M1</span></h3>
+    <div class="ascii">┌──────────────────────────────────────────────┐
+│ Sam invited you to join Riverside FC          │
+│ as an Editor · Data stored in EU              │
+│ [ Accept invitation ] E01                     │
+│ Not you? Sign in with another account E02     │
+└──────────────────────────────────────────────┘</div>
+    <table>
+      <thead><tr><th>ID</th><th>Phần tử</th><th>Loại</th><th>Hành động / Điều kiện</th><th>Đích đến</th></tr></thead>
+      <tbody>
+        <tr><td>E01</td><td class="ui">Accept invitation</td><td><span class="t btn">BTN</span></td><td>Chưa có tài khoản → đăng ký (email khoá, bỏ qua onboarding bước 1–2). Đã đăng nhập đúng email → vào org. Sai email → thông báo + E02</td><td><a class="d" href="#scr-03">SCR-03</a> / <a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr><td>E02</td><td class="ui">Sign in with another account</td><td><span class="t lnk">LINK</span></td><td>Đăng xuất, giữ token mời</td><td><a class="d" href="#scr-02">SCR-02</a></td></tr>
+        <tr><td>—</td><td class="ui">Token hết hạn</td><td><span class="t sys">AUTO</span></td><td>"Ask Sam to send a new invite"</td><td><span class="s">↺ trạng thái lỗi</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scr" id="scr-53">
+    <h3><span class="id">SCR-53</span>Legal (Terms, Privacy, DPA) <span class="pill m1">M1</span></h3>
+    <p>Trang tĩnh. Link header: <span class="ui">Logo</span> → <a class="d" href="#scr-01">SCR-01</a>; mục lục bên trái là anchor <span class="s">↺ tại chỗ</span>; footer giống SCR-01.</p>
+  </div>
+
+  <div class="scr" id="dlg">
+    <h3><span class="id">DLG</span>Dialog dùng chung</h3>
+    <table>
+      <thead><tr><th>ID</th><th>Dialog</th><th>Nội dung</th><th>Nút → Đích</th></tr></thead>
+      <tbody>
+        <tr id="dlg-01"><td>DLG-01</td><td class="ui">Delete video / source / session</td><td>"Delete France vs Switzerland? Video, analysis, exports and share links will be removed. This can't be undone after 10 seconds."</td><td><span class="ui">Cancel</span> → <span class="s">✕ đóng</span> · <span class="ui">Delete</span> (danger) → <a class="d" href="#scr-10">SCR-10</a> (+ toast Undo 10s; xoá thật sau đó)</td></tr>
+        <tr id="dlg-02"><td>DLG-02</td><td class="ui">Cancel analysis</td><td>"Stop analyzing? Minutes used so far are not refunded."</td><td><span class="ui">Keep analyzing</span> → <span class="s">✕ đóng</span> · <span class="ui">Stop</span> → <a class="d" href="#scr-10">SCR-10</a></td></tr>
+        <tr id="dlg-03"><td>DLG-03</td><td class="ui">Unsaved changes / upload in progress</td><td>"You have unsaved changes." hoặc "An upload is in progress — leaving will cancel it."</td><td><span class="ui">Stay</span> → <span class="s">✕ đóng</span> · <span class="ui">Discard &amp; leave</span> → đích ban đầu · <span class="ui">Save &amp; leave</span> (nếu áp dụng) → đích ban đầu</td></tr>
+        <tr id="dlg-04"><td>DLG-04</td><td class="ui">Rename</td><td>Ô tiêu đề</td><td><span class="ui">Cancel</span> → <span class="s">✕</span> · <span class="ui">Save</span> → <span class="s">↺ màn hình nền</span></td></tr>
+        <tr id="dlg-05"><td>DLG-05</td><td class="ui">Keyboard shortcuts</td><td>Bảng mục 8</td><td><span class="ui">Close</span> / Esc → <span class="s">✕</span></td></tr>
+        <tr id="dlg-06"><td>DLG-06</td><td class="ui">Invite members</td><td>Nhiều email (phân tách bằng dấu phẩy), Role ▾, lời nhắn tuỳ chọn</td><td><span class="ui">Cancel</span> → <span class="s">✕</span> · <span class="ui">Send invites</span> → <span class="s">↺</span> SCR-40 /members (dòng pending)</td></tr>
+        <tr id="dlg-07"><td>DLG-07</td><td class="ui">API key created</td><td>Key hiện <strong>một lần duy nhất</strong>; tên key, quyền (read / read+write)</td><td><span class="ui">Copy</span> → <span class="s">↺ toast</span> · <span class="ui">I've saved it</span> (chỉ bật sau khi Copy) → <span class="s">✕</span></td></tr>
+        <tr id="dlg-08"><td>DLG-08</td><td class="ui">Delete account / organization</td><td>Gõ lại tên org để xác nhận; liệt kê số video sẽ bị xoá; xoá trong 24h</td><td><span class="ui">Cancel</span> → <span class="s">✕</span> · <span class="ui">Delete permanently</span> → đăng xuất → <a class="d" href="#scr-01">SCR-01</a></td></tr>
+        <tr id="dlg-09"><td>DLG-09</td><td class="ui">Paste lineup</td><td>Textarea "10 Kylian Mbappé" mỗi dòng; chọn đội; xem trước kết quả ghép theo số áo</td><td><span class="ui">Cancel</span> → <span class="s">✕</span> · <span class="ui">Apply</span> → <span class="s">↺</span> <a class="d" href="#scr-21">SCR-21</a> (dòng modified, chưa lưu)</td></tr>
+        <tr id="dlg-10"><td>DLG-10</td><td class="ui">End live session</td><td>"End session for all viewers? The recording will be saved."</td><td><span class="ui">Keep live</span> → <span class="s">✕</span> · <span class="ui">End session</span> → <a class="d" href="#scr-32">SCR-32</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="s6">
+  <h2><span class="n">06</span>User flow</h2>
+  <p>Mỗi flow là một hành trình đầu-cuối. Ký hiệu trên cạnh: <code>SCR.Exx</code> = phần tử kích hoạt chuyển màn hình. Nút hình thoi = điều kiện hệ thống.</p>
+
+  <h3 id="f1">F1 — Đăng ký &amp; onboarding</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  A["SCR-01 Landing"] -->|"E06 Get started"| B["SCR-03 Sign up"]
+  B -->|"E08 Create account"| C["SCR-06 Verify email"]
+  B -->|"E01 Google"| D["SCR-07 Onboarding 1/3"]
+  C -->|"link in email (AUTO)"| D
+  C -->|"E03 Change it"| B
+  D -->|"E04 Continue"| E["SCR-07 Region 2/3"]
+  E -->|"E08 Continue + confirm"| F["SCR-07 Preferences 3/3"]
+  E -->|"E07 Back"| D
+  F -->|"E11 Back"| E
+  F -->|"E12 Finish"| G{"plan=pro?"}
+  G -->|"yes"| H["SCR-10 + SCR-41"]
+  G -->|"no"| I["SCR-10 Library + tour"]
+</pre></div>
+
+  <h3 id="f2">F2 — Đăng nhập &amp; quên mật khẩu</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  A["SCR-02 Sign in"] -->|"E05 Sign in"| B{"Kết quả"}
+  B -->|"sai"| A
+  B -->|"chưa xác minh"| C["SCR-06"]
+  B -->|"chưa có org"| D["SCR-07"]
+  B -->|"có return_to"| E["URL return_to"]
+  B -->|"OK"| F["SCR-10"]
+  A -->|"E04 Forgot"| G["SCR-04"]
+  G -->|"E02 Send"| G2["SCR-04 đã gửi"]
+  G2 -->|"link email"| H["SCR-05 Reset"]
+  H -->|"E03 Update"| A
+  H -->|"E04 hết hạn"| G
+  G -->|"E03 Back"| A
+</pre></div>
+
+  <h3 id="f3">F3 — Upload → phân tích → xem kết quả (luồng chính)</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart TD
+  A["SCR-10 Library"] -->|"G.E05 / E08"| B["SCR-11 Upload tab"]
+  B -->|"E11 Advanced"| C["SCR-12 Settings"]
+  C -->|"E13 Apply"| B
+  B -->|"E13 Start upload"| Q{"Đủ quota?"}
+  Q -->|"không"| U["SCR-41 Upgrade"]
+  U -->|"E03 thanh toán xong"| B
+  Q -->|"có"| D["SCR-11 Uploading"]
+  D -->|"E15 Background"| A
+  D -->|"upload xong (AUTO)"| E["SCR-13 Processing"]
+  A -->|"card Analyzing"| E
+  E -->|"E03 Confirm teams (banner)"| F["SCR-14 Teams"]
+  F -->|"E09 Confirm, job chưa xong"| E
+  E -->|"job xong (AUTO)"| G{"Đội đã xác nhận?"}
+  G -->|"chưa"| F
+  F -->|"E09 Confirm, job xong"| H{"Pitch OK?"}
+  G -->|"rồi"| H
+  H -->|"degraded"| K["SCR-15 Calibrate"]
+  K -->|"E09 Apply"| E
+  K -->|"E08 Cancel"| W
+  H -->|"OK"| W["SCR-20 Workspace"]
+  E -->|"lỗi"| X["SCR-13 Error"]
+  X -->|"E07 Retry"| E
+  X -->|"E08 Settings"| C
+  X -->|"E10 Pick players"| F
+  X -->|"E11 Calibrate"| K
+</pre></div>
+
+  <h3 id="f4">F4 — Phân tích từ YouTube</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  A["SCR-10"] -->|"G.E05"| B["SCR-11"]
+  B -->|"E03 tab YouTube"| C["SCR-11 YouTube"]
+  C -->|"E17 Fetch"| D{"Hợp lệ?"}
+  D -->|"không"| C
+  D -->|"có"| E["Preview"]
+  E -->|"E22 Analyze"| F{"Quota?"}
+  F -->|"thiếu"| G["SCR-41"]
+  F -->|"đủ"| H["SCR-13"]
+  H -->|"F3 từ bước Processing"| I["SCR-20"]
+</pre></div>
+
+  <h3 id="f5">F5 — Live session</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart TD
+  A["G.E03 Live"] --> B["SCR-30 Live hub"]
+  N["SCR-11 tab Live"] -->|"E25 New source"| B
+  N -->|"E23 Start"| D
+  B -->|"E01 Add source"| C["Form source"]
+  C -->|"E09 Test"| C
+  C -->|"E11 Save and start"| D["SCR-31 Live viewer"]
+  B -->|"E03 Start session"| D
+  D -->|"E05 Name teams"| T["SCR-14 modal"]
+  T -->|"E09 Confirm"| D
+  D -->|"E01 Back, phiên vẫn chạy"| B
+  B -->|"E02 Open"| D
+  D -->|"E04 End"| X["DLG-10"]
+  X -->|"End session"| S["SCR-32 Summary"]
+  X -->|"Keep live"| D
+  S -->|"E02 Run full analysis"| P["SCR-12"]
+  P -->|"E14 Start"| Q["SCR-13 → F3"]
+  S -->|"E03 Open recording"| W["SCR-20"]
+  S -->|"E01 Back"| B
+</pre></div>
+
+  <h3 id="f6">F6 — Xem &amp; khám phá kết quả trong workspace</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  W["SCR-20 Workspace"] -->|"E14..E19 tabs"| T["SCR-20a..f"]
+  W -->|"E07 / E21 click player"| P["SCR-23 Player drawer"]
+  T -->|"Players E04 row"| P
+  T -->|"Passing E03 node"| P
+  P -->|"E06 Heatmaps"| H["SCR-20c"]
+  P -->|"E10 Passes"| PS["SCR-20d"]
+  P -->|"E01 Close"| W
+  T -->|"chart / ▶ items"| V["Tua video ↺"]
+  W -->|"E02 AI report"| R["SCR-24"]
+  R -->|"E07 citation → Show in video"| W
+</pre></div>
+
+  <h3 id="f7">F7 — Sửa kết quả AI</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart TD
+  W["SCR-20"] -->|"chuột phải bbox"| C["SCR-22 Context menu"]
+  C -->|"E01..E05"| A["Áp ngay + toast Undo"]
+  A -->|"G.B06 Undo"| W
+  A -->|"server tính lại"| W
+  W -->|"E05b Teams"| T["SCR-14"]
+  T -->|"E09"| W
+  W -->|"E05d Roster"| R["SCR-21 Roster"]
+  R -->|"E02 Paste lineup"| L["DLG-09"]
+  L -->|"Apply"| R
+  R -->|"E06 Split"| C
+  R -->|"E08 Save"| R
+  R -->|"E01 Back"| U{"Chưa lưu?"}
+  U -->|"có"| D["DLG-03"]
+  U -->|"không"| W
+  D -->|"Discard / Save and leave"| W
+  W -->|"E06 banner / E05c"| K["SCR-15 Calibrate"]
+  K -->|"E09"| P["SCR-13 recompute"] --> W
+</pre></div>
+
+  <h3 id="f8">F8 — Export &amp; tải về</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  W["SCR-20"] -->|"E03 Export"| E["SCR-25"]
+  D["SCR-20f Data"] -->|"E01 / E02"| E
+  R["SCR-24 Report"] -->|"E05 PDF"| E
+  L["SCR-10 card ⋮"] -->|"E07d"| E
+  E -->|"E10 / 1080p Free"| U["SCR-41"]
+  E -->|"E13 Start"| T["Toast: View exports"]
+  T --> X["SCR-26 Exports"]
+  G["G.E04"] --> X
+  X -->|"E03 Download"| F["⬇ file"]
+  N["G.B05 / SCR-51"] --> F
+</pre></div>
+
+  <h3 id="f9">F9 — Báo cáo AI</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  W["SCR-20 E02"] --> P{"Gói Pro+?"}
+  T["SCR-20e E05"] --> P
+  P -->|"không"| U["SCR-41"]
+  P -->|"có"| R["SCR-24"]
+  R -->|"E09 Generate"| G["Đang tạo"]
+  G -->|"OK"| D["Report"]
+  G -->|"có câu chưa kiểm chứng"| V["Needs review → E11"]
+  G -->|"E10 Cancel"| R
+  D -->|"E07 citation"| W2["SCR-20 ?t="]
+  D -->|"E05 PDF"| E["SCR-25"]
+  D -->|"E06 Share"| S["SCR-27"]
+</pre></div>
+
+  <h3 id="f10">F10 — Nâng cấp gói (mọi điểm chặn)</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  A["SCR-11 E13 / E22 quota"] --> U["SCR-41"]
+  B["SCR-12 E08 Tactics"] --> U
+  C["SCR-20 E02 / SCR-24 E09"] --> U
+  D["SCR-25 E09 / E10"] --> U
+  E["SCR-27 E02 public link"] --> U
+  F["SCR-40 M01 seats / K01 / B01"] --> U
+  G["G.E06 meter → SCR-40 billing"] --> F
+  U -->|"E03 Choose Pro"| S["Stripe Checkout"]
+  S -->|"thành công"| O["Màn hình gốc + thử lại hành động"]
+  S -->|"huỷ"| U
+  U -->|"E01 / E06"| O2["Màn hình gốc"]
+  U -->|"E07 Notify owner"| O2
+</pre></div>
+
+  <h3 id="f11">F11 — Chia sẻ &amp; người nhận</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  W["SCR-20 E04"] --> S["SCR-27 Share"]
+  R["SCR-24 E06"] --> S
+  L["SCR-10 E07e"] --> S
+  S -->|"E05 Copy link"| K["Link /s/token"]
+  K --> Q{"Người nhận"}
+  Q -->|"cùng org, đã đăng nhập"| W2["SCR-20"]
+  Q -->|"public"| V["SCR-28 Viewer"]
+  Q -->|"hết hạn / thu hồi"| X["SCR-50 410"]
+  V -->|"E02"| SU["SCR-03 Sign up"]
+  V -->|"E03"| SI["SCR-02 Sign in"]
+</pre></div>
+
+  <h3 id="f12">F12 — Mời thành viên</h3>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  A["SCR-40 Members"] -->|"M01 Invite"| B{"Còn ghế?"}
+  B -->|"không"| U["SCR-41"]
+  B -->|"có"| D["DLG-06"]
+  D -->|"Send"| A
+  M["Email mời"] --> I["SCR-52 Accept"]
+  I -->|"E01, chưa có TK"| S["SCR-03 (email khoá)"]
+  S --> L["SCR-07 bước 3 → SCR-10"]
+  I -->|"E01, đã đăng nhập đúng"| L2["SCR-10 của org"]
+  I -->|"E02 tài khoản khác"| SI["SCR-02"]
+</pre></div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="s7">
+  <h2><span class="n">07</span>Ma trận điều hướng</h2>
+  <p>Hàng = màn hình nguồn, cột = màn hình đích. <strong>●</strong> = có ít nhất một phần tử chuyển trực tiếp (không tính top bar G, vốn có mặt ở mọi màn hình App và dẫn tới 10, 11, 26, 30, 40, 51, 02).</p>
+  <table class="matrix">
+    <thead><tr><th>Từ \ Tới</th><th>01</th><th>02</th><th>03</th><th>04</th><th>05</th><th>06</th><th>07</th><th>10</th><th>11</th><th>12</th><th>13</th><th>14</th><th>15</th><th>20</th><th>21</th><th>22</th><th>23</th><th>24</th><th>25</th><th>26</th><th>27</th><th>28</th><th>30</th><th>31</th><th>32</th><th>40</th><th>41</th><th>50</th><th>53</th></tr></thead>
+    <tbody>
+      <tr><td>SCR-01</td><td></td><td class="y">●</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td></tr>
+      <tr><td>SCR-02</td><td></td><td></td><td class="y">●</td><td class="y">●</td><td></td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-03</td><td></td><td class="y">●</td><td></td><td></td><td></td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td></tr>
+      <tr><td>SCR-04</td><td></td><td class="y">●</td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-05</td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-06</td><td></td><td class="y">●</td><td class="y">●</td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-07</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td></tr>
+      <tr><td>SCR-10</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-11</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td class="y">●</td><td></td><td></td><td class="y">●</td><td></td><td></td></tr>
+      <tr><td>SCR-12</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td></tr>
+      <tr><td>SCR-13</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-14</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-15</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-20</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td class="y">●</td><td class="y">●</td><td></td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td class="y">●</td><td class="y">●</td><td></td><td></td></tr>
+      <tr><td>SCR-21</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-23</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-24</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td></tr>
+      <tr><td>SCR-25</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td></tr>
+      <tr><td>SCR-26</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-27</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td></tr>
+      <tr><td>SCR-28</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td></tr>
+      <tr><td>SCR-30</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td class="y">●</td><td></td><td class="y">●</td><td></td><td></td></tr>
+      <tr><td>SCR-31</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-32</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td class="y">●</td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-40</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td class="y">●</td></tr>
+      <tr><td>SCR-41</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>SCR-50</td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td class="y">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <span class="lbl">Kiểm tra tính đầy đủ</span>
+    <ul>
+      <li><strong>Không có màn hình cụt:</strong> mọi màn hình đều có ít nhất một đường ra (kể cả trang lỗi và modal).</li>
+      <li><strong>Không có màn hình mồ côi:</strong> mọi màn hình đều có ít nhất một đường vào (SCR-05, SCR-52 vào qua link email; SCR-28 qua link chia sẻ).</li>
+      <li><strong>Từ SCR-10, mọi màn hình chức năng trong App tới được trong ≤ 3 bước.</strong></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="s8">
+  <h2><span class="n">08</span>Phím tắt</h2>
+  <table>
+    <thead><tr><th>Phím</th><th>Hành động</th><th>Phạm vi</th></tr></thead>
+    <tbody>
+      <tr><td>?</td><td>Mở <a class="d" href="#dlg-05">DLG-05</a></td><td>Toàn app</td></tr>
+      <tr><td>N</td><td>New analysis → <a class="d" href="#scr-11">SCR-11</a></td><td>Toàn app (Editor+)</td></tr>
+      <tr><td>G L / G X / G V</td><td>Đi tới Library / Exports / Live</td><td>Toàn app</td></tr>
+      <tr><td>/</td><td>Focus ô tìm kiếm</td><td>SCR-10</td></tr>
+      <tr><td>Space · K</td><td>Play / Pause</td><td>SCR-20, SCR-28</td></tr>
+      <tr><td>, &nbsp;.</td><td>Lùi / tiến 1 frame</td><td>SCR-20</td></tr>
+      <tr><td>J &nbsp;L(Shift)</td><td>Lùi / tiến 5 giây</td><td>SCR-20</td></tr>
+      <tr><td>1 – 6</td><td>Chuyển tab Overview … Data</td><td>SCR-20</td></tr>
+      <tr><td>L</td><td>Menu lớp hiển thị</td><td>SCR-20, SCR-31</td></tr>
+      <tr><td>F</td><td>Toàn màn hình video</td><td>SCR-20, SCR-31</td></tr>
+      <tr><td>M</td><td>Thêm marker</td><td>SCR-31</td></tr>
+      <tr><td>[ &nbsp;]</td><td>Cầu thủ trước / sau trong drawer</td><td>SCR-23</td></tr>
+      <tr><td>Ctrl/⌘ Z</td><td>Undo correction gần nhất</td><td>SCR-20, SCR-21</td></tr>
+      <tr><td>Esc</td><td>Đóng modal / drawer / huỷ chế độ chọn</td><td>Toàn app</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="s9">
+  <h2><span class="n">09</span>Responsive</h2>
+  <table>
+    <thead><tr><th>Breakpoint</th><th>Bố cục</th><th>Khác biệt điều hướng</th></tr></thead>
+    <tbody>
+      <tr><td>≥ 1280 Desktop</td><td>Như wireframe</td><td>—</td></tr>
+      <tr><td>1024–1279 Laptop nhỏ / tablet ngang</td><td>SCR-20: map thu hẹp 30%; tab bar giữ nguyên. <strong>SCR-31 tối ưu cho kích thước này</strong> (tablet đường biên)</td><td>Drawer SCR-23 phủ lên map</td></tr>
+      <tr><td>768–1023 Tablet dọc</td><td>SCR-20: video trên, map dưới (segmented control Video / Map / Both)</td><td>Top bar gom Library/Live/Exports vào ☰</td></tr>
+      <tr><td>&lt; 768 Mobile</td><td>Hỗ trợ: SCR-01–07, 10, 13, 20 (chỉ xem), 24, 26, 28, 32, 40, 51. SCR-14/15/21/22 hiện "Best on a larger screen" + vẫn dùng được cơ bản</td><td>☰ menu; modal thành full-screen sheet; context menu thành bottom sheet (nhấn giữ)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="s10">
+  <h2><span class="n">10</span>Câu hỏi mở UX</h2>
+  <table>
+    <thead><tr><th>#</th><th>Câu hỏi</th><th>Ảnh hưởng</th></tr></thead>
+    <tbody>
+      <tr><td>UX-1</td><td>Có bắt buộc xác nhận đội (SCR-14) trước khi xem kết quả, hay cho "Skip for now" như hiện tại?</td><td>Bắt buộc → dữ liệu chính xác hơn nhưng thêm 1 bước ma sát</td></tr>
+      <tr><td>UX-2</td><td>Gói Free có được dùng Live không, hay Live chỉ cho Pro+?</td><td>Điểm chặn F10 ở SCR-30.E03</td></tr>
+      <tr><td>UX-3</td><td>Có cần landing (SCR-01) trong M1 hay dùng trang marketing riêng (Framer/Webflow)?</td><td>Phạm vi frontend M1</td></tr>
+      <tr><td>UX-4</td><td>Tab Import (Veo/Hudl) có hiện "Coming soon" từ M1 để đo nhu cầu không?</td><td>Phụ thuộc PRD Q9</td></tr>
+      <tr><td>UX-5</td><td>Giá và hạn mức cụ thể của Free / Pro / Team</td><td>Nội dung SCR-41, SCR-01 #pricing, G.E06</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+</div>
+
+<footer>
+  PitchVision AI — UI/UX Design v1.1 (broadcast-first) · 2026-10-05 · Tham chiếu PRD v1.3, AD v1.2 · Trạng thái: Bản thảo, chờ review
+</footer>
+
+<button class="theme" id="themeBtn">◐ Theme</button>
+<script>
+(function(){
+  var btn = document.getElementById('themeBtn');
+  var root = document.documentElement;
+  try{ var saved = localStorage.getItem('pv-theme'); if(saved) root.setAttribute('data-theme', saved); }catch(e){}
+  btn.addEventListener('click', function(){
+    var cur = root.getAttribute('data-theme');
+    if(!cur){ cur = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+    var next = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try{ localStorage.setItem('pv-theme', next); }catch(e){}
+    window.dispatchEvent(new Event('pv-theme'));
+  });
+})();
+</script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const els = Array.from(document.querySelectorAll('pre.mermaid'));
+  els.forEach(e => { e.dataset.src = e.textContent; });
+  function effective(){
+    const t = document.documentElement.getAttribute('data-theme');
+    if (t) return t;
+    return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  async function render(){
+    mermaid.initialize({ startOnLoad:false, securityLevel:'loose', theme: effective()==='dark' ? 'dark' : 'default',
+      flowchart:{ curve:'basis', htmlLabels:true }, fontFamily:'-apple-system, Segoe UI, Roboto, sans-serif' });
+    els.forEach(e => { e.removeAttribute('data-processed'); e.innerHTML = ''; e.textContent = e.dataset.src; });
+    try { await mermaid.run({ nodes: els }); } catch(err){ console.error(err); }
+  }
+  render();
+  window.addEventListener('pv-theme', render);
+</script>
+</body>
+</html>

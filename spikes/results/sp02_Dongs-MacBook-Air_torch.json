@@ -1,0 +1,62 @@
+[
+  {
+    "backend": "torch",
+    "device": "mps",
+    "hw": "arm",
+    "weights": "yolo11m.pt",
+    "imgsz": 1280,
+    "batch": 1,
+    "fps": 8.6,
+    "minutes_90min_stride1": 260.6,
+    "minutes_90min_stride2": 130.3,
+    "persons_median": 12.0,
+    "ball_detect_rate": 0.538,
+    "decode_fps_cpu": 78.0,
+    "frames": 768
+  },
+  {
+    "backend": "torch",
+    "device": "mps",
+    "hw": "arm",
+    "weights": "yolo11m.pt",
+    "imgsz": 1280,
+    "batch": 8,
+    "fps": 4.7,
+    "minutes_90min_stride1": 483.5,
+    "minutes_90min_stride2": 241.7,
+    "persons_median": 12.0,
+    "ball_detect_rate": 0.538,
+    "decode_fps_cpu": 78.0,
+    "frames": 768
+  },
+  {
+    "backend": "torch",
+    "device": "mps",
+    "hw": "arm",
+    "weights": "yolo11m.pt",
+    "imgsz": 960,
+    "batch": 1,
+    "fps": 8.9,
+    "minutes_90min_stride1": 252.7,
+    "minutes_90min_stride2": 126.3,
+    "persons_median": 11.0,
+    "ball_detect_rate": 0.47,
+    "decode_fps_cpu": 78.0,
+    "frames": 768
+  },
+  {
+    "backend": "torch",
+    "device": "mps",
+    "hw": "arm",
+    "weights": "yolo11m.pt",
+    "imgsz": 960,
+    "batch": 8,
+    "fps": 8.4,
+    "minutes_90min_stride1": 269.0,
+    "minutes_90min_stride2": 134.5,
+    "persons_median": 11.0,
+    "ball_detect_rate": 0.47,
+    "decode_fps_cpu": 78.0,
+    "frames": 768
+  }
+]

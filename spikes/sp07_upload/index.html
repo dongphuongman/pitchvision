@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SP-07 Multipart Upload</title>
+<style>
+  :root { --bg:#0f1115; --fg:#e8eaed; --muted:#9aa0a6; --accent:#34a853; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, sans-serif; padding:16px; }
+  h1 { font-size:18px; margin:0 0 8px; }
+  progress { width:min(100%, 640px); height:14px; accent-color:var(--accent); }
+  pre { background:#151922; padding:10px; border-radius:6px; overflow:auto; max-width:960px; }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<h1>SP-07 — browser → object storage multipart upload</h1>
+<p class="muted">Parts go straight to S3/R2 via presigned URLs. Query: <code>?conc=4&amp;part=16&amp;fail=0.1&amp;stopAfter=10</code></p>
+<input type="file" id="file" accept="video/*">
+<p><progress id="bar" max="1" value="0"></progress> <span id="pct"></span></p>
+<pre id="out"></pre>
+<script>
+const q = Object.fromEntries(new URLSearchParams(location.search));
+const CONC = +(q.conc || 4), PART = (+(q.part || 16)) << 20, FAIL = +(q.fail || 0), STOP_AFTER = +(q.stopAfter || 0);
+const out = document.getElementById('out'), bar = document.getElementById('bar'), pct = document.getElementById('pct');
+const log = m => { out.textContent += m + '\n'; console.log('[SP07] ' + m); };
+const api = (path, body) => fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  .then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const stateKey = f => `sp07:${f.name}:${f.size}:${f.lastModified}`;
+const load = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+// PUT one part with XHR (fetch has no upload progress). Fault injection aborts some first attempts mid-flight.
+function putPart(url, blob, attempt, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open('PUT', url);
+    x.upload.onprogress = e => onProgress(e.loaded);
+    x.onload = () => x.status === 200 ? resolve(x.getResponseHeader('ETag')) : reject(new Error('HTTP ' + x.status));
+    x.onerror = () => reject(new Error('network'));
+    x.onabort = () => reject(new Error('aborted (injected)'));
+    x.send(blob);
+    if (attempt === 0 && Math.random() < FAIL) setTimeout(() => x.abort(), 50 + Math.random() * 300);
+  });
+}
+
+async function upload(file) {
+  const t0 = performance.now(), key = stateKey(file);
+  let st = load(key), resumed = 0;
+  if (st) {  // resume: ask storage which parts it already has
+    const { parts } = await fetch(`/api/uploads/parts?key=${encodeURIComponent(st.key)}&uploadId=${encodeURIComponent(st.uploadId)}`).then(r => r.json());
+    st.etags = {}; for (const p of parts) if (p.Size === Math.min(st.partSize, file.size - (p.PartNumber - 1) * st.partSize)) st.etags[p.PartNumber] = p.ETag;
+    resumed = Object.keys(st.etags).length;
+    log(`resuming ${st.key}: ${resumed}/${st.parts} parts already stored`);
+  } else {
+    const r = await api('/api/uploads', { name: file.name, size: file.size, type: file.type, partSize: PART });
+    st = { ...r, etags: {} }; save(key, st);
+    log(`created ${st.key}: ${st.parts} parts × ${st.partSize >> 20} MiB`);
+  }
+  const todo = []; for (let n = 1; n <= st.parts; n++) if (!st.etags[n]) todo.push(n);
+  const inflight = {}; let done = Object.keys(st.etags).length * st.partSize, retries = 0, sent = 0, urls = {};
+  const show = () => { const b = Math.min(file.size, done + Object.values(inflight).reduce((a, x) => a + x, 0)); bar.value = b / file.size; pct.textContent = (100 * b / file.size).toFixed(1) + '%'; };
+  async function url(n) {  // sign in batches of 32 ahead of need
+    if (!urls[n]) Object.assign(urls, (await api('/api/uploads/sign', { key: st.key, uploadId: st.uploadId, numbers: [n, ...todo.slice(0, 31)] })).urls);
+    return urls[n];
+  }
+  let stopped = false;
+  async function worker() {
+    while (todo.length && !stopped) {
+      const n = todo.shift();
+      const blob = file.slice((n - 1) * st.partSize, Math.min(file.size, n * st.partSize));
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const etag = await putPart(await url(n), blob, attempt, l => { inflight[n] = l; show(); });
+          if (!etag) throw new Error('ETag not exposed (CORS ExposeHeaders)');
+          st.etags[n] = etag; delete inflight[n]; done += blob.size; save(key, st); show();
+          break;
+        } catch (e) {
+          delete inflight[n]; retries++;
+          if (attempt >= 5 || e.message.startsWith('ETag')) throw e;
+          await sleep(Math.min(8000, 250 * 2 ** attempt));
+        }
+      }
+      if (STOP_AFTER && ++sent >= STOP_AFTER) stopped = true;  // simulate closing the tab mid-upload
+    }
+  }
+  await Promise.all(Array.from({ length: CONC }, worker));
+  const secs = (performance.now() - t0) / 1000;
+  if (stopped && todo.length) {
+    const r = { status: 'interrupted', stored: Object.keys(st.etags).length, total: st.parts, retries, secs };
+    log(JSON.stringify(r)); return r;
+  }
+  const parts = Object.entries(st.etags).map(([n, e]) => ({ PartNumber: +n, ETag: e }));
+  const fin = await api('/api/uploads/complete', { key: st.key, uploadId: st.uploadId, parts });
+  try { localStorage.removeItem(key); } catch {}
+  const r = { status: 'complete', key: st.key, size: fin.size, expected: file.size, sizeOk: fin.size === file.size, parts: st.parts,
+              resumedParts: resumed, retries, secs: +secs.toFixed(2), MBps: +((file.size - resumed * st.partSize) / 1e6 / secs).toFixed(1), conc: CONC };
+  log(JSON.stringify(r)); return r;
+}
+
+document.getElementById('file').onchange = e => {
+  window.__sp07 = null;
+  upload(e.target.files[0]).then(r => window.__sp07 = r, err => { log('ERROR ' + err.message); window.__sp07 = { status: 'error', error: err.message }; });
+};
+</script>
+</body>
+</html>

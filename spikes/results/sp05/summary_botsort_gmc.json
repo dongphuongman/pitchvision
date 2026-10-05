@@ -1,0 +1,22 @@
+{
+  "MZjaWGwbtEc": {
+    "seconds": 90,
+    "cuts": 6,
+    "unique_ids": 255,
+    "median_visible": 14.0,
+    "fragmentation": 18.2,
+    "median_track_s": 3.2,
+    "tracks_over_10s": 26,
+    "born_within_1s_after_cut": 0.216
+  },
+  "TyCCa3tyhZw": {
+    "seconds": 90,
+    "cuts": 11,
+    "unique_ids": 311,
+    "median_visible": 13.0,
+    "fragmentation": 23.9,
+    "median_track_s": 1.2,
+    "tracks_over_10s": 26,
+    "born_within_1s_after_cut": 0.145
+  }
+}

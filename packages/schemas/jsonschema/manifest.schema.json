@@ -1,0 +1,218 @@
+{
+  "$defs": {
+    "Coverage": {
+      "properties": {
+        "homography_ok_pct": {
+          "description": "% of main_wide frames with h_quality \u2265 0.5",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Homography Ok Pct",
+          "type": "number"
+        },
+        "main_wide_pct": {
+          "description": "% of duration with analysable wide shots",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Main Wide Pct",
+          "type": "number"
+        }
+      },
+      "required": [
+        "main_wide_pct",
+        "homography_ok_pct"
+      ],
+      "title": "Coverage",
+      "type": "object"
+    },
+    "PitchCalibration": {
+      "properties": {
+        "length_m": {
+          "default": 105.0,
+          "title": "Length M",
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "degraded",
+            "manual"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "width_m": {
+          "default": 68.0,
+          "title": "Width M",
+          "type": "number"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "PitchCalibration",
+      "type": "object"
+    },
+    "Shot": {
+      "properties": {
+        "conf": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Conf",
+          "type": "number"
+        },
+        "t0_ms": {
+          "minimum": 0,
+          "title": "T0 Ms",
+          "type": "integer"
+        },
+        "t1_ms": {
+          "exclusiveMinimum": 0,
+          "title": "T1 Ms",
+          "type": "integer"
+        },
+        "type": {
+          "$ref": "#/$defs/ShotType"
+        }
+      },
+      "required": [
+        "t0_ms",
+        "t1_ms",
+        "type",
+        "conf"
+      ],
+      "title": "Shot",
+      "type": "object"
+    },
+    "ShotType": {
+      "enum": [
+        "main_wide",
+        "close_up",
+        "replay",
+        "other"
+      ],
+      "title": "ShotType",
+      "type": "string"
+    },
+    "TeamInfo": {
+      "properties": {
+        "cluster": {
+          "title": "Cluster",
+          "type": "integer"
+        },
+        "color": {
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "title": "Color",
+          "type": "string"
+        },
+        "confirmed": {
+          "default": false,
+          "title": "Confirmed",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cluster",
+        "name",
+        "color"
+      ],
+      "title": "TeamInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "coverage": {
+      "$ref": "#/$defs/Coverage"
+    },
+    "duration_ms": {
+      "title": "Duration Ms",
+      "type": "integer"
+    },
+    "fps": {
+      "title": "Fps",
+      "type": "integer"
+    },
+    "frame_count": {
+      "title": "Frame Count",
+      "type": "integer"
+    },
+    "height": {
+      "title": "Height",
+      "type": "integer"
+    },
+    "job_id": {
+      "title": "Job Id",
+      "type": "string"
+    },
+    "pitch": {
+      "$ref": "#/$defs/PitchCalibration"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "shots": {
+      "items": {
+        "$ref": "#/$defs/Shot"
+      },
+      "title": "Shots",
+      "type": "array"
+    },
+    "teams": {
+      "items": {
+        "$ref": "#/$defs/TeamInfo"
+      },
+      "title": "Teams",
+      "type": "array"
+    },
+    "tile_count": {
+      "title": "Tile Count",
+      "type": "integer"
+    },
+    "tile_ms": {
+      "default": 10000,
+      "title": "Tile Ms",
+      "type": "integer"
+    },
+    "tile_url_template": {
+      "description": "e.g. https://tiles.\u2026/{tile_no}.json.gz?sig=\u2026 \u2014 {tile_no} is 6-digit",
+      "title": "Tile Url Template",
+      "type": "string"
+    },
+    "video_id": {
+      "title": "Video Id",
+      "type": "string"
+    },
+    "width": {
+      "title": "Width",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "video_id",
+    "job_id",
+    "revision",
+    "fps",
+    "width",
+    "height",
+    "duration_ms",
+    "frame_count",
+    "tile_count",
+    "tile_url_template",
+    "shots",
+    "coverage",
+    "teams",
+    "pitch"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

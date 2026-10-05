@@ -1,0 +1,59 @@
+{
+  "$defs": {
+    "Shot": {
+      "properties": {
+        "conf": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Conf",
+          "type": "number"
+        },
+        "t0_ms": {
+          "minimum": 0,
+          "title": "T0 Ms",
+          "type": "integer"
+        },
+        "t1_ms": {
+          "exclusiveMinimum": 0,
+          "title": "T1 Ms",
+          "type": "integer"
+        },
+        "type": {
+          "$ref": "#/$defs/ShotType"
+        }
+      },
+      "required": [
+        "t0_ms",
+        "t1_ms",
+        "type",
+        "conf"
+      ],
+      "title": "Shot",
+      "type": "object"
+    },
+    "ShotType": {
+      "enum": [
+        "main_wide",
+        "close_up",
+        "replay",
+        "other"
+      ],
+      "title": "ShotType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "shots": {
+      "items": {
+        "$ref": "#/$defs/Shot"
+      },
+      "title": "Shots",
+      "type": "array"
+    }
+  },
+  "required": [
+    "shots"
+  ],
+  "title": "ShotTimeline",
+  "type": "object"
+}

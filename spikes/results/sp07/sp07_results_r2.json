@@ -1,0 +1,73 @@
+{
+ "file": "BukNW8GRI5A.mp4",
+ "size": 663363836,
+ "scenarios": {
+  "clean_c4_16MiB": {
+   "status": "complete",
+   "key": "uploads/ed86f2557e1c4b048ce94a153e28b28f/BukNW8GRI5A.mp4",
+   "size": 663363836,
+   "expected": 663363836,
+   "sizeOk": true,
+   "parts": 40,
+   "resumedParts": 0,
+   "retries": 0,
+   "secs": 91.45,
+   "MBps": 7.3,
+   "conc": 4,
+   "md5_ok": true
+  },
+  "clean_c8_16MiB": {
+   "status": "complete",
+   "key": "uploads/31ec702883ad4b50abe1c66986457846/BukNW8GRI5A.mp4",
+   "size": 663363836,
+   "expected": 663363836,
+   "sizeOk": true,
+   "parts": 40,
+   "resumedParts": 0,
+   "retries": 0,
+   "secs": 32.07,
+   "MBps": 20.7,
+   "conc": 8,
+   "md5_ok": true
+  },
+  "faults_20pct": {
+   "status": "complete",
+   "key": "uploads/37d3ff13ee974bc2912139d4a17eae21/BukNW8GRI5A.mp4",
+   "size": 663363836,
+   "expected": 663363836,
+   "sizeOk": true,
+   "parts": 40,
+   "resumedParts": 0,
+   "retries": 9,
+   "secs": 47.26,
+   "MBps": 14,
+   "conc": 4,
+   "md5_ok": true
+  },
+  "resume_after_interrupt": {
+   "first": {
+    "status": "interrupted",
+    "stored": 11,
+    "total": 40,
+    "retries": 0,
+    "secs": 15.323700000047683
+   },
+   "second": {
+    "status": "complete",
+    "key": "uploads/c460c70a8a204096a1d79df8c84a2521/BukNW8GRI5A.mp4",
+    "size": 663363836,
+    "expected": 663363836,
+    "sizeOk": true,
+    "parts": 40,
+    "resumedParts": 11,
+    "retries": 0,
+    "secs": 29.89,
+    "MBps": 16,
+    "conc": 4,
+    "md5_ok": true
+   }
+  }
+ },
+ "endpoint": "r2",
+ "deleted_objects": 4
+}

@@ -1,0 +1,162 @@
+{
+  "$defs": {
+    "ShotType": {
+      "enum": [
+        "main_wide",
+        "close_up",
+        "replay",
+        "other"
+      ],
+      "title": "ShotType",
+      "type": "string"
+    },
+    "TileFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "f": {
+          "description": "frame index on normalized video (target_fps)",
+          "minimum": 0,
+          "title": "F",
+          "type": "integer"
+        },
+        "hq": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "h_quality; null = no homography",
+          "title": "Hq"
+        },
+        "objs": {
+          "items": {
+            "maxItems": 10,
+            "minItems": 10,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Objs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "f"
+      ],
+      "title": "TileFrame",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "fps": {
+      "title": "Fps",
+      "type": "integer"
+    },
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/TileFrame"
+      },
+      "title": "Frames",
+      "type": "array"
+    },
+    "shots": {
+      "description": "[f0, f1_exclusive, type] runs covering this tile",
+      "items": {
+        "maxItems": 3,
+        "minItems": 3,
+        "prefixItems": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/ShotType"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Shots",
+      "type": "array"
+    },
+    "t0_ms": {
+      "title": "T0 Ms",
+      "type": "integer"
+    },
+    "t1_ms": {
+      "title": "T1 Ms",
+      "type": "integer"
+    },
+    "tile_no": {
+      "minimum": 0,
+      "title": "Tile No",
+      "type": "integer"
+    },
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "tile_no",
+    "t0_ms",
+    "t1_ms",
+    "fps",
+    "frames"
+  ],
+  "title": "Tile",
+  "type": "object"
+}

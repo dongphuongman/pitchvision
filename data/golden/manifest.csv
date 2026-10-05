@@ -1,0 +1,21 @@
+id,category,match,channel,url,segment_start_s,segment_end_s,file,downloaded,width,height,fps,codec,duration_s,size_mb,has_audio
+BukNW8GRI5A,men,MLS — club friendly (Columbus Crew v Aston Villa),Major League Soccer,https://www.youtube.com/watch?v=BukNW8GRI5A,600,1500,raw/BukNW8GRI5A.mp4,True,1920,1080,59.94,h264,900.0,663.4,True
+ZKLKNUMtL6w,men,U.S. Open Cup final (LAFC v Sporting KC),U.S. Soccer,https://www.youtube.com/watch?v=ZKLKNUMtL6w,1440,2340,raw/ZKLKNUMtL6w.mp4,True,1920,1080,59.94,h264,900.0,628.2,True
+TyCCa3tyhZw,men,Concacaf Champions Cup (Inter Miami v LAFC),Concacaf,https://www.youtube.com/watch?v=TyCCa3tyhZw,480,1380,raw/TyCCa3tyhZw.mp4,True,1920,1080,29.97,h264,900.0,380.3,True
+A4xKBpFV9Cw,men,J1 League (Vissel Kobe v Nagoya Grampus),J.LEAGUE International,https://www.youtube.com/watch?v=A4xKBpFV9Cw,240,1140,raw/A4xKBpFV9Cw.mp4,False,,,,,,,
+TAI1eZYx5Kg,men,A-League Men (W. Sydney Wanderers v Melbourne City),A-Leagues,https://www.youtube.com/watch?v=TAI1eZYx5Kg,480,1380,raw/TAI1eZYx5Kg.mp4,True,1920,1080,30.0,h264,900.0,283.2,True
+WQUD7YPsOho,men,AFC Champions League Elite (FC Seoul v Melbourne City),The AFC Hub,https://www.youtube.com/watch?v=WQUD7YPsOho,720,1620,raw/WQUD7YPsOho.mp4,True,1920,1080,30.0,h264,900.1,293.7,True
+wyKftTv03Ag,men,AFC Champions League Two final (Al Nassr v Gamba Osaka),The AFC Hub,https://www.youtube.com/watch?v=wyKftTv03Ag,720,1620,raw/wyKftTv03Ag.mp4,True,1920,1080,30.0,h264,900.0,476.1,True
+EhqJ8-g1YvU,men,Scottish Premiership (Hearts v Hibernian),SPFL,https://www.youtube.com/watch?v=EhqJ8-g1YvU,120,1020,raw/EhqJ8-g1YvU.mp4,True,1920,1080,50.0,h264,900.0,556.0,True
+UKFYHHQzTvM,women,WSL 2 (Bristol City v Southampton),Barclays WSL 2,https://www.youtube.com/watch?v=UKFYHHQzTvM,120,1020,raw/UKFYHHQzTvM.mp4,True,1920,1080,60.0,h264,900.0,457.2,True
+caZwnRXhkAk,women,UEFA Women's Nations League (England v Spain),England,https://www.youtube.com/watch?v=caZwnRXhkAk,480,1380,raw/caZwnRXhkAk.mp4,True,1920,1080,30.0,h264,900.0,379.2,True
+Ido_K83gIs4,women,NWSL Championship (OL Reign v Gotham FC),NWSL,https://www.youtube.com/watch?v=Ido_K83gIs4,1440,2340,raw/Ido_K83gIs4.mp4,True,1920,1080,29.97,h264,900.1,380.9,True
+MZjaWGwbtEc,women,UEFA Women's Champions League final (Lyon v Barcelona),TNT Sports Football,https://www.youtube.com/watch?v=MZjaWGwbtEc,720,1620,raw/MZjaWGwbtEc.mp4,True,1920,1080,25.0,h264,900.1,368.3,True
+zQqjHc_ZGcc,women,AFC Women's Champions League final (Tokyo Verdy Beleza v Naegohyang),The AFC Hub,https://www.youtube.com/watch?v=zQqjHc_ZGcc,840,1740,raw/zQqjHc_ZGcc.mp4,True,1920,1080,30.0,h264,900.0,403.7,True
+btFTQmt1Dgo,women,UWCL qualifying (Juventus v Hammarby),Juventus,https://www.youtube.com/watch?v=btFTQmt1Dgo,480,1380,raw/btFTQmt1Dgo.mp4,True,1920,1080,60.0,h264,900.0,546.3,True
+aSq-QJh-5UA,women,NCAA women (Quinnipiac v North Carolina),ACC Digital Network,https://www.youtube.com/watch?v=aSq-QJh-5UA,240,1140,raw/aSq-QJh-5UA.mp4,True,1920,1080,29.95,h264,900.1,343.2,True
+_DfZB1Y-E_k,youth,UEFA Youth League U19 (Man Utd v Sabah),Manchester United,https://www.youtube.com/watch?v=_DfZB1Y-E_k,360,1260,raw/_DfZB1Y-E_k.mp4,True,1920,1080,30.0,h264,900.0,349.1,True
+EYj9Wbo0n44,youth,MLS NEXT Cup U16 (Inter Miami v Real Salt Lake),Major League Soccer,https://www.youtube.com/watch?v=EYj9Wbo0n44,720,1620,raw/EYj9Wbo0n44.mp4,True,1920,1080,30.0,h264,900.0,279.4,True
+AZd7qfwQtfM,youth,FIFA U-17 World Cup 2005 final (Mexico v Brazil),FIFA,https://www.youtube.com/watch?v=AZd7qfwQtfM,240,1140,raw/AZd7qfwQtfM.mp4,True,1920,1080,29.97,h264,900.1,307.9,True
+jYQL469dLjY,youth,J.League U-18 selection v High School selection,Jリーグ公式チャンネル,https://www.youtube.com/watch?v=jYQL469dLjY,480,1380,raw/jYQL469dLjY.mp4,True,1920,1080,29.97,h264,900.0,401.6,True
+_FPE6jjJQ8M,youth,U-17 international (Spain v Germany),German Football,https://www.youtube.com/watch?v=_FPE6jjJQ8M,720,1620,raw/_FPE6jjJQ8M.mp4,True,1920,1080,30.0,h264,900.0,404.7,True

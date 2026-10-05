@@ -1,0 +1,61 @@
+{
+  "device": "mps",
+  "frames": 190,
+  "conf": 0.35,
+  "detectors": {
+    "yolo11m@1280": {
+      "fps_mps": 7.8,
+      "persons_per_frame_all": 15.7,
+      "persons_per_frame_on_pitch": 14.9,
+      "person_recall_vs_consensus": 0.843,
+      "small_person_recall(<40px)": 0.304,
+      "ball_frames_pct": 0.479,
+      "ball_recall_vs_consensus": 0.245
+    },
+    "rtdetr_v2_r50vd@640": {
+      "fps_mps": 4.9,
+      "persons_per_frame_all": 17.0,
+      "persons_per_frame_on_pitch": 15.6,
+      "person_recall_vs_consensus": 0.886,
+      "small_person_recall(<40px)": 0.468,
+      "ball_frames_pct": 0.821,
+      "ball_recall_vs_consensus": 0.596
+    },
+    "rtdetr_v2_r50vd@1280": {
+      "fps_mps": 1.3,
+      "persons_per_frame_all": 17.2,
+      "persons_per_frame_on_pitch": 13.0,
+      "person_recall_vs_consensus": 0.703,
+      "small_person_recall(<40px)": 0.67,
+      "ball_frames_pct": 0.853,
+      "ball_recall_vs_consensus": 0.672
+    },
+    "dfine-medium-obj2coco@640": {
+      "fps_mps": 9.2,
+      "persons_per_frame_all": 18.0,
+      "persons_per_frame_on_pitch": 16.2,
+      "person_recall_vs_consensus": 0.981,
+      "small_person_recall(<40px)": 0.905,
+      "ball_frames_pct": 0.789,
+      "ball_recall_vs_consensus": 0.857
+    },
+    "dfine-medium-obj2coco@1280": {
+      "fps_mps": 2.5,
+      "persons_per_frame_all": 22.4,
+      "persons_per_frame_on_pitch": 16.7,
+      "person_recall_vs_consensus": 0.92,
+      "small_person_recall(<40px)": 0.846,
+      "ball_frames_pct": 0.905,
+      "ball_recall_vs_consensus": 0.903
+    },
+    "dfine-large-obj2coco-e25@1280": {
+      "fps_mps": 1.7,
+      "persons_per_frame_all": 20.2,
+      "persons_per_frame_on_pitch": 15.4,
+      "person_recall_vs_consensus": 0.856,
+      "small_person_recall(<40px)": 0.833,
+      "ball_frames_pct": 0.921,
+      "ball_recall_vs_consensus": 0.909
+    }
+  }
+}

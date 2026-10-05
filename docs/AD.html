@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PitchVision Architecture Design</title>
+<style>
+  :root{
+    --bg:#0b1016; --bg-2:#121a24; --bg-3:#18222e;
+    --line:#243345; --line-soft:#1b2734;
+    --fg:#e6edf5; --fg-2:#9fb0c3; --fg-3:#6e8299;
+    --accent:#3ddc84; --accent-2:#4da3ff; --warn:#ffb648; --danger:#ff6b6b; --violet:#b07cff;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f6f8fa; --bg-2:#ffffff; --bg-3:#eef2f6;
+      --line:#d8e0e8; --line-soft:#e6ecf2;
+      --fg:#15202b; --fg-2:#4a5d70; --fg-3:#73849a;
+      --accent:#0f9d58; --accent-2:#1a73e8; --warn:#b26a00; --danger:#c62828; --violet:#6a3fc8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1016; --bg-2:#121a24; --bg-3:#18222e;
+    --line:#243345; --line-soft:#1b2734;
+    --fg:#e6edf5; --fg-2:#9fb0c3; --fg-3:#6e8299;
+    --accent:#3ddc84; --accent-2:#4da3ff; --warn:#ffb648; --danger:#ff6b6b; --violet:#b07cff;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8fa; --bg-2:#ffffff; --bg-3:#eef2f6;
+    --line:#d8e0e8; --line-soft:#e6ecf2;
+    --fg:#15202b; --fg-2:#4a5d70; --fg-3:#73849a;
+    --accent:#0f9d58; --accent-2:#1a73e8; --warn:#b26a00; --danger:#c62828; --violet:#6a3fc8;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans); font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 16px; display:grid; grid-template-columns:250px 1fr; gap:40px}
+  @media(max-width:900px){ .wrap{grid-template-columns:1fr; gap:0} nav.toc{display:none} }
+  header.top{border-bottom:1px solid var(--line); background:linear-gradient(180deg,var(--bg-2),var(--bg)); padding:48px 0 36px; margin-bottom:28px}
+  header.top .inner{max-width:1180px;margin:0 auto;padding:0 16px}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin:0 0 10px}
+  h1{font-size:clamp(28px,5vw,44px); line-height:1.1; margin:0 0 12px; letter-spacing:-.02em}
+  .sub{color:var(--fg-2); font-size:17px; max-width:66ch; margin:0 0 20px}
+  .meta{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{font-family:var(--mono); font-size:11.5px; padding:4px 10px; border:1px solid var(--line); border-radius:999px; color:var(--fg-2); background:var(--bg-3)}
+  .chip.on{border-color:var(--accent); color:var(--accent)}
+  nav.toc{position:sticky; top:24px; align-self:start; max-height:calc(100vh - 48px); overflow:auto; padding-bottom:40px}
+  nav.toc div.t{font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--fg-3); margin:0 0 10px}
+  nav.toc a{display:block; color:var(--fg-2); text-decoration:none; font-size:13.5px; padding:5px 10px; border-left:2px solid var(--line-soft); line-height:1.4}
+  nav.toc a:hover{color:var(--fg); border-left-color:var(--accent); background:var(--bg-3)}
+  main{min-width:0; padding-bottom:80px}
+  section{margin:0 0 56px; scroll-margin-top:24px}
+  h2{font-size:24px; letter-spacing:-.01em; margin:0 0 6px; padding-bottom:10px; border-bottom:1px solid var(--line)}
+  h2 .n{font-family:var(--mono); font-size:14px; color:var(--accent); margin-right:10px}
+  h3{font-size:17px; margin:28px 0 8px}
+  h4{font-size:14.5px; margin:18px 0 6px; color:var(--fg-2); font-family:var(--mono); font-weight:600}
+  p{margin:0 0 12px; color:var(--fg-2)}
+  p strong, li strong, td strong{color:var(--fg)}
+  ul,ol{margin:0 0 14px; padding-left:22px; color:var(--fg-2)}
+  li{margin:4px 0}
+  code{font-family:var(--mono); font-size:12.5px; background:var(--bg-3); border:1px solid var(--line-soft); padding:1px 5px; border-radius:5px; color:var(--accent-2)}
+  pre{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; overflow:auto; font-family:var(--mono); font-size:12.5px; line-height:1.55; color:var(--fg-2); margin:0 0 16px}
+  pre code{background:none;border:none;padding:0;color:inherit}
+  table{width:100%; border-collapse:collapse; margin:0 0 18px; font-size:13.5px; display:block; overflow-x:auto}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line-soft); vertical-align:top}
+  th{color:var(--fg-3); font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; border-bottom:1px solid var(--line); white-space:nowrap}
+  td{color:var(--fg-2)}
+  tbody tr:hover{background:var(--bg-2)}
+  td code{white-space:nowrap}
+  .card{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin:0 0 16px}
+  .card h4{margin-top:0}
+  .card p:last-child,.card ul:last-child{margin-bottom:0}
+  .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; margin-bottom:16px}
+  .note{border-left:3px solid var(--accent-2); background:var(--bg-2); padding:12px 16px; border-radius:0 var(--radius) var(--radius) 0; margin:0 0 16px}
+  .note.warn{border-left-color:var(--warn)} .note.risk{border-left-color:var(--danger)}
+  .note p:last-child,.note ul:last-child{margin-bottom:0}
+  .note .lbl{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent-2); display:block; margin-bottom:4px}
+  .note.warn .lbl{color:var(--warn)} .note.risk .lbl{color:var(--danger)}
+  .pill{display:inline-block; font-family:var(--mono); font-size:10.5px; padding:2px 7px; border-radius:4px; border:1px solid var(--line); color:var(--fg-3); white-space:nowrap}
+  .ok{border-color:color-mix(in srgb,var(--accent) 40%,transparent); color:var(--accent)}
+  .chg{border-color:color-mix(in srgb,var(--warn) 40%,transparent); color:var(--warn)}
+  .ascii{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:16px; overflow-x:auto; font-family:var(--mono); font-size:11.5px; line-height:1.45; color:var(--fg-2); margin:0 0 16px; white-space:pre}
+  .adr{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius); padding:14px 18px; margin:0 0 12px}
+  .adr .h{display:flex; flex-wrap:wrap; gap:10px; align-items:baseline; margin-bottom:6px}
+  .adr .id{font-family:var(--mono); color:var(--violet); font-size:12.5px}
+  .adr .ti{font-weight:600; color:var(--fg)}
+  .adr p{font-size:14px; margin:0 0 6px}
+  .adr p:last-child{margin:0}
+  footer{border-top:1px solid var(--line); padding:24px 16px 60px; color:var(--fg-3); font-size:12.5px; max-width:1180px; margin:0 auto; font-family:var(--mono)}
+  .theme{position:fixed; right:16px; bottom:16px; background:var(--bg-2); border:1px solid var(--line); color:var(--fg-2); border-radius:999px; padding:8px 14px; font-family:var(--mono); font-size:12px; cursor:pointer; z-index:50}
+  .theme:hover{color:var(--fg); border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="inner">
+    <p class="eyebrow">Architecture Design · v1.2</p>
+    <h1>PitchVision AI — Thiết kế kiến trúc</h1>
+    <p class="sub">Tài liệu kiến trúc kỹ thuật hiện thực hoá PRD v1.2: cấu trúc hệ thống, pipeline CV, mô hình dữ liệu, giao tiếp, triển khai hybrid GPU (self-host + cloud), đa khu vực, bảo mật, vận hành và các quyết định kiến trúc (ADR).</p>
+    <div class="meta">
+      <span class="chip on">Tham chiếu: PRD v1.2</span>
+      <span class="chip">C4 Model</span>
+      <span class="chip">13 ADR</span><span class="chip on">Cloudflare R2</span>
+      <span class="chip">Ngày: 2026-10-05</span>
+      <span class="chip">Trạng thái: Bản thảo</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<nav class="toc">
+  <div class="t">Mục lục</div>
+  <a href="#s1">1. Giới thiệu</a>
+  <a href="#s2">2. Động lực kiến trúc</a>
+  <a href="#s3">3. Bối cảnh hệ thống (C4-L1)</a>
+  <a href="#s4">4. Container (C4-L2)</a>
+  <a href="#s5">5. Cấu trúc mã nguồn</a>
+  <a href="#s6">6. Pipeline CV chi tiết</a>
+  <a href="#s7">7. Lớp trừu tượng GPU</a>
+  <a href="#s8">8. Luồng nghiệp vụ chính</a>
+  <a href="#s9">9. Kiến trúc dữ liệu</a>
+  <a href="#s10">10. Giao tiếp &amp; API</a>
+  <a href="#s11">11. Kiến trúc Frontend</a>
+  <a href="#s12">12. Live stream</a>
+  <a href="#s13">13. Triển khai</a>
+  <a href="#s14">14. Bảo mật</a>
+  <a href="#s15">15. Hiệu năng &amp; Ngân sách</a>
+  <a href="#s16">16. Độ tin cậy</a>
+  <a href="#s17">17. Quan sát hệ thống</a>
+  <a href="#s18">18. Chiến lược kiểm thử</a>
+  <a href="#s19">19. Quyết định kiến trúc (ADR)</a>
+  <a href="#s20">20. Điều chỉnh so với PRD</a>
+</nav>
+
+<main>
+
+<!-- ============ 1 ============ -->
+<section id="s1">
+  <h2><span class="n">01</span>Giới thiệu</h2>
+  <h3>1.1 Mục đích</h3>
+  <p>Tài liệu mô tả <strong>cách</strong> hệ thống được xây dựng để đáp ứng các yêu cầu trong PRD v1.2. Đối tượng đọc: kỹ sư ML/CV, backend, frontend, DevOps. Đây là căn cứ để chia việc ở M1 và để review mọi thay đổi kiến trúc về sau.</p>
+
+  <h3>1.2 Phạm vi</h3>
+  <p>Bao phủ toàn bộ M1–M4. Phần nào chỉ hiện thực ở milestone sau được ghi rõ. Không bao gồm: thiết kế UI chi tiết (tài liệu riêng), quy trình huấn luyện mô hình (tài liệu ML riêng), billing chi tiết.</p>
+
+  <h3>1.3 Thuật ngữ</h3>
+  <table>
+    <thead><tr><th>Thuật ngữ</th><th>Định nghĩa</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Job</strong></td><td>Một lần chạy pipeline phân tích trên một video, với một bộ cấu hình cố định.</td></tr>
+      <tr><td><strong>Segment</strong></td><td>Đoạn video liên tục (mặc định 120 giây, gối đầu 2 giây) — đơn vị xử lý song song nhỏ nhất trên GPU.</td></tr>
+      <tr><td><strong>Stage</strong></td><td>Một bước trong pipeline (ingest, calibrate, infer, stitch, ...). Mỗi stage có đầu vào/đầu ra xác định, chạy lại được độc lập.</td></tr>
+      <tr><td><strong>Track</strong></td><td>Chuỗi detection của cùng một đối tượng qua nhiều frame, định danh bằng <code>track_id</code>.</td></tr>
+      <tr><td><strong>Homography (H)</strong></td><td>Ma trận 3×3 ánh xạ toạ độ ảnh (pixel) sang toạ độ sân (mét, 105×68).</td></tr>
+      <tr><td><strong>Playback tile</strong></td><td>File JSON nén chứa toạ độ của mọi đối tượng trong cửa sổ 10 giây, phục vụ trình phát qua CDN.</td></tr>
+      <tr><td><strong>ComputeBackend</strong></td><td>Lớp trừu tượng che giấu nơi chạy tác vụ GPU (máy local, RunPod, Lambda/AWS).</td></tr>
+      <tr><td><strong>Region</strong></td><td>Khu vực triển khai độc lập (EU, US) — dữ liệu khách hàng không rời khỏi region.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="s2">
+  <h2><span class="n">02</span>Động lực kiến trúc</h2>
+  <p>Những yêu cầu chi phối mạnh nhất đến hình dạng hệ thống, rút ra từ PRD:</p>
+  <table>
+    <thead><tr><th>#</th><th>Động lực</th><th>Nguồn PRD</th><th>Hệ quả kiến trúc</th></tr></thead>
+    <tbody>
+      <tr><td>D1</td><td><strong>Không phụ thuộc phần cứng GPU</strong></td><td>Q1 — hybrid</td><td>Một image worker duy nhất; mọi tác vụ GPU đi qua <code>ComputeBackend</code>; I/O qua object storage, không qua filesystem chung.</td></tr>
+      <tr><td>D2</td><td><strong>Xử lý trận 90 phút nhanh</strong></td><td>NFR hiệu năng</td><td>Chia video thành segment xử lý song song; ghép track sau. Tối ưu suy luận (TensorRT FP16, chạy keypoint thưa).</td></tr>
+      <tr><td>D3</td><td><strong>Khối lượng dữ liệu tracking lớn</strong> (~3 triệu dòng/trận)</td><td>Mục 8 PRD</td><td>Dữ liệu thô lưu Parquet trên R2; trình phát đọc tile qua CDN; CSDL chỉ giữ dữ liệu đã hạ tần số + thống kê.</td></tr>
+      <tr><td>D4</td><td><strong>Data residency EU/US</strong></td><td>Q3 — quốc tế, GDPR</td><td>Triển khai theo cell mỗi region; một control plane toàn cục chỉ giữ danh tính + định tuyến.</td></tr>
+      <tr><td>D5</td><td><strong>Job chạy lâu, dễ lỗi</strong></td><td>NFR độ tin cậy</td><td>Stage idempotent, checkpoint theo segment, retry cục bộ; không bao giờ chạy lại cả trận vì một segment lỗi.</td></tr>
+      <tr><td>D6</td><td><strong>Live ≤ 3s độ trễ</strong></td><td>US-07</td><td>Video live đi đường riêng (MediaMTX → WebRTC); server chỉ gửi toạ độ; overlay vẽ ở client.</td></tr>
+      <tr><td>D7</td><td><strong>Người dùng sửa được kết quả</strong></td><td>US-16</td><td>Kết quả tự động bất biến; correction lưu thành lớp riêng, áp lên khi đọc và khi tính lại thống kê.</td></tr>
+      <tr><td>D8</td><td><strong>Báo cáo AI không bịa số</strong></td><td>R8</td><td>LLM chỉ nhận JSON số liệu; mọi con số trong output được kiểm tra tự động với nguồn trước khi lưu.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.1 Nguyên tắc thiết kế</h3>
+  <ol>
+    <li><strong>Python cho mọi thứ ở backend</strong> — API, orchestrator, worker, CV dùng chung ngôn ngữ và chung schema Pydantic.</li>
+    <li><strong>Object storage (R2 / MinIO, cùng S3 API) là nguồn sự thật cho artefact</strong> — video, frame, Parquet, tile, export. CSDL giữ metadata và dữ liệu cần truy vấn.</li>
+    <li><strong>Stage là hàm thuần trên artefact</strong> — <code>stage(inputs: object keys, config) → outputs: object keys</code>. Không trạng thái ẩn, chạy lại cho cùng kết quả.</li>
+    <li><strong>Kết quả AI bất biến, sửa bằng lớp phủ</strong> — không ghi đè output gốc.</li>
+    <li><strong>Giảm cấp thay vì thất bại</strong> — frame có homography kém được đánh dấu chứ không làm hỏng job; live tự hạ chất lượng khi quá tải.</li>
+    <li><strong>Mỗi milestone bổ sung stage, không đập lại kiến trúc</strong> — M2–M4 thêm stage mới vào DAG có sẵn.</li>
+  </ol>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="s3">
+  <h2><span class="n">03</span>Bối cảnh hệ thống (C4 — Level 1)</h2>
+  <div class="ascii">
+   ┌─────────────┐   ┌─────────────┐   ┌──────────────┐   ┌─────────────┐
+   │ HLV / Coach │   │  Analyst    │   │  Creator     │   │ Dev / API   │
+   └──────┬──────┘   └──────┬──────┘   └──────┬───────┘   └──────┬──────┘
+          │ trình duyệt     │                 │                  │ REST + API key
+          └────────────┬────┴─────────────────┴──────────────────┘
+                       ▼
+        ╔══════════════════════════════════════════════╗
+        ║               PITCHVISION AI                 ║
+        ║   Phân tích video bóng đá · Tactical map ·   ║
+        ║   Tracking · Thống kê · Báo cáo chiến thuật  ║
+        ╚══╤═════════╤═════════╤═════════╤═════════╤═══╝
+           │         │         │         │         │
+           ▼         ▼         ▼         ▼         ▼
+     ┌──────────┐┌────────┐┌────────┐┌────────┐┌──────────────┐
+     │ YouTube  ││ Camera ││Anthropic││ Stripe ││ GPU provider │
+     │ (yt-dlp) ││RTSP/   ││Claude  ││Billing ││ RunPod /     │
+     │          ││RTMP    ││API     ││        ││ Lambda / AWS │
+     └──────────┘└────────┘└────────┘└────────┘└──────────────┘
+           ┌──────────────┐ ┌─────────────┐ ┌──────────────────┐
+           │ Google OAuth │ │ Email (SES/ │ │ Veo/Hudl import  │
+           │              │ │ Resend)     │ │ (M2+, Q9 chờ chốt)│
+           └──────────────┘ └─────────────┘ └──────────────────┘</div>
+
+  <table>
+    <thead><tr><th>Hệ thống ngoài</th><th>Mục đích</th><th>Giao thức</th><th>Ảnh hưởng nếu ngừng</th></tr></thead>
+    <tbody>
+      <tr><td>YouTube</td><td>Tải video từ URL</td><td>HTTPS qua yt-dlp</td><td>Chỉ chức năng nhập URL lỗi; upload vẫn hoạt động</td></tr>
+      <tr><td>Camera RTSP/RTMP</td><td>Nguồn live</td><td>RTSP, RTMP, SRT</td><td>Phiên live đó dừng, tự kết nối lại</td></tr>
+      <tr><td>Anthropic Claude API</td><td>Sinh báo cáo chiến thuật</td><td>HTTPS</td><td>Báo cáo xếp hàng chờ; mọi tính năng khác bình thường</td></tr>
+      <tr><td>Stripe</td><td>Thanh toán, gói dịch vụ</td><td>HTTPS + webhook</td><td>Không nâng cấp được gói; quota cache vẫn áp dụng</td></tr>
+      <tr><td>GPU provider</td><td>Năng lực tính toán cloud</td><td>HTTPS API</td><td>Job chuyển về GPU local (nếu có) hoặc xếp hàng</td></tr>
+      <tr><td>Google OAuth</td><td>Đăng nhập</td><td>OIDC</td><td>Vẫn đăng nhập được bằng email/mật khẩu</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="s4">
+  <h2><span class="n">04</span>Container (C4 — Level 2)</h2>
+  <div class="ascii">
+                            ┌─────────────────────────────┐
+                            │  Cloudflare CDN + Worker    │
+                            │  SPA tĩnh · playback tiles  │
+                            └──────────────┬──────────────┘
+                                           │
+ ┌─────────────────────────────────────────┼──────────────────────────────────────┐
+ │ GLOBAL CONTROL PLANE                     │                                      │
+ │ ┌──────────────────┐   ┌────────────────┴──┐                                   │
+ │ │ identity-svc     │   │ Postgres (global) │  users · orgs · region mapping    │
+ │ │ (FastAPI)        │──▶│                   │  billing · API keys               │
+ │ └──────────────────┘   └───────────────────┘                                   │
+ └─────────────────────────────────────────────────────────────────────────────────┘
+                     │ JWT có claim "region"
+     ┌───────────────┴────────────────────────────────────────────┐
+     ▼                                                            ▼
+ ┌──────────── REGION CELL: EU ───────────────────────┐   ┌── REGION CELL: US ──┐
+ │                                                     │   │   (giống hệt EU)    │
+ │  ┌────────────────┐        ┌─────────────────────┐  │   └─────────────────────┘
+ │  │ api            │◀──WS──▶│ Browser (React SPA) │  │
+ │  │ FastAPI        │        └─────────┬───────────┘  │
+ │  │ REST + WS      │                  │ WebRTC (live) │
+ │  └──┬──────┬──────┘          ┌───────┴─────────┐     │
+ │     │      │                 │ mediamtx        │◀── RTSP/RTMP camera
+ │     │      │ enqueue         │ live ingest     │     │
+ │     │      ▼                 └───────┬─────────┘     │
+ │     │  ┌──────────────┐              │ RTSP          │
+ │     │  │ Redis        │              ▼               │
+ │     │  │ queue·pubsub │      ┌─────────────────┐     │
+ │     │  │ cache·locks  │◀────▶│ live-worker     │ GPU │
+ │     │  └──────┬───────┘      └─────────────────┘     │
+ │     │         ▼                                       │
+ │     │  ┌──────────────────┐   submit   ┌───────────────────────────┐
+ │     │  │ orchestrator     │──────────▶│ ComputeBackend             │
+ │     │  │ (Celery, CPU)    │◀──────────│  ├ LocalGPU  → gpu-worker  │
+ │     │  │ DAG · retry      │  result    │  ├ RunPod    → serverless  │
+ │     │  └──┬───────────────┘            │  └ K8sGPU    → gpu-worker  │
+ │     │     │                            └──────────┬────────────────┘
+ │     │     │  cpu stages                           │ đọc/ghi artefact
+ │     │     ▼                                       ▼
+ │     │  ┌──────────────────┐        ┌───────────────────────────────┐
+ │     │  │ cpu-worker       │◀──────▶│ Object storage (R2 / MinIO)   │
+ │     │  │ ingest·stitch·   │        │ video · parquet · tiles ·      │
+ │     │  │ stats·report     │        │ exports · model engines        │
+ │     │  └──────┬───────────┘        └───────────────────────────────┘
+ │     ▼         ▼                                                        │
+ │  ┌──────────────────────────────┐                                      │
+ │  │ Postgres 16 + TimescaleDB    │  metadata · players · stats ·        │
+ │  │ (regional)                   │  positions 5Hz · corrections         │
+ │  └──────────────────────────────┘                                      │
+ └─────────────────────────────────────────────────────────────────────────┘</div>
+
+  <table>
+    <thead><tr><th>Container</th><th>Công nghệ</th><th>Trách nhiệm</th><th>Scale</th></tr></thead>
+    <tbody>
+      <tr><td><code>web</code></td><td>React 18 + TS + Vite, build tĩnh</td><td>Toàn bộ UI, đồng bộ video–overlay–map</td><td>CDN</td></tr>
+      <tr><td><code>identity-svc</code></td><td>FastAPI</td><td>Đăng ký/đăng nhập, OAuth, org, API key, region của tài khoản, billing webhook</td><td>Ngang, stateless</td></tr>
+      <tr><td><code>api</code></td><td>FastAPI + Uvicorn</td><td>REST + WebSocket theo region; xác thực JWT; tạo job; cấp presigned URL; đọc kết quả</td><td>Ngang, stateless</td></tr>
+      <tr><td><code>orchestrator</code></td><td>Celery worker (queue <code>orchestrate</code>)</td><td>Dựng DAG cho job, phát tác vụ segment, theo dõi, retry, cập nhật tiến trình</td><td>2–4 replica</td></tr>
+      <tr><td><code>cpu-worker</code></td><td>Celery worker (queue <code>cpu</code>)</td><td>ffprobe/ffmpeg, ghép track, OCR vote, thống kê, render export, gọi LLM</td><td>Theo độ sâu hàng đợi</td></tr>
+      <tr><td><code>gpu-worker</code></td><td>Cùng image, chế độ GPU, TensorRT</td><td>Suy luận segment: detect, keypoint, embedding đội, tracking, chiếu toạ độ</td><td>= số GPU / scale theo hàng đợi</td></tr>
+      <tr><td><code>live-worker</code></td><td>Cùng image, chế độ live</td><td>Đọc luồng RTSP từ MediaMTX, suy luận liên tục, đẩy toạ độ qua Redis pub/sub</td><td>1 tiến trình / phiên live</td></tr>
+      <tr><td><code>mediamtx</code></td><td>MediaMTX</td><td>Nhận RTSP/RTMP/SRT; phát lại WebRTC cho browser và RTSP cho worker</td><td>1 / region (M2)</td></tr>
+      <tr><td><code>redis</code></td><td>Redis 7</td><td>Broker Celery, pub/sub tiến trình &amp; live, cache, khoá phân tán</td><td>Managed / sentinel</td></tr>
+      <tr><td><code>postgres</code></td><td>Postgres 16 + TimescaleDB</td><td>Dữ liệu nghiệp vụ, positions 5Hz, thống kê</td><td>Primary + replica</td></tr>
+      <tr><td><code>object-store</code></td><td>Cloudflare R2 (cloud) · MinIO (self-host)</td><td>Mọi artefact nhị phân; truy cập qua S3 API</td><td>Managed</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="s5">
+  <h2><span class="n">05</span>Cấu trúc mã nguồn</h2>
+  <p>Monorepo, quản lý Python bằng <code>uv</code> workspace, frontend bằng <code>pnpm</code>. Một lần thay đổi schema được kiểm tra xuyên suốt API → worker → frontend trong cùng một PR.</p>
+<pre><code>pitchvision/
+├── apps/
+│   ├── web/                      # React SPA
+│   │   └── src/
+│   │       ├── features/         # upload, library, analysis, stats, tactics, roster
+│   │       ├── player/           # video sync engine, overlay renderer
+│   │       ├── tactical-map/     # canvas / PixiJS renderer
+│   │       ├── api/              # client sinh từ OpenAPI
+│   │       └── i18n/             # en (mặc định), es, pt, de, fr, vi
+│   ├── api/                      # FastAPI regional
+│   │   └── pitchvision_api/
+│   │       ├── routers/          # videos, jobs, results, exports, streams, ws
+│   │       ├── services/
+│   │       ├── repositories/
+│   │       └── auth/
+│   └── identity/                 # FastAPI global control plane
+├── workers/
+│   └── pitchvision_worker/
+│       ├── orchestrator/         # dựng DAG, theo dõi job
+│       ├── stages/               # ingest, calibrate, infer, stitch, ocr, stats, tactics, report, render
+│       ├── compute/              # ComputeBackend + local / runpod / k8s
+│       ├── live/                 # pipeline live
+│       └── entrypoints/          # celery_cpu.py, celery_gpu.py, runpod_handler.py, live.py
+├── packages/
+│   ├── cv-core/                  # thư viện CV thuần, KHÔNG phụ thuộc web/queue
+│   │   └── cv_core/
+│   │       ├── detect/           # D-FINE wrapper (Apache-2.0), TensorRT/ONNX/PyTorch runtime
+│   │       ├── pitch/            # keypoint, homography, smoothing, pitch model 105×68
+│   │       ├── teams/            # crop thân áo, SigLIP embed, UMAP+KMeans
+│   │       ├── track/            # ByteTrack, ReID, stitcher
+│   │       ├── ball/             # ball detector, Kalman
+│   │       ├── ocr/              # jersey number
+│   │       ├── stats/            # possession, physical, heatmap, passes
+│   │       ├── tactics/          # formation, voronoi, offside
+│   │       └── io/               # đọc video, parquet schema
+│   ├── schemas/                  # Pydantic: job config, artefact manifest, WS message
+│   └── report/                   # prompt template, kiểm tra số liệu
+├── models/                       # registry: model card + checksum (trọng số nằm R2)
+├── eval/                         # bộ golden video phân tầng, script đo mAP/HOTA
+├── infra/
+│   ├── compose/                  # docker-compose.yml + profiles: cpu, gpu-local
+│   ├── docker/                   # Dockerfile.api, Dockerfile.worker (CUDA 12)
+│   ├── helm/                     # chart cho K8s
+│   └── terraform/                # R2 bucket, Cloudflare Worker/DNS, RDS, Redis theo region
+└── docs/                         # PRD.html, AD.html, ADR/</code></pre>
+
+  <div class="note">
+    <span class="lbl">Ranh giới phụ thuộc</span>
+    <p><code>cv-core</code> không được import gì từ <code>apps/</code> hay <code>workers/</code>. Có thể chạy trong notebook, CLI, hay test mà không cần Redis/Postgres. <code>workers/</code> phụ thuộc <code>cv-core</code> + <code>schemas</code>. <code>apps/api</code> chỉ phụ thuộc <code>schemas</code>, không bao giờ import <code>cv-core</code> (để image API không kéo CUDA vào). Kiểm tra bằng <code>import-linter</code> trong CI.</p>
+  </div>
+
+  <h3>5.1 Hai image Docker</h3>
+  <table>
+    <thead><tr><th>Image</th><th>Base</th><th>Dùng cho</th><th>Kích thước ước tính</th></tr></thead>
+    <tbody>
+      <tr><td><code>pitchvision-api</code></td><td><code>python:3.12-slim</code></td><td>identity, api</td><td>~250 MB</td></tr>
+      <tr><td><code>pitchvision-worker</code></td><td><code>nvidia/cuda:12.4-runtime-ubuntu22.04</code></td><td>orchestrator, cpu-worker, gpu-worker, live-worker, RunPod handler</td><td>~6 GB</td></tr>
+    </tbody>
+  </table>
+  <p>Image worker chọn vai trò qua biến <code>WORKER_ROLE=orchestrator|cpu|gpu|live|runpod</code>. Cùng một tag image chạy ở mọi nơi — đáp ứng D1.</p>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="s6">
+  <h2><span class="n">06</span>Pipeline CV chi tiết</h2>
+  <div class="note warn">
+    <span class="lbl">v1.2 · Broadcast-first (đợt 1)</span>
+    <ul>
+      <li><strong>Stage mới S2b Shot segmentation</strong> (sau S2): phát hiện cắt cảnh + phân loại <code>main_wide</code> / <code>close_up</code> / <code>replay</code> / <code>other</code>; ghi bảng <code>shots(video_id, t0_ms, t1_ms, type, conf)</code>. S3/S4 chỉ chạy trên <code>main_wide</code>.</li>
+      <li><strong>Segment xử lý cắt theo ranh giới cảnh</strong> (gộp các cảnh ngắn tới ~120s) thay vì cố định 120s gối đầu.</li>
+      <li>S2 chuẩn hoá <strong>về 25 fps</strong> (broadcast 50/60 fps).</li>
+      <li><code>HomographySmoother</code> <strong>reset tại mỗi cắt cảnh</strong>.</li>
+      <li>S5: M1 chỉ ghép trong cảnh; M2 <strong>nối track xuyên cắt cảnh</strong> bằng ReID + đội + số áo + liên tục vị trí.</li>
+      <li>M2 thêm <strong>đồng hồ trận</strong> (OCR scoreboard → ánh xạ thời gian video ↔ phút trận) và phát hiện replay.</li>
+      <li>Manifest/tile mang <code>shots</code> và <code>coverage</code> (% thời gian có cảnh toàn cảnh); S9 tính stats trên thời gian quan sát được.</li>
+      <li>Live (mục 12, ADR-007) và camera nghiệp dư chuyển Phase C — kiến trúc giữ nguyên chỗ.</li>
+    </ul>
+  </div>
+
+  <h3>6.1 DAG của một job offline</h3>
+  <div class="ascii">
+  ┌──────────┐    ┌──────────┐    ┌───────────────┐
+  │ S1       │    │ S2       │    │ S3            │
+  │ ingest   │───▶│ probe &amp;  │───▶│ calibrate     │  GPU · lấy mẫu 300 frame rải đều
+  │ (CPU)    │    │ segment  │    │ team model +  │  → fit mô hình phân đội toàn cục
+  └──────────┘    │ (CPU)    │    │ pitch prior   │  → ước lượng tham số camera ban đầu
+                  └──────────┘    └───────┬───────┘
+                                          │  fan-out: N segment (120s, gối đầu 2s)
+                 ┌────────────────────────┼────────────────────────┐
+                 ▼                        ▼                        ▼
+          ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
+          │ S4 infer    │          │ S4 infer    │   ...    │ S4 infer    │  GPU · song song
+          │ segment 0   │          │ segment 1   │          │ segment N-1 │
+          └──────┬──────┘          └──────┬──────┘          └──────┬──────┘
+                 └────────────────────────┼────────────────────────┘
+                                          ▼  fan-in
+                                   ┌─────────────┐
+                                   │ S5 stitch   │  CPU · nối track giữa các segment
+                                   │ + smooth    │  qua vùng gối đầu + ReID embedding
+                                   └──────┬──────┘
+                    ┌─────────────────────┼─────────────────────┐
+                    ▼                     ▼                     ▼
+             ┌─────────────┐      ┌──────────────┐      ┌──────────────┐
+             │ S6 ocr-vote │ M2   │ S7 tiles     │ M1   │ S8 load-db   │ M1
+             │ số áo       │      │ playback     │      │ positions 5Hz│
+             └──────┬──────┘      └──────────────┘      └──────┬───────┘
+                    └───────────────────┬──────────────────────┘
+                                        ▼
+                                 ┌─────────────┐
+                                 │ S9 stats    │ M3 · possession, physical, heatmap, passes
+                                 └──────┬──────┘
+                                        ▼
+                                 ┌─────────────┐
+                                 │ S10 tactics │ M4 · formation, voronoi, offside
+                                 └──────┬──────┘
+                                        ▼
+                                     DONE
+       Theo yêu cầu (ngoài DAG):  S11 render-export (CPU/GPU)  ·  S12 report (LLM)</div>
+
+  <h3>6.2 Đặc tả từng stage</h3>
+  <table>
+    <thead><tr><th>Stage</th><th>Đầu vào</th><th>Đầu ra (R2)</th><th>Tài nguyên</th><th>Mốc</th></tr></thead>
+    <tbody>
+      <tr><td><strong>S1 ingest</strong></td><td>Upload key / YouTube URL</td><td><code>source/original.*</code></td><td>CPU, mạng</td><td>M1 (URL: M2)</td></tr>
+      <tr><td><strong>S2 probe &amp; segment</strong></td><td>original</td><td><code>source/normalized.mp4</code> (H.264, cạnh dài 1280, keyframe mỗi 2s), <code>manifest.json</code></td><td>CPU, ffmpeg</td><td>M1</td></tr>
+      <tr><td><strong>S2b shot segmentation</strong></td><td>normalized</td><td>bảng <code>shots</code>, <code>shots.json</code></td><td>GPU nhẹ</td><td>M1</td></tr>
+      <tr><td><strong>S3 calibrate</strong></td><td>normalized + 300 frame mẫu</td><td><code>models/team_model.pkl</code> (UMAP + KMeans + ảnh mẫu mỗi cụm), <code>pitch_prior.json</code></td><td>GPU ~30s</td><td>M1</td></tr>
+      <tr><td><strong>S4 infer</strong></td><td>normalized [t0, t1], team_model</td><td><code>segments/{i}/detections.parquet</code>, <code>homography.parquet</code>, <code>embeddings.npy</code></td><td>GPU</td><td>M1 (ReID: M2)</td></tr>
+      <tr><td><strong>S5 stitch</strong></td><td>mọi segment</td><td><code>tracks/tracks.parquet</code> (ID toàn cục, toạ độ đã làm mượt)</td><td>CPU</td><td>M1 (đơn giản) / M2 (ReID)</td></tr>
+      <tr><td><strong>S6 ocr-vote</strong></td><td>tracks + crop lưng áo</td><td><code>tracks/jerseys.json</code></td><td>GPU nhẹ</td><td>M2</td></tr>
+      <tr><td><strong>S7 tiles</strong></td><td>tracks</td><td><code>tiles/{000123}.json.gz</code> mỗi 10s</td><td>CPU</td><td>M1</td></tr>
+      <tr><td><strong>S8 load-db</strong></td><td>tracks</td><td>Bảng <code>positions</code> (5Hz) qua <code>COPY</code></td><td>CPU, DB</td><td>M1</td></tr>
+      <tr><td><strong>S9 stats</strong></td><td>tracks + corrections</td><td>Bảng <code>stats_*</code>, <code>stats/heatmaps.npz</code></td><td>CPU</td><td>M3</td></tr>
+      <tr><td><strong>S10 tactics</strong></td><td>tracks + stats</td><td>Bảng <code>tactics_*</code>, <code>tactics/*.json</code></td><td>CPU</td><td>M4</td></tr>
+      <tr><td><strong>S11 render</strong></td><td>normalized + tracks + lớp chọn</td><td><code>exports/{id}.mp4</code></td><td>CPU (NVENC nếu có GPU)</td><td>M1</td></tr>
+      <tr><td><strong>S12 report</strong></td><td>stats + tactics JSON</td><td>Bảng <code>reports</code></td><td>LLM API</td><td>M4</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.3 Bên trong S4 — vòng lặp suy luận segment</h3>
+<pre><code>def infer_segment(seg: SegmentTask, rt: Runtime) -> SegmentResult:
+    reader   = VideoReader(seg.video_key, seg.t0, seg.t1, stride=seg.cfg.frame_stride)
+    det      = rt.model("detector")        # D-FINE-M (SP-11), TensorRT FP16, batch 16
+    kp       = rt.model("pitch_keypoints") # YOLOv11-pose, 32 điểm
+    teams    = TeamClassifier.load(seg.team_model_key)
+    tracker  = ByteTrack(fps=reader.fps / seg.cfg.frame_stride)
+    hsmooth  = HomographySmoother(window=15)
+    out      = SegmentWriter(seg.output_prefix)
+
+    for batch in reader.batches(16):                    # NVDEC giải mã nếu có
+        dets = det(batch.frames)                         # 4 lớp, conf ≥ 0.35
+        if batch.index % seg.cfg.keypoint_every == 0:    # mặc định mỗi 5 frame
+            hsmooth.update(batch.index, kp(batch.key_frames))
+        for f, d in zip(batch, dets):
+            d = filter_outside_pitch(d, hsmooth.at(f.idx))
+            tracks = tracker.update(d)
+            new = [t for t in tracks if t.needs_team_vote]   # chỉ track mới/chưa chốt
+            teams.vote(new, crops=torso_crops(f.image, new)) # không chạy cho mọi bbox
+            H, q = hsmooth.at(f.idx)
+            out.write(f.idx, tracks, project_feet(tracks, H), H, q)
+
+    return out.close()   # flush Parquet, trả manifest + checksum</code></pre>
+
+  <div class="note">
+    <span class="lbl">Ba tối ưu then chốt</span>
+    <ul>
+      <li><strong>Keypoint chạy thưa</strong> (mỗi 5 frame) + nội suy homography — camera broadcast thay đổi chậm, tiết kiệm ~20% thời gian GPU.</li>
+      <li><strong>Phân đội theo track, không theo bbox</strong> — mỗi track bỏ phiếu trên 10 crop đầu tiên rồi chốt; giảm ~90% lần gọi SigLIP.</li>
+      <li><strong>Bóng dùng detector chính</strong> ở M1; model bóng riêng + tile inference chỉ quanh vùng dự đoán bằng Kalman ở M2.</li>
+    </ul>
+  </div>
+
+  <h3>6.4 Ghép track giữa các segment (S5)</h3>
+  <p>Mỗi segment có ID cục bộ. Các segment gối đầu nhau 2 giây (50 frame ở 25fps). Trong vùng gối đầu, cùng một cầu thủ xuất hiện ở cả hai segment:</p>
+  <ol>
+    <li>Với mỗi cặp segment kề nhau, lấy các track có mặt trong vùng gối đầu.</li>
+    <li>Dựng ma trận chi phí: <code>cost = 0.6 × (1 − IoU trung bình) + 0.3 × khoảng cách toạ độ sân / 5m + 0.1 × khoảng cách cosine ReID</code>.</li>
+    <li>Ghép bằng thuật toán Hungarian; cặp có <code>cost &gt; 0.5</code> không ghép (track mới).</li>
+    <li>Gán ID toàn cục bằng union-find xuyên suốt các segment.</li>
+    <li>Ràng buộc cứng: hai track khác đội không bao giờ ghép.</li>
+    <li>Làm mượt quỹ đạo toạ độ sân bằng Savitzky-Golay (cửa sổ 1s) + loại outlier vận tốc &gt; 12 m/s.</li>
+  </ol>
+
+  <h3>6.5 Định dạng Parquet <code>tracks.parquet</code></h3>
+<pre><code>frame_idx     int32       # theo FPS gốc
+ts_ms         int32
+track_id      int32       # ID toàn cục sau stitch
+cls           int8        # 0 player · 1 goalkeeper · 2 referee · 3 ball
+team          int8        # 0 · 1 · -1 (không thuộc đội)
+x1,y1,x2,y2   int16       # pixel trên video chuẩn hoá
+conf          float16
+px, py        float32     # mét trên sân; NaN nếu homography không đạt
+h_quality     float16     # 0..1 — tỷ lệ inlier RANSAC đã làm mượt
+interpolated  bool        # true nếu điểm được nội suy (frame stride / mất dấu)
+# ước tính: ~40 MB / trận 90' sau nén ZSTD</code></pre>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="s7">
+  <h2><span class="n">07</span>Lớp trừu tượng GPU — ComputeBackend</h2>
+  <p>Hiện thực quyết định Q1 (hybrid). Orchestrator không biết tác vụ GPU chạy ở đâu; nó chỉ gửi một <code>GpuTask</code> có đầu vào/đầu ra là object key trên R2 (hoặc MinIO khi self-host).</p>
+
+<pre><code># packages/schemas/compute.py
+class GpuTask(BaseModel):
+    task_id: str                 # idempotency key = f"{job_id}:{stage}:{segment}"
+    stage: Literal["calibrate", "infer", "ocr", "render"]
+    image_tag: str               # bắt buộc khớp phiên bản giữa các backend
+    inputs: dict[str, str]       # tên → object key
+    output_prefix: str
+    config: PipelineConfig
+    timeout_s: int = 1800
+
+class TaskHandle(BaseModel):
+    backend: str
+    external_id: str
+
+# workers/pitchvision_worker/compute/base.py
+class ComputeBackend(Protocol):
+    name: str
+    def submit(self, task: GpuTask) -> TaskHandle: ...
+    def status(self, h: TaskHandle) -> Literal["queued","running","done","failed"]: ...
+    def cancel(self, h: TaskHandle) -> None: ...
+    def capacity(self) -> Capacity: ...    # slot rảnh, độ sâu hàng đợi, chi phí ước tính</code></pre>
+
+  <table>
+    <thead><tr><th>Hiện thực</th><th>Cơ chế</th><th>Kết quả trả về</th><th>Dùng khi</th></tr></thead>
+    <tbody>
+      <tr><td><code>LocalGpuBackend</code></td><td>Đẩy task vào Celery queue <code>gpu</code>; gpu-worker trên máy có RTX 4090 tiêu thụ</td><td>Celery result + manifest trên MinIO/R2</td><td>Self-host, dev</td></tr>
+      <tr><td><code>K8sGpuBackend</code></td><td>Cùng queue <code>gpu</code>; KEDA scale deployment gpu-worker theo độ dài queue</td><td>Như trên</td><td>Cloud production (AWS g5/g6, Lambda)</td></tr>
+      <tr><td><code>RunPodBackend</code></td><td>Gọi <code>POST /v2/{endpoint}/run</code> với GpuTask JSON; handler trong cùng image chạy stage</td><td>Poll <code>/status</code> + manifest trên R2</td><td>Burst, chưa có cụm K8s GPU</td></tr>
+    </tbody>
+  </table>
+
+  <h3>7.1 Chính sách định tuyến</h3>
+<pre><code># config theo deployment, không hard-code
+compute:
+  backends: [local, runpod]          # thứ tự ưu tiên
+  routing:
+    prefer: local
+    burst_to: runpod                 # khi local queue_wait_est > 10 phút
+    burst_enabled: true
+    max_cost_per_job_usd: 1.00
+  live: local                        # live chỉ chạy nơi có độ trễ mạng thấp tới mediamtx</code></pre>
+  <ul>
+    <li>Router chọn backend <strong>theo task</strong>, không theo job — một job có thể có segment chạy local lẫn cloud.</li>
+    <li>Mọi backend phải chạy đúng <code>image_tag</code> của job → kết quả xác định, không lệch phiên bản model (giảm R11).</li>
+    <li>RunPod truy cập R2 bằng presigned URL có thời hạn, không cấp credential dài hạn. R2 không tính phí egress → GPU ở nhà cung cấp nào đọc video cũng không phát sinh phí truyền dữ liệu.</li>
+    <li>Self-host không cần internet nếu tắt burst — đáp ứng CLB muốn dữ liệu on-prem.</li>
+  </ul>
+
+  <h3>7.2 Runtime suy luận</h3>
+  <p>Model được nạp qua <code>Runtime</code> có 3 cấp, chọn tự động: <strong>TensorRT FP16</strong> (GPU NVIDIA, mặc định) → <strong>ONNX Runtime CUDA</strong> (fallback) → <strong>ONNX Runtime CPU</strong> (CI, dev trên Mac). TensorRT engine phụ thuộc kiến trúc GPU nên được build và cache theo khoá <code>{model_sha}-{gpu_arch}-{trt_version}</code> trên R2; lần đầu gặp GPU mới thì build tại chỗ (~2 phút) rồi upload.</p>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="s8">
+  <h2><span class="n">08</span>Luồng nghiệp vụ chính</h2>
+
+  <h3>8.1 Upload video (trực tiếp lên R2)</h3>
+  <div class="ascii">
+ Browser                 api                    R2                 orchestrator
+    │  POST /videos/uploads │                     │                       │
+    │  {filename,size,mime} │                     │                       │
+    │──────────────────────▶│ kiểm tra quota      │                       │
+    │                       │ CreateMultipartUpload                       │
+    │                       │────────────────────▶│                       │
+    │  {video_id, parts:[presigned URL × N]}      │                       │
+    │◀──────────────────────│                     │                       │
+    │  PUT part 1..N (song song 4, part CỐ ĐỊNH 16MiB, retry từng part)   │
+    │────────────────────────────────────────────▶│                       │
+    │  POST /videos/{id}/uploads/complete {etags} │                       │
+    │──────────────────────▶│ CompleteMultipart   │                       │
+    │                       │────────────────────▶│                       │
+    │                       │ video.status=ready  │                       │
+    │                       │ enqueue job (nếu auto_analyze)              │
+    │                       │────────────────────────────────────────────▶│
+    │  202 {job_id}         │                     │                       │
+    │◀──────────────────────│                     │                       │</div>
+  <p>File không đi qua API → API không bị nghẽn băng thông, upload 5GB tiếp tục được sau khi mất mạng (trạng thái part lưu ở localStorage + <code>ListParts</code>).</p>
+  <div class="note warn">
+    <span class="lbl">Ràng buộc riêng của R2</span>
+    <ul>
+      <li><strong>Mọi part (trừ part cuối) phải cùng kích thước</strong> — S3 cho phép part khác cỡ, R2 thì không. Client chia cố định 16 MiB; khi resume không được đổi cỡ part.</li>
+      <li>Presigned URL chỉ dùng được trên endpoint S3 API <code>&lt;account&gt;.r2.cloudflarestorage.com</code>, không dùng qua custom domain.</li>
+      <li>Bucket phải cấu hình CORS cho origin của web app và <code>ExposeHeaders: ["ETag"]</code> — thiếu dòng này browser không đọc được ETag để gọi complete.</li>
+      <li>Multipart dở dang tự bị xoá bởi lifecycle rule <em>abort incomplete multipart upload</em> sau 7 ngày.</li>
+    </ul>
+  </div>
+
+  <h3>8.2 Xử lý job</h3>
+  <div class="ascii">
+ orchestrator          ComputeBackend        gpu/cpu worker         Redis pub/sub      api ──WS──▶ browser
+     │ S1,S2 (cpu)          │                      │                     │                │
+     │──────────────────────┼─────────────────────▶│                     │                │
+     │ S3 calibrate         │                      │                     │                │
+     │─────────submit──────▶│────────────────────▶│                     │                │
+     │ ◀────────done─────────│                      │                     │                │
+     │ S4 × N submit (song song, giới hạn theo capacity)                  │                │
+     │─────────submit──────▶│────────────────────▶│ mỗi 2s: progress    │                │
+     │                      │                      │────────────────────▶│ job:{id}       │
+     │                      │                      │                     │───────────────▶│ progress
+     │ ◀── done / failed (retry segment tối đa 3) ─│                     │                │
+     │ S5 → S7, S8 (cpu)    │                      │                     │                │
+     │ job.status = done ───────────────────────────────────────────────▶│───────────────▶│ completed
+     │ gửi email thông báo  │                      │                     │                │</div>
+  <p>Tiến trình job = trung bình có trọng số theo stage (S4 chiếm 80%). ETA = frame còn lại / FPS tổng hợp của các segment đang chạy.</p>
+
+  <h3>8.3 Xem kết quả (playback)</h3>
+  <div class="ascii">
+ Browser                                    CDN / R2                  api
+    │ GET /results/{vid}/manifest ───────────────────────────────────▶│
+    │◀────── {fps, duration, tile_base_url, teams, players, h_quality_timeline}
+    │ video.currentTime = 49.6s → tile #4                              │
+    │ GET {tile_base_url}/000004.json.gz ─────▶│                       │
+    │ prefetch tile #5, #6 ───────────────────▶│                       │
+    │ requestVideoFrameCallback(meta)                                  │
+    │   frame = round(meta.mediaTime × fps)                            │
+    │   → vẽ overlay + tactical map từ tile trong bộ nhớ              │</div>
+  <p>Tile là file tĩnh bất biến → cache CDN vĩnh viễn (<code>immutable</code>), trình phát không gọi API theo từng frame. Tile thuộc dữ liệu riêng của tổ chức nên bucket <strong>không public</strong>: một Cloudflare Worker ở <code>tiles.{region}.pitchvision.ai</code> kiểm tra token ngắn hạn (HMAC, phạm vi một <code>video_id</code>, TTL 1 giờ) do <code>manifest</code> cấp, đọc R2 qua binding rồi cache tại edge theo khoá không chứa token. Correction người dùng được trả riêng qua API và áp lên tile ở client.</p>
+
+  <h3>8.4 Sửa kết quả</h3>
+  <ol>
+    <li>Người dùng gộp track 14 vào track 7 → <code>POST /corrections {type:"merge", from:14, into:7}</code>.</li>
+    <li>API ghi bảng <code>corrections</code>, tăng <code>videos.revision</code>.</li>
+    <li>Client áp correction ngay trên dữ liệu đang hiển thị (lạc quan).</li>
+    <li>Orchestrator chạy lại có debounce 30s: S7 (tile mới vào prefix <code>tiles/r{revision}/</code>), S8, S9, S10. Không chạy lại GPU.</li>
+  </ol>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="s9">
+  <h2><span class="n">09</span>Kiến trúc dữ liệu</h2>
+
+  <h3>9.1 Phân tầng lưu trữ</h3>
+  <table>
+    <thead><tr><th>Tầng</th><th>Nơi lưu</th><th>Nội dung</th><th>Truy cập</th><th>Vòng đời</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Nóng — playback</strong></td><td>R2 + Cloudflare CDN/Worker</td><td>Tile 10s, video chuẩn hoá</td><td>Browser trực tiếp</td><td>Theo video</td></tr>
+      <tr><td><strong>Ấm — phân tích</strong></td><td>Postgres + Timescale</td><td>Metadata, positions 5Hz, stats, tactics, corrections</td><td>API, SQL</td><td>Nén sau 7 ngày</td></tr>
+      <tr><td><strong>Thô — nguồn sự thật</strong></td><td>R2 Parquet</td><td>Detection đầy đủ FPS, homography, embedding</td><td>Worker, export</td><td>Chuyển R2 Infrequent Access sau 30 ngày, xoá sau 180 ngày (gói free: 90)</td></tr>
+      <tr><td><strong>Gốc</strong></td><td>R2</td><td>Video gốc người dùng tải lên</td><td>Worker</td><td>Chuyển R2 Infrequent Access sau 30 ngày</td></tr>
+    </tbody>
+  </table>
+
+  <h3>9.2 Bố cục object storage</h3>
+<pre><code>r2://pv-{region}-data/                 # bucket EU tạo với jurisdiction=eu
+  orgs/{org_id}/videos/{video_id}/
+    source/original.mp4
+    source/normalized.mp4
+    manifest.json
+    jobs/{job_id}/
+      models/team_model.pkl
+      segments/{i}/detections.parquet · homography.parquet · embeddings.npy · _SUCCESS
+      tracks/tracks.parquet · jerseys.json
+      tiles/r{revision}/{tile_no:06d}.json.gz
+      stats/heatmaps.npz
+    exports/{export_id}.{mp4|csv|json|pdf}
+r2://pv-{region}-models/
+  {model_name}/{version}/weights.onnx · model_card.md
+  engines/{model_sha}-{gpu_arch}-{trt_ver}.engine</code></pre>
+  <p>File <code>_SUCCESS</code> chỉ được ghi sau cùng → stage kiểm tra nó để bỏ qua segment đã xong khi retry (checkpoint).</p>
+
+  <h3>9.3 Lược đồ CSDL regional (rút gọn)</h3>
+<pre><code>CREATE TABLE videos (
+  id uuid PRIMARY KEY, org_id uuid NOT NULL, created_by uuid NOT NULL,
+  source_type text CHECK (source_type IN ('upload','youtube','rtsp','import')),
+  source_uri text, title text,
+  duration_ms int, fps numeric(6,3), width int, height int,
+  status text NOT NULL,  revision int NOT NULL DEFAULT 0,
+  rights_confirmed_at timestamptz,
+  created_at timestamptz DEFAULT now(), deleted_at timestamptz
+);
+
+CREATE TABLE jobs (
+  id uuid PRIMARY KEY, video_id uuid REFERENCES videos ON DELETE CASCADE,
+  org_id uuid NOT NULL, image_tag text NOT NULL, config jsonb NOT NULL,
+  status text NOT NULL, progress numeric(5,2) DEFAULT 0, fps_agg numeric,
+  error jsonb, cost_usd numeric(8,4),
+  started_at timestamptz, finished_at timestamptz
+);
+
+CREATE TABLE job_tasks (            -- trạng thái từng stage / segment
+  job_id uuid REFERENCES jobs ON DELETE CASCADE,
+  task_key text,                    -- 'infer:017'
+  backend text, external_id text,
+  status text, attempts int DEFAULT 0, error text,
+  started_at timestamptz, finished_at timestamptz,
+  PRIMARY KEY (job_id, task_key)
+);
+
+CREATE TABLE teams (
+  id uuid PRIMARY KEY, video_id uuid REFERENCES videos ON DELETE CASCADE,
+  cluster int, name text, color text, confirmed bool DEFAULT false
+);
+
+CREATE TABLE players (
+  id uuid PRIMARY KEY, video_id uuid REFERENCES videos ON DELETE CASCADE,
+  track_id int, team_id uuid REFERENCES teams, role text,
+  jersey int, jersey_conf real, name text, confirmed bool DEFAULT false,
+  UNIQUE (video_id, track_id)
+);
+
+CREATE TABLE positions (            -- hypertable, hạ về 5Hz
+  video_id uuid, ts_ms int, track_id int,
+  team smallint, px real, py real, vx real, vy real, q real
+);
+SELECT create_hypertable('positions', by_range('ts_ms', 600000));  -- chunk 10 phút
+ALTER TABLE positions SET (timescaledb.compress,
+  timescaledb.compress_segmentby = 'video_id, track_id');
+
+CREATE TABLE corrections (
+  id uuid PRIMARY KEY, video_id uuid REFERENCES videos ON DELETE CASCADE,
+  revision int, type text, payload jsonb, created_by uuid, created_at timestamptz
+);
+
+CREATE TABLE stats_player (video_id uuid, player_id uuid, revision int, metrics jsonb,
+  PRIMARY KEY (video_id, player_id));
+CREATE TABLE stats_team   (video_id uuid, team_id uuid,   revision int, metrics jsonb,
+  PRIMARY KEY (video_id, team_id));
+CREATE TABLE tactics      (video_id uuid, revision int, kind text, data jsonb);
+CREATE TABLE reports      (id uuid PRIMARY KEY, video_id uuid, lang text, content_md text,
+  model text, facts_checked bool, created_at timestamptz);
+
+-- Cô lập tenant
+ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY org_isolation ON videos USING (org_id = current_setting('app.org_id')::uuid);</code></pre>
+
+  <div class="note">
+    <span class="lbl">Vì sao 5Hz trong CSDL</span>
+    <p>Thống kê thể lực, heatmap, đội hình đều chính xác đủ ở 5Hz; 25Hz chỉ cần cho vẽ overlay (đã có tile). Hạ tần số giảm 5× số dòng: ~600k dòng/trận thay vì ~3,1 triệu. Dữ liệu đầy đủ vẫn còn trong Parquet nếu cần tính lại.</p>
+  </div>
+
+  <h3>9.4 CSDL global (control plane)</h3>
+  <p><code>users</code>, <code>orgs</code>, <code>memberships</code>, <code>api_keys</code>, <code>subscriptions</code>, <code>org_region</code>. Không chứa video, toạ độ hay tên cầu thủ — không dữ liệu cá nhân của cầu thủ rời khỏi region.</p>
+
+  <h3>9.5 Cấu hình Cloudflare R2</h3>
+  <table>
+    <thead><tr><th>Hạng mục</th><th>Cấu hình</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td>Bucket theo region</td><td><code>pv-eu-data</code>, <code>pv-eu-models</code> tạo với <strong>jurisdiction = eu</strong>; <code>pv-us-data</code>, <code>pv-us-models</code> với location hint <code>ENAM</code></td><td>Jurisdiction EU đảm bảo dữ liệu lưu và xử lý trong EU — đáp ứng ADR-011 / GDPR</td></tr>
+      <tr><td>Truy cập từ code</td><td><code>boto3</code> với <code>endpoint_url</code> + <code>region_name="auto"</code>, chữ ký SigV4</td><td>Cùng client cho MinIO khi self-host — chỉ đổi biến môi trường <code>STORAGE_ENDPOINT</code></td></tr>
+      <tr><td>Phân quyền</td><td>R2 API token phạm vi theo bucket: <code>api</code> (ký presigned), <code>worker</code> (đọc/ghi), tile Worker dùng binding chỉ đọc</td><td>Không token nào có quyền quản trị account</td></tr>
+      <tr><td>CORS</td><td>Origin: domain web app; Method: <code>PUT, GET, HEAD</code>; <code>ExposeHeaders: ["ETag"]</code>; MaxAge 3600</td><td>Bắt buộc cho upload multipart từ browser</td></tr>
+      <tr><td>Lifecycle</td><td>(1) Huỷ multipart dở dang sau 7 ngày; (2) <code>source/</code> và <code>segments/</code> → Infrequent Access sau 30 ngày; (3) xoá <code>segments/</code> sau 180 ngày</td><td>IA có phí truy xuất và thời gian lưu tối thiểu 30 ngày — chỉ áp cho dữ liệu hiếm khi đọc lại</td></tr>
+      <tr><td>Phục vụ tile</td><td>Cloudflare Worker + R2 binding, kiểm tra token HMAC, <code>Cache-Control: public, max-age=31536000, immutable</code> sau khi xác thực</td><td>Bucket không bao giờ public</td></tr>
+      <tr><td>Bền vững dữ liệu</td><td>Key bất biến (write-once, đổi revision thì đổi prefix); sao chép hằng ngày <code>source/</code> sang bucket backup cùng jurisdiction</td><td>Không dựa vào object versioning</td></tr>
+      <tr><td>Self-host</td><td>MinIO thay R2; tile phục vụ qua api (route <code>/tiles/*</code>) thay cho Worker</td><td>Không phụ thuộc Cloudflare khi chạy on-prem</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="s10">
+  <h2><span class="n">10</span>Giao tiếp &amp; API</h2>
+
+  <h3>10.1 Quy ước REST</h3>
+  <ul>
+    <li>Tiền tố <code>/api/v1</code>; tên trường <code>snake_case</code>; thời gian ISO-8601 UTC; toạ độ sân luôn bằng mét.</li>
+    <li>OpenAPI sinh từ FastAPI là hợp đồng duy nhất; client TS sinh tự động bằng <code>openapi-typescript</code>, CI fail nếu lệch.</li>
+    <li>Tác vụ dài trả <code>202 Accepted</code> + resource có <code>status</code>; không giữ kết nối.</li>
+    <li>Header <code>Idempotency-Key</code> bắt buộc cho <code>POST /jobs</code>, <code>POST /exports</code>.</li>
+    <li>Phân trang theo cursor: <code>?cursor=&amp;limit=</code>.</li>
+    <li>Lỗi theo RFC 9457:</li>
+  </ul>
+<pre><code>{ "type": "https://docs.pitchvision.ai/errors/quota-exceeded",
+  "title": "Monthly processing quota exceeded",
+  "status": 402, "code": "QUOTA_EXCEEDED",
+  "detail": "Free plan allows 120 minutes/month; 118 used, video is 90 minutes.",
+  "instance": "/api/v1/jobs" }</code></pre>
+
+  <h3>10.2 Thay đổi so với danh sách API trong PRD</h3>
+  <table>
+    <thead><tr><th>PRD</th><th>AD</th><th>Lý do</th></tr></thead>
+    <tbody>
+      <tr><td><code>upload/init · chunk · complete</code> qua API</td><td><code>POST /videos/uploads</code> trả presigned multipart URL; <code>POST /videos/{id}/uploads/complete</code></td><td>Video không đi qua API (ADR-008)</td></tr>
+      <tr><td><code>GET /results/{id}/tracks?from_ms&amp;to_ms</code></td><td>Giữ cho analyst; trình phát dùng <code>GET /results/{id}/manifest</code> + tile CDN</td><td>Playback không chạm API (ADR-004)</td></tr>
+      <tr><td>—</td><td><code>GET /results/{id}/frames/{idx}/debug</code> (nội bộ)</td><td>Hỗ trợ debug homography / detection</td></tr>
+    </tbody>
+  </table>
+
+  <h3>10.3 Giao thức WebSocket</h3>
+  <p>Một kết nối mỗi tab: <code>wss://{region}.api.pitchvision.ai/api/v1/ws?token=…</code>. Client gửi <code>subscribe</code> theo chủ đề; server đẩy sự kiện. Heartbeat 25s.</p>
+<pre><code>// client → server
+{ "op": "subscribe",   "topic": "job:7f3a…" }
+{ "op": "subscribe",   "topic": "live:session:91c…" }
+{ "op": "unsubscribe", "topic": "job:7f3a…" }
+
+// server → client
+{ "topic": "job:7f3a…", "type": "progress",
+  "data": { "stage": "infer", "pct": 42.5, "fps": 96.1, "eta_s": 610,
+            "segments": { "done": 19, "running": 4, "total": 45 } } }
+{ "topic": "job:7f3a…", "type": "completed", "data": { "video_id": "…" } }
+{ "topic": "job:7f3a…", "type": "failed",
+  "data": { "code": "HOMOGRAPHY_UNAVAILABLE", "retryable": false } }
+
+{ "topic": "live:session:91c…", "type": "frame",
+  "data": { "pts_ms": 1834220, "h_quality": 0.91, "mode": "full",
+            "objs": [[7,0,0,34.2,41.7],[19,2,-1,52.9,30.1],[99,3,-1,49.8,28.4]] } }
+            // [track_id, cls, team, px, py] — dạng mảng để gọn</code></pre>
+
+  <h3>10.4 Giao tiếp nội bộ</h3>
+  <table>
+    <thead><tr><th>Từ → Tới</th><th>Cơ chế</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td>api → orchestrator</td><td>Celery task <code>orchestrate.start_job</code></td><td>Chỉ truyền <code>job_id</code></td></tr>
+      <tr><td>orchestrator → worker</td><td>ComputeBackend / Celery queue <code>cpu</code></td><td>Payload là GpuTask / CpuTask</td></tr>
+      <tr><td>worker → api (tiến trình)</td><td>Redis pub/sub <code>job:{id}</code></td><td>api fan-out tới WS</td></tr>
+      <tr><td>live-worker → api</td><td>Redis Streams <code>live:{session}</code></td><td>Giữ 60s gần nhất (MAXLEN)</td></tr>
+      <tr><td>Mọi thành phần → artefact</td><td>R2 / MinIO qua S3 API</td><td>Không chia sẻ filesystem</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 11 ============ -->
+<section id="s11">
+  <h2><span class="n">11</span>Kiến trúc Frontend</h2>
+  <table>
+    <thead><tr><th>Mối quan tâm</th><th>Lựa chọn</th></tr></thead>
+    <tbody>
+      <tr><td>Định tuyến</td><td>TanStack Router (type-safe)</td></tr>
+      <tr><td>Dữ liệu server</td><td>TanStack Query; WS cập nhật cache qua <code>queryClient.setQueryData</code></td></tr>
+      <tr><td>Trạng thái UI</td><td>Zustand (lớp hiển thị, lựa chọn cầu thủ, thời gian phát)</td></tr>
+      <tr><td>UI kit</td><td>Tailwind + Radix UI primitives</td></tr>
+      <tr><td>Biểu đồ</td><td>Recharts (thống kê), visx cho mạng lưới chuyền</td></tr>
+      <tr><td>Video</td><td>Thẻ <code>&lt;video&gt;</code> gốc + <code>requestVideoFrameCallback</code>; hls.js cho luồng HLS</td></tr>
+      <tr><td>Overlay &amp; map</td><td>Canvas 2D ở M1; PixiJS (WebGL) khi bật trail + Voronoi (M4)</td></tr>
+      <tr><td>Xử lý nặng</td><td>Web Worker giải nén tile, áp correction, tính trail</td></tr>
+      <tr><td>i18n</td><td>i18next; EN mặc định; đơn vị mét/yard</td></tr>
+    </tbody>
+  </table>
+
+  <h3>11.1 Sync engine — tim của màn hình phân tích</h3>
+  <div class="ascii">
+  &lt;video&gt; ──requestVideoFrameCallback──▶ PlaybackClock (frame_idx chính xác)
+                                              │
+                    ┌─────────────────────────┼───────────────────────┐
+                    ▼                         ▼                       ▼
+            TileStore (LRU 30 tile)    OverlayRenderer          TacticalMapRenderer
+            prefetch ±2 tile           canvas trên video        canvas cạnh video
+            áp corrections             bbox · nhãn · conf       chấm · trail · voronoi
+                    ▲                  toạ độ pixel × scale     toạ độ mét × scale
+                    │
+              Web Worker (gunzip + parse)</div>
+  <ul>
+    <li>Canvas overlay luôn khớp kích thước hiển thị của video (ResizeObserver), nhân hệ số <code>displayWidth / 1280</code>.</li>
+    <li>Tua (seek) → huỷ prefetch cũ, nạp tile đích trước, vẽ khi có — không chặn video.</li>
+    <li>Khi <code>h_quality &lt; 0.5</code> tactical map hiện trạng thái mờ + nhãn "low confidence" thay vì vẽ toạ độ sai.</li>
+  </ul>
+</section>
+
+<!-- ============ 12 ============ -->
+<section id="s12">
+  <h2><span class="n">12</span>Live stream (M2)</h2>
+  <div class="ascii">
+ Camera ──RTSP/RTMP/SRT──▶ mediamtx ──┬──WebRTC (WHEP, ~500ms)──────────────▶ Browser &lt;video&gt;
+                                      │                                          ▲
+                                      └──RTSP──▶ live-worker (GPU)               │ vẽ overlay theo
+                                                   decode → detect → track →     │ pts_ms khớp
+                                                   project → XADD live:{sid}     │
+                                                              │                  │
+                                                              ▼                  │
+                                                   Redis Stream ──▶ api ──WS─────┘</div>
+  <ul>
+    <li><strong>Video không đi qua pipeline AI để đến người xem</strong> — trình duyệt nhận video gốc qua WebRTC, chỉ nhận toạ độ qua WS. Tách hai đường này giữ độ trễ thấp và băng thông server nhỏ.</li>
+    <li>Đồng bộ bằng <code>pts</code> của RTP: client giữ bộ đệm toạ độ 2s, vẽ theo pts của frame đang hiển thị.</li>
+    <li>Calibrate đội ở live: 20 giây đầu thu crop → fit model → bắt đầu gán đội; người dùng xác nhận tên đội trong lúc đó.</li>
+    <li><strong>Thang giảm cấp tự động</strong> khi FPS &lt; 15 trong 5 giây: (1) tắt ReID → (2) keypoint mỗi 10 frame → (3) stride 2 → (4) đổi D-FINE-S. Trạng thái <code>mode</code> gửi trong mỗi message.</li>
+    <li>Ghi lại phiên: mediamtx ghi segment fMP4 lên R2; khi kết thúc có thể chạy job offline đầy đủ để có kết quả chính xác hơn.</li>
+  </ul>
+</section>
+
+<!-- ============ 13 ============ -->
+<section id="s13">
+  <h2><span class="n">13</span>Triển khai</h2>
+
+  <h3>13.1 Self-host (Docker Compose)</h3>
+<pre><code># infra/compose/docker-compose.yml (rút gọn)
+services:
+  postgres:   { image: timescale/timescaledb:latest-pg16, volumes: [pg:/var/lib/postgresql/data] }
+  redis:      { image: redis:7-alpine }
+  minio:      { image: minio/minio, command: server /data --console-address :9001 }
+  mediamtx:   { image: bluenviron/mediamtx, profiles: [live] }
+  identity:   { image: pitchvision-api:${TAG}, command: identity }
+  api:        { image: pitchvision-api:${TAG}, command: api, ports: ["8000:8000"] }
+  web:        { image: pitchvision-web:${TAG}, ports: ["3000:80"] }
+  orchestrator: { image: pitchvision-worker:${TAG}, environment: { WORKER_ROLE: orchestrator } }
+  cpu-worker:   { image: pitchvision-worker:${TAG}, environment: { WORKER_ROLE: cpu } }
+  gpu-worker:
+    image: pitchvision-worker:${TAG}
+    environment: { WORKER_ROLE: gpu }
+    profiles: [gpu-local]
+    deploy: { resources: { reservations: { devices: [{ driver: nvidia, count: all, capabilities: [gpu] }] } } }</code></pre>
+  <ul>
+    <li><code>docker compose --profile gpu-local up</code> — đủ toàn bộ hệ thống trên một máy có RTX 4090.</li>
+    <li><code>docker compose up</code> (không profile) — chạy CPU-only để dev frontend/API; GPU task đi RunPod nếu cấu hình.</li>
+    <li>Self-host chạy ở chế độ <strong>single-region</strong>: identity và api chung một Postgres.</li>
+  </ul>
+
+  <h3>13.2 Cloud (Kubernetes)</h3>
+  <div class="ascii">
+  Mỗi region (eu-central-1, us-east-1):
+  ┌─────────────────────────────────────────────────────────────────┐
+  │ EKS / GKE                                                       │
+  │  node pool "general" (CPU, on-demand)                           │
+  │    api ×3 (HPA theo CPU) · orchestrator ×2 · cpu-worker (KEDA)  │
+  │  node pool "gpu" (g6.xlarge L4, spot ưu tiên, min 0, max 10)    │
+  │    gpu-worker (KEDA theo độ dài queue "gpu")                     │
+  │  node pool "live" (GPU on-demand, min 0)                        │
+  │    live-worker · mediamtx                                        │
+  ├─────────────────────────────────────────────────────────────────┤
+  │ RDS Postgres + Timescale (hoặc Timescale Cloud) · ElastiCache   │
+  │ R2 bucket theo jurisdiction (EU/US) · Cloudflare CDN + Worker   │
+  └─────────────────────────────────────────────────────────────────┘
+  Global: identity-svc + Postgres global (us-east-1, đọc replica EU) · DNS định tuyến</div>
+
+  <h3>13.3 CI/CD</h3>
+  <ol>
+    <li>PR: lint, type-check (mypy, tsc), unit test, import-linter, test pipeline CPU trên clip 10 giây.</li>
+    <li>Merge vào <code>main</code>: build 3 image, gắn tag <code>git-sha</code>, đẩy registry.</li>
+    <li>Nightly: chạy bộ golden video trên GPU thật, xuất bảng chỉ số theo nhóm (mục 18); fail nếu tụt &gt; 2 điểm.</li>
+    <li>Deploy: Argo CD, staging tự động → production bằng phê duyệt; mỗi region triển khai lần lượt.</li>
+    <li>Model mới: là một PR thay đổi <code>models/registry.yaml</code>; chỉ merge được khi golden eval đạt.</li>
+  </ol>
+</section>
+
+<!-- ============ 14 ============ -->
+<section id="s14">
+  <h2><span class="n">14</span>Bảo mật</h2>
+  <table>
+    <thead><tr><th>Mối đe doạ</th><th>Kiểm soát</th></tr></thead>
+    <tbody>
+      <tr><td>Truy cập video của tổ chức khác</td><td>Mọi truy vấn có <code>org_id</code>; Postgres RLS làm lớp phòng thủ thứ hai; object key có tiền tố <code>orgs/{org_id}</code>; presigned URL TTL 15 phút; R2 API token tách theo vai trò (api: chỉ ký URL; worker: đọc/ghi; tile Worker: chỉ đọc qua binding)</td></tr>
+      <tr><td>Đánh cắp token</td><td>JWT RS256 15 phút; refresh token xoay vòng, phát hiện dùng lại → thu hồi cả chuỗi; cookie <code>HttpOnly; Secure; SameSite=Lax</code></td></tr>
+      <tr><td>SSRF qua URL YouTube / RTSP</td><td>Allowlist domain cho URL video; RTSP ở cloud chặn dải IP nội bộ/metadata (169.254.0.0/16, 10/8, …); worker ingest chạy trong network policy chỉ ra internet</td></tr>
+      <tr><td>File độc hại (khai thác ffmpeg)</td><td>ffprobe trong container không quyền, seccomp, giới hạn thời gian và bộ nhớ; chỉ nhận container/codec trong danh sách</td></tr>
+      <tr><td>Prompt injection vào báo cáo</td><td>LLM chỉ nhận JSON số liệu đã kiểm soát; tên đội/cầu thủ do người dùng nhập được escape và giới hạn ký tự; output kiểm tra số liệu (ADR-010)</td></tr>
+      <tr><td>Lộ credential cloud cho RunPod</td><td>Không gửi credential; chỉ presigned URL cho đúng key cần đọc/ghi</td></tr>
+      <tr><td>Lạm dụng tài nguyên GPU</td><td>Quota theo gói ở identity-svc; rate limit Redis token bucket; giới hạn chi phí mỗi job</td></tr>
+      <tr><td>Dữ liệu cầu thủ vị thành niên</td><td>Không nhận dạng khuôn mặt; tên cầu thủ là trường tuỳ chọn; xoá theo yêu cầu lan tới R2 + DB + Cloudflare cache purge trong 24 giờ</td></tr>
+      <tr><td>Bí mật</td><td>K8s External Secrets từ AWS Secrets Manager; self-host dùng file <code>.env</code> với hướng dẫn quyền 600</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 15 ============ -->
+<section id="s15">
+  <h2><span class="n">15</span>Hiệu năng &amp; Ngân sách tài nguyên</h2>
+
+  <div class="note">
+    <span class="lbl">Mục tiêu hiệu năng đã chốt (PRD v1.2)</span>
+    <ul>
+      <li><strong>Chuẩn (stride 1):</strong> trận 90' ≤ 20 phút với 1× RTX 4090 hoặc ≥ 2× L4 song song (stride 1).</li>
+      <li><strong>Nhanh (stride 2):</strong> trận 90' ≤ 15 phút trên 1× L4.</li>
+      <li><strong>Sàn throughput:</strong> ≥ 50 FPS trên 1× T4.</li>
+    </ul>
+    <p>Mục tiêu cũ trong PRD v1.1 (≤ 20 phút trên 1× T4) cần ~112 FPS — không khả thi. Một trận 90' ở 25fps có 135.000 frame.</p>
+  </div>
+
+  <h3>15.1 Ngân sách mỗi frame (ước tính, batch 16, TensorRT FP16, ảnh 1280px)</h3>
+  <table>
+    <thead><tr><th>Bước</th><th>T4</th><th>L4</th><th>RTX 4090</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td>Giải mã (NVDEC)</td><td>1.0 ms</td><td>0.7 ms</td><td>0.5 ms</td><td></td></tr>
+      <tr><td>Detect D-FINE-M</td><td>14 ms</td><td>8 ms</td><td>4 ms</td><td>Phần lớn thời gian. Số ước lượng theo YOLOv11-m; SP-11 trên MPS cho D-FINE-M@640 ngang YOLOv11-m@1280 — đo lại trên NVIDIA (SP-02)</td></tr>
+      <tr><td>Keypoint (÷5)</td><td>2.4 ms</td><td>1.4 ms</td><td>0.7 ms</td><td>Chạy mỗi 5 frame</td></tr>
+      <tr><td>Embed đội (theo track)</td><td>0.5 ms</td><td>0.3 ms</td><td>0.2 ms</td><td>Chỉ track mới</td></tr>
+      <tr><td>Tracking + chiếu toạ độ</td><td>1.0 ms</td><td>0.8 ms</td><td>0.6 ms</td><td>CPU</td></tr>
+      <tr><td>Ghi Parquet</td><td>0.3 ms</td><td>0.3 ms</td><td>0.2 ms</td><td>Bất đồng bộ</td></tr>
+      <tr><td><strong>Tổng / FPS</strong></td><td><strong>~19 ms · 52 FPS</strong></td><td><strong>~11.5 ms · 87 FPS</strong></td><td><strong>~6.2 ms · 160 FPS</strong></td><td></td></tr>
+      <tr><td><strong>Trận 90' (stride 1)</strong></td><td>43 phút</td><td>26 phút</td><td><strong>14 phút</strong></td><td></td></tr>
+      <tr><td><strong>Trận 90' (stride 2)</strong></td><td>22 phút</td><td><strong>13 phút</strong></td><td>7 phút</td><td>Tracking 12.5Hz, nội suy</td></tr>
+    </tbody>
+  </table>
+  <p>Đây là ước tính lý thuyết cần được xác nhận ở spike kỹ thuật. Đối chiếu với mục tiêu:</p>
+  <table>
+    <thead><tr><th>Mục tiêu</th><th>Ước tính</th><th>Biên an toàn</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      <tr><td>Chuẩn ≤ 20' · 1× RTX 4090</td><td>14 phút</td><td>30%</td><td><span class="pill ok">Đạt</span></td></tr>
+      <tr><td>Chuẩn ≤ 20' · 2× L4 song song</td><td>~13 phút (+ ~1' ghép track)</td><td>30%</td><td><span class="pill ok">Đạt</span></td></tr>
+      <tr><td>Nhanh ≤ 15' · 1× L4 stride 2</td><td>13 phút</td><td>13%</td><td><span class="pill chg">Sát — đo ở spike</span></td></tr>
+      <tr><td>≥ 50 FPS · 1× T4</td><td>52 FPS</td><td>4%</td><td><span class="pill chg">Rất sát — đo ở spike</span></td></tr>
+    </tbody>
+  </table>
+  <p>Hai dòng cuối biên mỏng. Nếu spike đo thấp hơn, đòn bẩy theo thứ tự: (1) detect ở 960px thay vì 1280px, (2) keypoint mỗi 10 frame, (3) D-FINE-S cho chế độ nhanh. Router của ComputeBackend tự chia segment cho đủ số GPU để đạt mục tiêu chuẩn khi chạy cloud.</p>
+
+  <h3>15.2 Chi phí cloud mỗi trận 90'</h3>
+  <table>
+    <thead><tr><th>Cấu hình</th><th>Giá GPU/giờ (tham khảo)</th><th>Thời gian GPU</th><th>Chi phí GPU</th></tr></thead>
+    <tbody>
+      <tr><td>T4 spot, stride 1</td><td>~0.20 USD</td><td>43 phút</td><td>~0.14 USD</td></tr>
+      <tr><td>L4 spot, stride 1</td><td>~0.35 USD</td><td>26 phút</td><td>~0.15 USD</td></tr>
+      <tr><td>RunPod 4090 serverless</td><td>~0.70 USD</td><td>14 phút + cold start</td><td>~0.18 USD</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Egress từ R2 = 0 USD</strong>: GPU ở RunPod/Lambda đọc video nguồn (~1–3 GB/trận), browser tải video + tile, người dùng tải export đều không phát sinh phí truyền dữ liệu. Với S3, riêng phần này có thể tốn ~0.09 USD/GB ra internet — tức ~0.10–0.30 USD/trận chỉ cho GPU ngoài AWS đọc video. Chi phí còn lại của R2 là lưu trữ và số lượng request (tile 10s tạo ~540 object/trận).</p>
+  <p>Cộng CPU, lưu trữ R2, request → ~0.30–0.45 USD/trận, nằm trong mục tiêu ≤ 0.60 USD của PRD. Giá cần cập nhật khi chọn nhà cung cấp cụ thể.</p>
+
+  <h3>15.3 Mục tiêu khác</h3>
+  <ul>
+    <li><strong>API p95</strong> ≤ 200 ms cho đọc metadata; ≤ 800 ms cho truy vấn thống kê.</li>
+    <li><strong>Tile</strong> ≤ 60 KB nén (10 giây × 25 fps × 23 đối tượng); thời gian từ seek đến khi overlay hiện ≤ 300 ms.</li>
+    <li><strong>Render tactical map</strong> ≤ 4 ms/frame trên laptop tích hợp GPU.</li>
+  </ul>
+</section>
+
+<!-- ============ 16 ============ -->
+<section id="s16">
+  <h2><span class="n">16</span>Độ tin cậy</h2>
+
+  <h3>16.1 Máy trạng thái job</h3>
+  <div class="ascii">
+   queued ──▶ ingesting ──▶ calibrating ──▶ inferring ──▶ postprocessing ──▶ done
+      │           │              │              │               │
+      └───────────┴──────────────┴──────┬───────┴───────────────┘
+                                        ▼
+                           failed (retryable?) ──retry job──▶ tiếp tục từ stage lỗi
+                                        │
+                                   cancelled ◀── người dùng huỷ (mọi trạng thái)</div>
+
+  <table>
+    <thead><tr><th>Tình huống</th><th>Xử lý</th></tr></thead>
+    <tbody>
+      <tr><td>Một segment lỗi</td><td>Retry segment đó tối đa 3 lần, backoff 30s/2m/5m, lần 3 chuyển backend khác nếu có. Các segment khác tiếp tục.</td></tr>
+      <tr><td>Worker chết giữa chừng</td><td>Celery <code>acks_late</code> + <code>visibility_timeout</code>; RunPod có timeout; task chạy lại, bỏ qua nếu thấy <code>_SUCCESS</code>.</td></tr>
+      <tr><td>&gt; 30% frame homography kém</td><td>Job vẫn <code>done</code> với cờ <code>pitch_calibration: degraded</code>; UI gợi ý hiệu chỉnh tay 4 điểm, sau đó chỉ chạy lại S4 phần chiếu toạ độ (CPU).</td></tr>
+      <tr><td>Không tìm được 2 cụm đội</td><td>Lỗi không retry <code>TEAM_SEPARATION_FAILED</code>; UI cho người dùng chọn 2 cầu thủ mẫu mỗi đội, chạy lại S3.</td></tr>
+      <tr><td>Orchestrator khởi động lại</td><td>Trạng thái nằm trong <code>job_tasks</code>; quét job đang chạy và tiếp tục.</td></tr>
+      <tr><td>Claude API lỗi / quá tải</td><td>Báo cáo vào hàng chờ, retry tối đa 6 giờ; không ảnh hưởng job.</td></tr>
+      <tr><td>Mất region</td><td>Không failover dữ liệu sang region khác (vi phạm residency). Phục hồi từ backup trong region; RPO 1 giờ, RTO 4 giờ.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 17 ============ -->
+<section id="s17">
+  <h2><span class="n">17</span>Quan sát hệ thống</h2>
+  <table>
+    <thead><tr><th>Loại</th><th>Công cụ</th><th>Nội dung chính</th></tr></thead>
+    <tbody>
+      <tr><td>Trace</td><td>OpenTelemetry → Tempo/Honeycomb</td><td>Một trace xuyên suốt job: api → orchestrator → mọi task (truyền <code>traceparent</code> trong GpuTask, kể cả RunPod)</td></tr>
+      <tr><td>Metric</td><td>Prometheus + Grafana</td><td><code>pv_job_duration_seconds</code>, <code>pv_segment_fps</code>, <code>pv_queue_depth{queue}</code>, <code>pv_gpu_util</code>, <code>pv_homography_quality</code>, <code>pv_team_cluster_margin</code>, <code>pv_job_cost_usd{backend}</code>, <code>pv_live_e2e_latency_ms</code></td></tr>
+      <tr><td>Log</td><td>JSON structured → Loki</td><td>Mọi log có <code>job_id</code>, <code>org_id</code>, <code>task_key</code>, <code>trace_id</code></td></tr>
+      <tr><td>Lỗi</td><td>Sentry (api, worker, web)</td><td>Kèm image_tag, model version</td></tr>
+      <tr><td>Chất lượng AI</td><td>Dashboard riêng</td><td>Phân phối <code>h_quality</code>, tỷ lệ correction / video, tỷ lệ job <code>degraded</code> — chỉ báo sớm model kém trên dữ liệu thực</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Cảnh báo:</strong> queue <code>gpu</code> chờ &gt; 20 phút; tỷ lệ job lỗi &gt; 5% trong 1 giờ; live latency p95 &gt; 3s; chi phí GPU ngày vượt ngân sách 20%.</p>
+</section>
+
+<!-- ============ 18 ============ -->
+<section id="s18">
+  <h2><span class="n">18</span>Chiến lược kiểm thử</h2>
+  <table>
+    <thead><tr><th>Cấp</th><th>Phạm vi</th><th>Chạy khi</th></tr></thead>
+    <tbody>
+      <tr><td>Unit</td><td><code>cv-core</code> (homography, stitcher, stats với dữ liệu tổng hợp), service API</td><td>Mỗi PR</td></tr>
+      <tr><td>Contract</td><td>OpenAPI ↔ client TS; schema Parquet/tile có version</td><td>Mỗi PR</td></tr>
+      <tr><td>Pipeline CPU</td><td>Toàn bộ DAG trên clip 10s bằng ONNX CPU, LocalGpuBackend giả lập</td><td>Mỗi PR</td></tr>
+      <tr><td>Integration</td><td>Compose đầy đủ: upload → job → tile → API</td><td>Merge vào main</td></tr>
+      <tr><td><strong>Golden eval</strong></td><td>Bộ video phân tầng (PRD 6.2): mAP, độ chính xác phân đội, HOTA, sai số toạ độ, possession — <strong>báo cáo theo từng nhóm</strong></td><td>Nightly + mỗi PR đổi model</td></tr>
+      <tr><td>Backend parity</td><td>Cùng 1 clip qua LocalGpu và RunPod → so sánh Parquet (sai lệch toạ độ &lt; 1cm)</td><td>Nightly (giảm R11)</td></tr>
+      <tr><td>E2E</td><td>Playwright: upload, xem, sửa, export</td><td>Trước deploy</td></tr>
+      <tr><td>Tải</td><td>k6: 50 job đồng thời, 500 người xem tile</td><td>Trước mỗi milestone</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 19 ============ -->
+<section id="s19">
+  <h2><span class="n">19</span>Quyết định kiến trúc (ADR)</h2>
+
+  <div class="adr"><div class="h"><span class="id">ADR-001</span><span class="ti">Monorepo với uv + pnpm</span><span class="pill ok">Chấp nhận</span></div>
+    <p><strong>Bối cảnh:</strong> Schema dùng chung giữa API, worker, frontend; đội nhỏ.</p>
+    <p><strong>Quyết định:</strong> Một repo, ranh giới phụ thuộc kiểm tra bằng import-linter.</p>
+    <p><strong>Hệ quả:</strong> Thay đổi xuyên tầng trong một PR; CI phải chọn lọc theo đường dẫn để không chạy GPU test cho thay đổi frontend.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-002</span><span class="ti">Python cho toàn bộ backend</span><span class="pill ok">Chấp nhận</span></div>
+    <p><strong>Quyết định:</strong> FastAPI cho API, Celery cho worker, cùng Pydantic schema.</p>
+    <p><strong>Phương án loại:</strong> Go/Node cho API — nhanh hơn nhưng phải duy trì schema hai nơi; API không phải nút thắt.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-003</span><span class="ti">ComputeBackend trừu tượng hoá GPU</span><span class="pill ok">Chấp nhận</span></div>
+    <p><strong>Bối cảnh:</strong> Q1 — phải chạy self-host và cloud.</p>
+    <p><strong>Quyết định:</strong> Mọi tác vụ GPU là hàm object-store→object-store gửi qua interface; 3 hiện thực Local, K8s, RunPod; cùng image tag.</p>
+    <p><strong>Hệ quả:</strong> Không dùng shared memory/filesystem giữa stage → thêm I/O object storage (~5% thời gian) đổi lấy tính di động.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-004</span><span class="ti">Parquet trên R2 là nguồn sự thật; DB chỉ giữ 5Hz; playback qua tile CDN</span><span class="pill chg">Điều chỉnh PRD</span></div>
+    <p><strong>Bối cảnh:</strong> PRD đặt toàn bộ detection 25Hz vào TimescaleDB (~3,1 triệu dòng/trận).</p>
+    <p><strong>Quyết định:</strong> Dữ liệu đầy đủ ở Parquet; DB nhận bản hạ 5Hz; trình phát đọc tile tĩnh.</p>
+    <p><strong>Hệ quả:</strong> DB nhỏ hơn 5×; playback không tải API; tính lại thống kê đọc Parquet. Phải quản lý phiên bản tile theo revision.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-005</span><span class="ti">Suy luận trong tiến trình bằng TensorRT, chưa dùng Triton</span><span class="pill chg">Điều chỉnh PRD</span></div>
+    <p><strong>Bối cảnh:</strong> PRD đề xuất Triton Inference Server.</p>
+    <p><strong>Quyết định:</strong> M1–M3 mỗi gpu-worker giữ một GPU và nạp model trực tiếp. Triton xem xét lại khi cần nhiều worker chia sẻ một GPU lớn.</p>
+    <p><strong>Lý do:</strong> RunPod serverless và self-host một máy không hưởng lợi từ Triton; thêm một dịch vụ phải vận hành và đồng bộ phiên bản. Segment song song đã cho batch lớn.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-006</span><span class="ti">Xử lý song song theo segment + ghép track</span><span class="pill ok">Chấp nhận</span></div>
+    <p><strong>Quyết định:</strong> Segment 120s gối đầu 2s; mô hình đội fit toàn cục trước (S3) để mọi segment dùng chung nhãn đội.</p>
+    <p><strong>Hệ quả:</strong> Đạt mục tiêu thời gian bằng nhiều GPU; retry nhỏ. Rủi ro đổi ID tại ranh giới segment — đo riêng trong golden eval.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-007</span><span class="ti">Live: MediaMTX + WebRTC, overlay vẽ ở client</span><span class="pill chg">Điều chỉnh PRD</span></div>
+    <p><strong>Bối cảnh:</strong> PRD đề xuất đẩy frame JPEG đã annotate qua WebSocket.</p>
+    <p><strong>Quyết định:</strong> Video đi WebRTC trực tiếp; server chỉ gửi toạ độ (~1 KB/frame thay vì ~80 KB).</p>
+    <p><strong>Hệ quả:</strong> Độ trễ thấp hơn, băng thông giảm ~80×; client phải đồng bộ theo pts.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-008</span><span class="ti">Upload multipart trực tiếp lên R2</span><span class="pill chg">Điều chỉnh PRD</span></div>
+    <p><strong>Quyết định:</strong> API chỉ cấp presigned URL; browser đẩy thẳng lên R2 (MinIO khi self-host). Part cố định 16 MiB do ràng buộc của R2.</p>
+    <p><strong>Hệ quả:</strong> API không chịu tải băng thông; resume tự nhiên theo part.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-009</span><span class="ti">Phân đội không giám sát, fit toàn cục, bỏ phiếu theo track</span><span class="pill ok">Chấp nhận</span></div>
+    <p><strong>Quyết định:</strong> SigLIP embedding vùng thân áo → UMAP → KMeans(2) fit trên 300 frame mẫu; mỗi track chốt đội bằng đa số 10 crop.</p>
+    <p><strong>Hệ quả:</strong> Hoạt động với mọi đội; cần người dùng xác nhận tên. Fallback histogram HSV khi chạy CPU.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-010</span><span class="ti">LLM chỉ nhận số liệu có cấu trúc; kiểm tra số liệu trong output</span><span class="pill ok">Chấp nhận</span></div>
+    <p><strong>Quyết định:</strong> Prompt chứa JSON <code>facts</code> có ID; LLM phải trích <code>[f:12]</code> sau mỗi nhận định; bộ kiểm tra trích mọi con số và tên trong output, đối chiếu với <code>facts</code>; không khớp → sinh lại (tối đa 2 lần) rồi đánh dấu cần xem xét.</p>
+    <p><strong>Hệ quả:</strong> Giảm R8; báo cáo kém "văn vẻ" hơn nhưng kiểm chứng được.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-011</span><span class="ti">Cell theo region + control plane toàn cục mỏng</span><span class="pill ok">Chấp nhận</span></div>
+    <p><strong>Bối cảnh:</strong> Q3 — quốc tế, GDPR.</p>
+    <p><strong>Quyết định:</strong> Mỗi region là bản triển khai độc lập đầy đủ; global chỉ giữ danh tính, billing, bảng region của org. JWT mang claim region; web gọi thẳng API của region đó.</p>
+    <p><strong>Hệ quả:</strong> Không truy vấn chéo region; thống kê nội bộ toàn cục chỉ qua dữ liệu tổng hợp ẩn danh.</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-012</span><span class="ti">Kết quả AI bất biến, sửa bằng lớp correction</span><span class="pill ok">Chấp nhận</span></div>
+    <p><strong>Quyết định:</strong> Không ghi đè Parquet; correction có revision; stage hạ nguồn đọc Parquet + corrections.</p>
+    <p><strong>Hệ quả:</strong> Hoàn tác được; correction là dữ liệu huấn luyện quý cho fine-tune (cần đồng ý của người dùng — PRD Q5).</p></div>
+
+  <div class="adr"><div class="h"><span class="id">ADR-013</span><span class="ti">Cloudflare R2 làm object storage cho cloud</span><span class="pill chg">Điều chỉnh PRD</span></div>
+    <p><strong>Bối cảnh:</strong> PRD đề xuất S3. Lưu lượng đọc ra rất lớn: browser tải tile và video, GPU ở RunPod/Lambda (ngoài AWS) đọc video nguồn, người dùng tải export.</p>
+    <p><strong>Quyết định:</strong> Dùng Cloudflare R2 cho mọi artefact ở cloud; MinIO khi self-host. Code chỉ nói S3 API, không dùng tính năng riêng của AWS.</p>
+    <p><strong>Lý do:</strong> R2 không tính phí egress — với kiến trúc hybrid GPU nhiều nhà cung cấp, đây là khoản tiết kiệm lớn nhất; tích hợp sẵn Cloudflare CDN + Worker để phục vụ tile riêng tư; có jurisdiction EU cho GDPR.</p>
+    <p><strong>Đánh đổi:</strong> Part multipart phải cùng kích thước; presigned URL chỉ chạy trên endpoint S3 API; không có lớp lưu trữ archive kiểu Glacier (chỉ Standard và Infrequent Access); không dựa vào object versioning; nếu worker chạy trong AWS thì đọc R2 đi qua internet công cộng (độ trễ cao hơn S3 cùng region — chấp nhận được vì stage đọc tuần tự theo segment lớn).</p></div>
+
+</section>
+
+<!-- ============ 20 ============ -->
+<section id="s20">
+  <h2><span class="n">20</span>Điều chỉnh so với PRD &amp; việc cần chốt</h2>
+  <table>
+    <thead><tr><th>#</th><th>Mục PRD</th><th>Đề xuất</th><th>Cần</th></tr></thead>
+    <tbody>
+      <tr><td>C1</td><td>NFR: "Trận 90' ≤ 20 phút trên 1× T4" + "≥ 25 FPS"</td><td><strong>≤ 20 phút với 1× RTX 4090 hoặc ≥ 2× L4 song song (stride 1)</strong>; ≥ 50 FPS / 1× T4; chế độ "nhanh" stride 2 ≤ 15 phút trên 1× L4. Đã cập nhật PRD v1.2.</td><td>Đã chốt</td></tr>
+      <tr><td>C2</td><td>Mục 7: Triton Inference Server</td><td>Hoãn — ADR-005</td><td>Thông báo</td></tr>
+      <tr><td>C3</td><td>Mục 8: detection 25Hz trong TimescaleDB</td><td>Parquet + DB 5Hz + tile — ADR-004</td><td>Thông báo</td></tr>
+      <tr><td>C4</td><td>Mục 9: upload chunk qua API; WS gửi JPEG ở live</td><td>Presigned multipart lên R2; WebRTC + toạ độ — ADR-007, 008</td><td>Thông báo</td></tr>
+      <tr><td>C5</td><td>Mục 7 PRD: PostgreSQL đơn</td><td>Tách control plane global + DB regional — ADR-011</td><td>Thông báo</td></tr>
+      <tr><td>C6</td><td>Mục 7 PRD: S3 làm object storage</td><td>Cloudflare R2 (cloud) + MinIO (self-host) — ADR-013</td><td>Đã chốt</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Việc tiếp theo</h3>
+  <ol>
+        <li><strong>Spike 3 ngày</strong> xác nhận bảng 15.1 trên RTX 4090, L4 và T4 — ưu tiên đo hai mục tiêu biên mỏng (T4 ≥ 50 FPS, L4 stride 2 ≤ 15'); xác nhận ghép track ở ranh giới segment không gây đổi ID quá nhiều.</li>
+    <li>Dựng khung monorepo theo mục 5 kèm Compose (mục 13.1) và <code>ComputeBackend</code> với <code>LocalGpuBackend</code>.</li>
+    <li>Viết ADR thành file riêng trong <code>docs/adr/</code> khi bắt đầu code.</li>
+  </ol>
+</section>
+
+</main>
+</div>
+
+<footer>
+  PitchVision AI — Architecture Design v1.2 (broadcast-first) · 2026-10-05 · Dựa trên PRD v1.2 · Object storage: Cloudflare R2 · Trạng thái: Bản thảo, chờ review
+</footer>
+
+<button class="theme" id="themeBtn">◐ Theme</button>
+<script>
+(function(){
+  var btn = document.getElementById('themeBtn');
+  var root = document.documentElement;
+  try{ var saved = localStorage.getItem('pv-theme'); if(saved) root.setAttribute('data-theme', saved); }catch(e){}
+  btn.addEventListener('click', function(){
+    var cur = root.getAttribute('data-theme');
+    if(!cur){ cur = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+    var next = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try{ localStorage.setItem('pv-theme', next); }catch(e){}
+  });
+})();
+</script>
+</body>
+</html>

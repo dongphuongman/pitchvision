@@ -1,0 +1,22 @@
+{
+  "_doc": "SP-09 ground truth. For each video: indices k (frame every 20 s from t=5 s) that are NOT main wide-angle play. Everything else = wide. Labelled visually by Claude on 2026-10-05 from results/sp09/grids — needs a PO spot-check. Rules: wide = elevated main/tactical camera showing play with several players and readable pitch lines (incl. tight zoom of the main camera and fast pans). Non-wide = close-up/medium shot, crowd, bench, graphics/VAR, low-angle or behind-goal camera, pre-match ceremony.",
+  "AZd7qfwQtfM": [2, 8, 9, 10, 11, 13, 16, 18, 22, 27, 30, 32, 33, 35, 37, 42, 43, 44],
+  "BukNW8GRI5A": [2, 10, 11, 14, 19, 20, 22, 24, 26, 31, 34, 37, 41, 43],
+  "EYj9Wbo0n44": [1, 5, 11, 25, 30, 31, 32],
+  "EhqJ8-g1YvU": [0, 5, 8, 11, 13, 14, 15, 18, 20, 22, 23, 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 40, 41, 42, 44],
+  "Ido_K83gIs4": [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 14, 22, 23, 25, 30, 31, 36, 38, 42, 44],
+  "MZjaWGwbtEc": [5, 7, 13, 16, 23, 25, 29, 32, 33, 34, 39, 40, 41],
+  "TAI1eZYx5Kg": [0, 5, 13, 21, 23, 24, 27, 28, 29, 30, 42],
+  "TyCCa3tyhZw": [0, 1, 2, 3, 4, 6, 7, 17, 19, 26, 27, 29, 30, 31, 32, 34, 35, 40, 42],
+  "UKFYHHQzTvM": [0, 8, 11, 17, 26, 40, 42],
+  "WQUD7YPsOho": [0, 7, 10, 14, 15, 31, 36, 40],
+  "ZKLKNUMtL6w": [2, 3, 5, 7, 9, 10, 12, 13, 14, 16, 17, 29, 31, 32, 34, 42, 44],
+  "_DfZB1Y-E_k": [0, 2, 3, 11, 19, 27],
+  "_FPE6jjJQ8M": [8, 22, 24, 29],
+  "aSq-QJh-5UA": [3, 6, 7, 16, 17, 18, 20, 27, 28, 35, 36, 37, 40, 41],
+  "btFTQmt1Dgo": [11, 18, 21, 22, 28, 34, 35, 42],
+  "caZwnRXhkAk": [4, 11, 12, 18, 25, 27, 28, 30, 33, 37, 38, 39, 44],
+  "jYQL469dLjY": [6, 7, 10, 19, 21, 25, 26, 28, 34, 36, 38, 40, 41, 42, 43],
+  "wyKftTv03Ag": [0, 1, 2, 7, 11, 21, 27, 28, 31, 35, 43],
+  "zQqjHc_ZGcc": [3, 4, 5, 11, 12, 13, 21, 22, 26, 27, 29, 32, 36, 37, 41, 43]
+}

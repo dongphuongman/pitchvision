@@ -1,0 +1,221 @@
+{
+  "$defs": {
+    "CompletedData": {
+      "properties": {
+        "video_id": {
+          "title": "Video Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "video_id"
+      ],
+      "title": "CompletedData",
+      "type": "object"
+    },
+    "CompletedEvent": {
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/CompletedData"
+        },
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        },
+        "type": {
+          "const": "completed",
+          "default": "completed",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic",
+        "data"
+      ],
+      "title": "CompletedEvent",
+      "type": "object"
+    },
+    "ErrorCode": {
+      "enum": [
+        "VALIDATION_FAILED",
+        "NOT_FOUND",
+        "UNAUTHENTICATED",
+        "FORBIDDEN",
+        "CONFLICT",
+        "IDEMPOTENCY_KEY_REQUIRED",
+        "IDEMPOTENCY_KEY_REUSED",
+        "QUOTA_EXCEEDED",
+        "RATE_LIMITED",
+        "INTERNAL",
+        "VIDEO_UNREADABLE",
+        "NO_WIDE_SHOTS",
+        "TEAM_SEPARATION_FAILED",
+        "HOMOGRAPHY_UNAVAILABLE",
+        "INGEST_FAILED"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    },
+    "FailedData": {
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "retryable"
+      ],
+      "title": "FailedData",
+      "type": "object"
+    },
+    "FailedEvent": {
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/FailedData"
+        },
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        },
+        "type": {
+          "const": "failed",
+          "default": "failed",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic",
+        "data"
+      ],
+      "title": "FailedEvent",
+      "type": "object"
+    },
+    "ProgressData": {
+      "properties": {
+        "eta_s": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eta S"
+        },
+        "fps": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fps"
+        },
+        "pct": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Pct",
+          "type": "number"
+        },
+        "segments": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SegmentCounts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "pct"
+      ],
+      "title": "ProgressData",
+      "type": "object"
+    },
+    "ProgressEvent": {
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/ProgressData"
+        },
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        },
+        "type": {
+          "const": "progress",
+          "default": "progress",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic",
+        "data"
+      ],
+      "title": "ProgressEvent",
+      "type": "object"
+    },
+    "SegmentCounts": {
+      "properties": {
+        "done": {
+          "title": "Done",
+          "type": "integer"
+        },
+        "running": {
+          "title": "Running",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "done",
+        "running",
+        "total"
+      ],
+      "title": "SegmentCounts",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "completed": "#/$defs/CompletedEvent",
+      "failed": "#/$defs/FailedEvent",
+      "progress": "#/$defs/ProgressEvent"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ProgressEvent"
+    },
+    {
+      "$ref": "#/$defs/CompletedEvent"
+    },
+    {
+      "$ref": "#/$defs/FailedEvent"
+    }
+  ]
+}

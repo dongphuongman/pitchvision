@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SP-08 Overlay Sync</title>
+<style>
+  :root { --bg:#0f1115; --fg:#e8eaed; --muted:#9aa0a6; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, sans-serif; padding:16px; }
+  h1 { font-size:18px; margin:0 0 8px; }
+  .stage { position:relative; width:min(100%, 960px); aspect-ratio:16/9; background:#000; }
+  .stage video, .stage canvas { position:absolute; inset:0; width:100%; height:100%; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; align-items:center; }
+  button { background:#1f2430; color:var(--fg); border:1px solid #333a48; border-radius:6px; padding:6px 10px; cursor:pointer; }
+  pre { background:#151922; padding:10px; border-radius:6px; overflow:auto; max-width:960px; }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<h1>SP-08 — overlay sync with requestVideoFrameCallback</h1>
+<p class="muted">Frame index is burned into the top-left barcode. Each sample compares it with the index the overlay would use.</p>
+<div class="stage">
+  <video id="v" src="clip.mp4" muted playsinline preload="auto"></video>
+  <canvas id="ov"></canvas>
+</div>
+<div class="row">
+  <button id="run">Run automatic test</button>
+  <button id="play">Play / pause</button>
+  <label><input type="checkbox" id="naive"> draw overlay from currentTime (naive)</label>
+</div>
+<pre id="out">loading…</pre>
+<script>
+const v = document.getElementById('v'), ov = document.getElementById('ov'), out = document.getElementById('out');
+const octx = ov.getContext('2d');
+const probe = document.createElement('canvas');
+const pctx = probe.getContext('2d', { willReadFrequently: true });
+let meta, phase = 'idle';
+const stats = {};  // phase -> method -> {n, exact, within1, maxAbs, hist}
+
+function record(method, derived, truth) {
+  if (truth < 0) return;
+  const s = ((stats[phase] ||= {})[method] ||= { n: 0, exact: 0, within1: 0, maxAbs: 0, hist: {} });
+  const d = derived - truth;
+  s.n++; if (d === 0) s.exact++; if (Math.abs(d) <= 1) s.within1++;
+  s.maxAbs = Math.max(s.maxAbs, Math.abs(d)); s.hist[d] = (s.hist[d] || 0) + 1;
+}
+
+// Read the barcode from the frame the video element currently presents. -1 if guards are not found.
+function readBarcode() {
+  const c = meta.cell, n = meta.bits + 2;
+  pctx.drawImage(v, 0, 0, n * c, c, 0, 0, n * c, c);
+  const px = pctx.getImageData(0, 0, n * c, c).data;
+  const bit = i => { const o = ((c >> 1) * n * c + i * c + (c >> 1)) * 4; return (px[o] + px[o + 1] + px[o + 2]) / 3 > 128 ? 1 : 0; };
+  if (bit(0) !== 1 || bit(n - 1) !== 0) return -1;
+  let x = 0; for (let i = 1; i <= meta.bits; i++) x = (x << 1) | bit(i);
+  return x;
+}
+
+function drawOverlay(idx) {
+  const sx = ov.width / meta.width, sy = ov.height / meta.height;
+  octx.clearRect(0, 0, ov.width, ov.height);
+  for (const [x1, y1, x2, y2, k] of meta.frames[idx] || []) {
+    octx.strokeStyle = k === 32 ? '#ff3b30' : '#34c759'; octx.lineWidth = k === 32 ? 3 : 2;
+    octx.strokeRect(x1 * sx, y1 * sy, (x2 - x1) * sx, (y2 - y1) * sy);
+  }
+  octx.fillStyle = '#fff'; octx.font = '16px system-ui'; octx.fillText(`overlay frame ${idx}`, 10, ov.height - 12);
+}
+
+const fromTime = t => Math.round(t * meta.fps);          // mediaTime is the frame's PTS → round
+const naiveFromTime = t => Math.floor(t * meta.fps);     // what a timeupdate/rAF overlay typically does
+
+let lastPresented = 0, missed = 0;
+function onFrame(now, m) {
+  const truth = readBarcode();
+  const idx = fromTime(m.mediaTime);
+  record('rvfc_mediaTime', idx, truth);
+  if (phase.startsWith('play') && lastPresented && m.presentedFrames - lastPresented > 1) missed += m.presentedFrames - lastPresented - 1;
+  lastPresented = m.presentedFrames;
+  if (!document.getElementById('naive').checked) drawOverlay(idx);
+  v.requestVideoFrameCallback(onFrame);
+}
+function onRaf() {
+  if (!v.paused && meta) {
+    const truth = readBarcode();
+    const idx = naiveFromTime(v.currentTime);
+    record('raf_currentTime', idx, truth);
+    if (document.getElementById('naive').checked) drawOverlay(idx);
+  }
+  requestAnimationFrame(onRaf);
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const nextFrame = () => new Promise(r => v.requestVideoFrameCallback((n, m) => r(m)));
+
+async function runTest() {
+  for (const k of Object.keys(stats)) delete stats[k];
+  missed = 0; lastPresented = 0; window.__sp08 = null;
+  if (v.readyState < 2) await new Promise(r => v.addEventListener('loadeddata', r, { once: true }));
+  { const p = nextFrame(); v.currentTime = 0.5 / meta.fps; await p; }  // a real seek, so a frame is presented
+  phase = 'play_1x'; v.playbackRate = 1; await v.play(); await sleep(15000);
+  phase = 'play_2x'; v.playbackRate = 2; await sleep(10000);
+  v.pause(); v.playbackRate = 1;
+  phase = 'seek_paused';
+  const seeks = [];
+  for (let i = 0; i < 40; i++) {
+    const k = Math.floor(Math.random() * (meta.frames.length - 1));
+    const target = (k + 0.5) / meta.fps;  // mid-frame: frame k must be shown
+    const p = nextFrame(); v.currentTime = target; await p; await sleep(30);
+    const truth = readBarcode();
+    record('seek_currentTime', naiveFromTime(v.currentTime), truth);
+    seeks.push(truth === k);
+  }
+  phase = 'idle';
+  const res = { ua: navigator.userAgent, missedCallbacksDuringPlay: missed, seekTargetShown: seeks.filter(Boolean).length + '/' + seeks.length, stats };
+  window.__sp08 = res;
+  console.log('[SP08] ' + JSON.stringify(res));
+  render();
+}
+
+function render() { out.textContent = JSON.stringify({ phase, missedCallbacksDuringPlay: missed, result: window.__sp08 ? 'done' : null, stats }, null, 1); }
+
+fetch('overlay.json').then(r => r.json()).then(m => {
+  meta = m;
+  ov.width = ov.clientWidth * devicePixelRatio; ov.height = ov.clientHeight * devicePixelRatio;
+  probe.width = (meta.bits + 2) * meta.cell; probe.height = meta.cell;
+  if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) { out.textContent = 'requestVideoFrameCallback not supported'; return; }
+  v.requestVideoFrameCallback(onFrame); requestAnimationFrame(onRaf);
+  setInterval(render, 1000); render();
+  if (location.hash === '#auto') {
+    const go = () => document.visibilityState === 'visible' ? runTest() : document.addEventListener('visibilitychange', go, { once: true });
+    go();
+  }
+});
+document.getElementById('run').onclick = runTest;
+document.getElementById('play').onclick = () => v.paused ? v.play() : v.pause();
+</script>
+</body>
+</html>

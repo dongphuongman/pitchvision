@@ -1,0 +1,125 @@
+{
+  "updated": "2026-10-05",
+  "items": [
+    {
+      "id": "SP-01",
+      "title": "Golden set broadcast (clip + nhãn)",
+      "state": "partial",
+      "note": "19/20 trận × 15 phút đã tải (data/golden). Thiếu J1 League do YouTube bot-check. Nhãn loại cảnh 855 khung đã có (SP-09); nhãn bbox/đội chưa làm."
+    },
+    {
+      "id": "SP-02",
+      "title": "FPS detector theo GPU",
+      "state": "partial",
+      "note": "<strong>Mac M4 (MPS, YOLOv11-m COCO):</strong> ~9 fps ở 1280 và 960, batch không giúp → máy dev không dùng để xử lý trận (90' ≈ 4,3 giờ). Giải mã + resize CPU 78 fps — không phải nút thắt. CoreML export lỗi (coremltools chưa hỗ trợ torch 2.14) — bỏ, không thuộc kiến trúc. <strong>Chất lượng:</strong> pretrained COCO đã bắt đủ cầu thủ cả vùng bóng râm; trung vị 12 người/frame; thấy bóng ở 54% frame (cần model bóng riêng như AD). <strong>Còn lại:</strong> chạy <code>spikes/sp02_bench.py --backend engine</code> trên 4090 / RunPod L4, T4 để đối chiếu AD 15.1."
+    },
+    {
+      "id": "SP-03",
+      "title": "Homography trên cảnh toàn cảnh",
+      "state": "fail",
+      "note": "<strong>Không đạt G0 với model có sẵn.</strong> Dùng pitch-keypoint pretrained của roboflow/sports (YOLOv8-pose 32 điểm) + RANSAC trên 543 khung toàn cảnh. Metric tự kiểm tra (sai số trên chính các điểm fit) báo 86% \"thành công\" nhưng <strong>overlay cho thấy vạch sân lệch tỉ lệ/vị trí ở đa số khung</strong> → metric đó vô dụng; metric độc lập (vạch chiếu trùng vạch trắng thật) chỉ 0.15–0.3, gần 0% khung đạt. Nguyên nhân thấy được: (1) model \"tưởng tượng\" keypoint tự tin ở mép ảnh (cờ góc, góc vòng cấm ngoài khung); (2) cảnh giữa sân chỉ có vạch giữa + vòng tròn → điểm gần thẳng hàng, hình học suy biến; (3) điểm trên vòng tròn lệch do phối cảnh. Lọc điểm sát mép không cải thiện. <strong>Hướng xử lý (theo bảng G0):</strong> +2 tuần M1 cho calibration: fine-tune keypoint trên SoccerNet-Calibration + nhãn golden set, tinh chỉnh H theo vạch trắng (line-based refinement), làm mượt theo thời gian, thử baseline mã mở của SoccerNet Calibration challenge (vd TVCalib / NBJW). Giấy phép trọng số roboflow (YOLOv8 AGPL) → G-LEGAL. <strong>→ PO duyệt +2 tuần M1 (task M1-CV-18…22).</strong>"
+    },
+    {
+      "id": "SP-04",
+      "title": "Phân đội SigLIP + UMAP + KMeans",
+      "state": "done",
+      "note": "<strong>Đạt G0 (≥ 90%).</strong> 19 trận, ~450 crop thân áo/trận từ 30 khung toàn cảnh; SigLIP-base → UMAP 3D → KMeans(2). Chấm bằng mắt 456 crop mẫu: <strong>~98% đúng đội</strong> (6–7 lỗi, tập trung ở áo sọc Juventus/Hammarby, FC Seoul, MLS NEXT). Baseline HSV chỉ khớp SigLIP 86% (thấp nhất 63%) → giữ SigLIP như ADR-009, HSV chỉ làm fallback CPU. <strong>Cần thêm:</strong> trọng tài/thủ môn bị gộp vào một cụm → bước tách vai trò riêng (FR-204). Code <code>spikes/sp04_teams.py</code>, montage <code>spikes/results/sp04/montage.jpg</code>."
+    },
+    {
+      "id": "SP-05",
+      "title": "Tracking qua ranh giới / cắt cảnh",
+      "state": "partial",
+      "note": "<strong>Baseline không nhãn — rủi ro cao.</strong> 90 s × 2 trận (Lyon–Barca, Miami–LAFC), giải mã tuần tự, 25 fps, YOLOv11-m COCO imgsz 960. <strong>ByteTrack mặc định:</strong> ~13–14 cầu thủ trong khung nhưng 311–320 ID → <strong>mỗi cầu thủ bị chia ~23 ID / 90 s</strong>, track sống trung vị 1,3–2,3 s. <strong>BoT-SORT + bù chuyển động camera (GMC), buffer 3 s:</strong> Lyon 320→255 ID (18 ID/cầu thủ, 3,2 s), Miami không đổi. Chỉ <strong>15–22% track mới sinh ngay sau cắt cảnh</strong> → phần lớn đứt track xảy ra <em>trong</em> cùng một cảnh (người nhỏ, detection chập chờn, che khuất, camera lia), không chủ yếu do cắt cảnh. Tần suất cắt cảnh 4–7 lần/phút (~400–600/trận). <strong>Chưa đo được tiêu chí G0</strong> (ID switch tại ranh giới segment) vì cần nhãn ID. <strong>Hướng xử lý:</strong> detector bóng đá fine-tune ở 1280 px, ReID ngoại hình + ràng buộc đội, <strong>ghép track offline toàn cục</strong> (xử lý offline nên làm được), đo HOTA trên SoccerNet-tracking. Đề xuất dời việc nối track (M1-CV-13 → M2-CV-02) lên sớm hơn hoặc thêm 1 tuần ở M2. <strong>→ PO duyệt +1 tuần M2 (M2-CV-08, M2-CV-09).</strong>"
+    },
+    {
+      "id": "SP-06",
+      "title": "Parity 4090 vs RunPod",
+      "state": "blocked",
+      "note": "Cần tài khoản RunPod + máy 4090."
+    },
+    {
+      "id": "SP-07",
+      "title": "Upload multipart lên R2",
+      "state": "done",
+      "note": "<strong>Đạt trên Cloudflare R2 thật.</strong> Trình duyệt PUT thẳng từng part lên R2 qua presigned URL (API chỉ tạo upload, ký theo lô 32 URL, complete); XHR để có tiến độ; retry backoff; resume bằng localStorage + ListParts. Bucket <code>pitchvision-spike</code> (APAC), token chỉ Object R/W trên bucket đó, hết hạn 04/11/2026. File golden 663 MB, part 16 MiB (40 part), Chrome headless từ mạng nhà: <strong>4 luồng 7,3 MB/s, 8 luồng 20,7 MB/s</strong>; <strong>20% part bị ngắt → 9 retry, vẫn xong</strong> (14 MB/s); <strong>đóng tab sau 11/40 part → mở lại resume 29 part</strong> (16 MB/s). md5 object = md5 file ở mọi kịch bản; object thử đã xoá. Tốc độ phụ thuộc mạng uplink, không phải giới hạn R2 → mặc định FE nên dùng 6–8 luồng. Bắt buộc: CORS bucket có <code>ExposeHeaders: ETag</code>; part bằng nhau (trừ part cuối), ≥ 5 MiB; R2 có sẵn rule tự huỷ multipart bỏ dở. Cùng code chạy được trên S3 local (SeaweedFS). <strong>Phát hiện phụ:</strong> image MinIO không còn kéo công khai được → AD “MinIO self-host” cần thay (SeaweedFS/Garage, chờ PO). Code: <code>spikes/sp07_upload/</code> (server.py, index.html, .env không commit), <code>spikes/sp07_run.py</code>; kết quả <code>spikes/results/sp07/sp07_results_r2.json</code>."
+    },
+    {
+      "id": "SP-08",
+      "title": "Sync overlay requestVideoFrameCallback",
+      "state": "done",
+      "note": "<strong>Đạt — dùng requestVideoFrameCallback + <code>round(mediaTime × 25)</code> cho overlay.</strong> Clip 60 s (25 fps, 1280×720, GOP 2 s) có khắc mã nhị phân số khung; trang test đọc mã từ khung đang hiển thị và so với chỉ số overlay. Chrome (headless, giải mã GPU và phần mềm): <strong>rVFC 1× khớp đúng khung 100%</strong> (~370 mẫu), 2× khớp 93–97% và 100% trong ±1 (lệch −1 là do đọc pixel sau callback, không phải overlay sai); tua khi dừng 40/40 đúng khung. <strong>Cách ngây thơ (rAF + <code>floor(currentTime × fps)</code>)</strong>: 1× chỉ đúng 39–69%, 2× đúng 15–18%, lệch tới 2–4 khung → không dùng. Ở 2× trình duyệt bỏ qua ~40% khung (không callback) — chấp nhận được vì overlay luôn vẽ theo khung thực sự hiển thị. Chưa đo: Safari/Firefox, Chrome có cửa sổ hiển thị thật (tab ẩn thì video không tải). Script: <code>spikes/sp08_prepare.py</code>, <code>spikes/sp08_run.py</code>, trang: <code>spikes/sp08_overlay/</code>, kết quả: <code>spikes/results/sp08/</code>."
+    },
+    {
+      "id": "SP-09",
+      "title": "Shot classifier baseline",
+      "state": "done",
+      "note": "<strong>Đạt G0 (≥ 95%).</strong> 855 khung có nhãn (19 trận, mỗi 20 s), đánh giá leave-videos-out: <strong>GBM 99.1%</strong> (precision toàn cảnh 99.2%, recall 99.5%; trận tệ nhất 95.6%); luật tay (tỷ lệ cỏ + số người + kích thước người) 96.0%. Đặc trưng: tỷ lệ cỏ, vạch trắng, cạnh, số/kích thước người từ YOLO. <strong>Độ phủ toàn cảnh</strong> thực tế: trung vị 71%, thấp nhất 40% (Hearts v Hibs nhiều VAR). <strong>Giới hạn:</strong> nhãn do Claude gán (cần PO soát), mới phân 2 lớp (chưa tách replay), chưa đo phát hiện ranh giới cắt cảnh. Code: <code>spikes/sp09_*.py</code>, kết quả <code>spikes/results/sp09/sp09_results.json</code>."
+    },
+    {
+      "id": "SP-10",
+      "title": "Tải YouTube từ cloud",
+      "state": "partial",
+      "note": "Từ IP dân dụng: 19/20 thành công, bị bot-check sau ~12 GB / 75 phút; cần yt-dlp ≥ 2026.08.19. Chưa đo từ IP datacenter."
+    },
+    {
+      "id": "SP-11",
+      "title": "Detector giấy phép mở (G-LEGAL)",
+      "state": "done",
+      "note": "<strong>Detector giấy phép mở khả thi → đề xuất D-FINE-M (Apache-2.0) làm nền cho M1-CV-04.</strong> 190 khung toàn cảnh (19 trận × 10), Mac M4 MPS, conf 0.35, chỉ chấm người/bóng đứng trên sân (mặt nạ cỏ); chưa có nhãn bbox nên recall đo theo đồng thuận của các họ detector khác + chấm mắt. <strong>YOLOv11-m@1280</strong> (AGPL): ~8–10 fps, 14,9 người/khung, recall người 84%, người nhỏ &lt;40px 30%, bóng ở 48% khung (gần như toàn bóng thật). <strong>D-FINE-M obj2coco@640</strong>: ~9 fps (ngang YOLO), 16,2 người/khung, recall người 98%, người nhỏ 90%, bóng ở 79% khung nhưng ~15–25% bóng giả ở ngưỡng 0.35 (cần chỉnh ngưỡng / fine-tune). RT-DETRv2-R50@640: chậm hơn (5–8 fps), kém D-FINE. Chạy @1280 cho DETR chậm 3–5× và bắt thêm khán giả → không đáng. Chưa đo: TensorRT trên NVIDIA (D-FINE có export ONNX/TRT), độ chính xác sau fine-tune. G-LEGAL cần kiểm tra thêm giấy phép dữ liệu tiền huấn luyện Objects365 của bản obj2coco. Script: <code>spikes/sp11_detectors.py</code>, kết quả + grid: <code>spikes/results/sp11/</code>."
+    }
+  ],
+  "log": [
+    {
+      "date": "2026-10-05",
+      "text": "Tải golden set broadcast v0: 19/20 trận, 7.5 GB, 1080p (1×50 fps, 4×60 fps, 1×25 fps, 13×30 fps). Contact sheet + manifest trong data/golden."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "SP-02 baseline trên Mac M4: 8.6–8.9 fps (MPS), detection pretrained đạt yêu cầu về độ phủ cầu thủ; script benchmark sẵn sàng cho CUDA/TensorRT. Mẫu: <code>spikes/results/sp02_sample.jpg</code>."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "SP-09 xong: phân loại toàn cảnh / không toàn cảnh đạt 99.1% leave-videos-out (luật tay 96.0%). Độ phủ toàn cảnh broadcast trung vị 71% → xác nhận cần badge coverage (PLAN M3)."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "SP-04 xong: phân đội SigLIP+UMAP+KMeans ~98% trên 19 trận broadcast (chấm trực quan), vượt mục tiêu 90%; HSV kém hơn rõ."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "SP-03 KHÔNG ĐẠT: homography từ keypoint pretrained lệch trên đa số khung broadcast. Rủi ro R1 xác nhận → đề xuất thêm 2 tuần calibration vào M1 (chờ PO quyết ở G0)."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "SP-05 baseline: tracker online mặc định phân mảnh ~18–24 ID/cầu thủ/90 s; cắt cảnh chỉ gây ~15–22% số lần đứt. BoT-SORT+GMC cải thiện nhẹ ở 1/2 trận. Cần ghép track offline + ReID; chờ nhãn ID để đo G0."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "Tổng kết spike trên Mac: <strong>đạt</strong> SP-09 (phân loại cảnh 99,1%), SP-04 (phân đội ~98%); <strong>không đạt</strong> SP-03 (homography); <strong>rủi ro cao</strong> SP-05 (tracking); SP-02 chờ GPU NVIDIA. Cần PO quyết ở Gate G0 về +2 tuần calibration và kế hoạch tracking."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "<strong>Gate G0 — PO duyệt:</strong> (1) +2 tuần M1 cho calibration → alpha 04/12/2026; (2) +1 tuần M2 cho ghép track offline + ReID → public beta 26/01/2027; (3) giấy phép model vào G-LEGAL (hạn 15/01/2027) — gồm Ultralytics YOLO AGPL-3.0. 1.0 dời sang 26/03/2027. Chi tiết: mục G0 của PLAN."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "SP-11 xong: D-FINE-M (Apache-2.0) ngang tốc độ YOLOv11-m trên MPS, bắt người nhỏ và bóng tốt hơn trước fine-tune (bóng giả nhiều hơn ở ngưỡng 0.35). Đề xuất PO chọn D-FINE thay Ultralytics trước M1-CV-04 (19/10); giữ Ultralytics Enterprise làm phương án dự phòng."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "SP-08 xong: overlay theo rVFC + mediaTime khớp đúng khung 100% ở 1× và khi tua (Chrome); cách dùng currentTime trong rAF lệch 1–4 khung → FE dùng rVFC (M1-FE overlay)."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "SP-07: upload multipart từ trình duyệt (presigned part, retry, resume) đạt trên S3 local, md5 khớp; còn chạy lại trên R2 thật. MinIO không còn image công khai → đề xuất SeaweedFS/Garage cho bản self-host (cần sửa AD)."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "<strong>PO chốt G-LEGAL detector:</strong> D-FINE (Apache-2.0) làm nền cho M1-CV-04, Ultralytics Enterprise là dự phòng. Đã cập nhật AD/PLAN/PRD. Còn mở: keypoint sân M1-CV-05 (YOLOv11-pose, AGPL), giấy phép Objects365."
+    },
+    {
+      "date": "2026-10-05",
+      "text": "SP-07 xong trên R2 thật: upload multipart từ trình duyệt 663 MB, 8 luồng ~21 MB/s (mạng nhà), retry khi lỗi và resume sau khi đóng tab đều đạt, md5 khớp. Bucket pitchvision-spike + CORS + token giới hạn đã cấu hình."
+    }
+  ]
+}

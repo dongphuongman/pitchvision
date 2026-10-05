@@ -1,0 +1,173 @@
+{
+  "BukNW8GRI5A": {
+    "category": "men",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.21,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "ZKLKNUMtL6w": {
+    "category": "men",
+    "frames": 28,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.26,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "TyCCa3tyhZw": {
+    "category": "men",
+    "frames": 26,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.2,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "TAI1eZYx5Kg": {
+    "category": "men",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.17,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "WQUD7YPsOho": {
+    "category": "men",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.11,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "wyKftTv03Ag": {
+    "category": "men",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 8,
+    "median_alignment": 0.21,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "EhqJ8-g1YvU": {
+    "category": "men",
+    "frames": 18,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.16,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "UKFYHHQzTvM": {
+    "category": "women",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 9,
+    "median_alignment": 0.17,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "caZwnRXhkAk": {
+    "category": "women",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.16,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "Ido_K83gIs4": {
+    "category": "women",
+    "frames": 25,
+    "success": 0.0,
+    "median_kp": 8,
+    "median_alignment": 0.11,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "MZjaWGwbtEc": {
+    "category": "women",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.12,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "zQqjHc_ZGcc": {
+    "category": "women",
+    "frames": 29,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.28,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "btFTQmt1Dgo": {
+    "category": "women",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 5,
+    "median_alignment": 0.16,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "aSq-QJh-5UA": {
+    "category": "women",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.15,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "_DfZB1Y-E_k": {
+    "category": "youth",
+    "frames": 30,
+    "success": 0.033,
+    "median_kp": 11,
+    "median_alignment": 0.2,
+    "median_reproj_m": 0.06,
+    "feet_inside_pitch": 1.0
+  },
+  "EYj9Wbo0n44": {
+    "category": "youth",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 8,
+    "median_alignment": 0.14,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "AZd7qfwQtfM": {
+    "category": "youth",
+    "frames": 27,
+    "success": 0.0,
+    "median_kp": 8,
+    "median_alignment": 0.28,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "jYQL469dLjY": {
+    "category": "youth",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 7,
+    "median_alignment": 0.15,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  },
+  "_FPE6jjJQ8M": {
+    "category": "youth",
+    "frames": 30,
+    "success": 0.0,
+    "median_kp": 8,
+    "median_alignment": 0.17,
+    "median_reproj_m": null,
+    "feet_inside_pitch": null
+  }
+}

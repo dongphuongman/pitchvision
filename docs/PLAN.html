@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PitchVision Implementation Plan</title>
+<style>
+  :root{
+    --bg:#0b1016; --bg-2:#121a24; --bg-3:#18222e; --line:#243345; --line-soft:#1b2734;
+    --fg:#e6edf5; --fg-2:#9fb0c3; --fg-3:#6e8299;
+    --accent:#3ddc84; --accent-2:#4da3ff; --warn:#ffb648; --danger:#ff6b6b; --violet:#b07cff;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f6f8fa; --bg-2:#ffffff; --bg-3:#eef2f6; --line:#d8e0e8; --line-soft:#e6ecf2;
+      --fg:#15202b; --fg-2:#4a5d70; --fg-3:#73849a;
+      --accent:#0f9d58; --accent-2:#1a73e8; --warn:#b26a00; --danger:#c62828; --violet:#6a3fc8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1016; --bg-2:#121a24; --bg-3:#18222e; --line:#243345; --line-soft:#1b2734;
+    --fg:#e6edf5; --fg-2:#9fb0c3; --fg-3:#6e8299;
+    --accent:#3ddc84; --accent-2:#4da3ff; --warn:#ffb648; --danger:#ff6b6b; --violet:#b07cff;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8fa; --bg-2:#ffffff; --bg-3:#eef2f6; --line:#d8e0e8; --line-soft:#e6ecf2;
+    --fg:#15202b; --fg-2:#4a5d70; --fg-3:#73849a;
+    --accent:#0f9d58; --accent-2:#1a73e8; --warn:#b26a00; --danger:#c62828; --violet:#6a3fc8;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 16px;display:grid;grid-template-columns:240px 1fr;gap:40px}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr;gap:0} nav.toc{display:none}}
+  header.top{border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg-2),var(--bg));padding:48px 0 36px;margin-bottom:28px}
+  header.top .inner{max-width:1240px;margin:0 auto;padding:0 16px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}
+  .sub{color:var(--fg-2);font-size:17px;max-width:70ch;margin:0 0 20px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-family:var(--mono);font-size:11.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--fg-2);background:var(--bg-3)}
+  .chip.on{border-color:var(--accent);color:var(--accent)}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;padding-bottom:40px}
+  nav.toc div.t{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-3);margin:0 0 10px}
+  nav.toc a{display:block;color:var(--fg-2);text-decoration:none;font-size:13.5px;padding:4px 10px;border-left:2px solid var(--line-soft);line-height:1.4}
+  nav.toc a:hover{color:var(--fg);border-left-color:var(--accent);background:var(--bg-3)}
+  main{min-width:0;padding-bottom:80px}
+  section{margin:0 0 56px;scroll-margin-top:16px}
+  h2{font-size:24px;letter-spacing:-.01em;margin:0 0 6px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  h2 .n{font-family:var(--mono);font-size:14px;color:var(--accent);margin-right:10px}
+  h3{font-size:17px;margin:28px 0 8px}
+  h4{font-size:14px;margin:18px 0 6px;color:var(--fg-2);font-family:var(--mono);font-weight:600}
+  p{margin:0 0 12px;color:var(--fg-2)}
+  p strong,li strong,td strong{color:var(--fg)}
+  ul,ol{margin:0 0 14px;padding-left:22px;color:var(--fg-2)} li{margin:3px 0}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--bg-3);border:1px solid var(--line-soft);padding:1px 5px;border-radius:5px;color:var(--accent-2)}
+  pre{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55;color:var(--fg-2);margin:0 0 16px}
+  pre code{background:none;border:none;padding:0;color:inherit}
+  table{width:100%;border-collapse:collapse;margin:0 0 18px;font-size:13.3px;display:block;overflow-x:auto}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{color:var(--fg-3);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{color:var(--fg-2)}
+  td.id{font-family:var(--mono);font-size:11.5px;color:var(--fg-3);white-space:nowrap}
+  tbody tr:hover{background:var(--bg-2)}
+  .card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin:0 0 16px}
+  .card h4{margin-top:0}
+  .card ul:last-child,.card p:last-child{margin-bottom:0}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:16px}
+  .grid2 .card{margin:0}
+  .note{border-left:3px solid var(--accent-2);background:var(--bg-2);padding:12px 16px;border-radius:0 var(--radius) var(--radius) 0;margin:0 0 16px}
+  .note.warn{border-left-color:var(--warn)} .note.risk{border-left-color:var(--danger)} .note.ok{border-left-color:var(--accent)}
+  .note p:last-child,.note ul:last-child{margin-bottom:0}
+  .note .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-2);display:block;margin-bottom:4px}
+  .note.warn .lbl{color:var(--warn)} .note.risk .lbl{color:var(--danger)} .note.ok .lbl{color:var(--accent)}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:4px;border:1px solid var(--line);color:var(--fg-3);white-space:nowrap}
+  .cv{color:#c49bff;border-color:#b07cff55} .be{color:var(--accent-2);border-color:color-mix(in srgb,var(--accent-2) 40%,transparent)} .fe{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent)} .ops{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)} .all{color:var(--fg-2)}
+  .m1{border-color:#3ddc8455;color:#3ddc84} .m2{border-color:#4da3ff55;color:#4da3ff} .m3{border-color:#ffb64855;color:#e0a040} .m4{border-color:#b07cff55;color:#b07cff}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+  .kpi div{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .kpi .v{font-size:24px;font-weight:650;color:var(--accent);letter-spacing:-.02em;font-family:var(--mono)}
+  .kpi .k{font-size:12px;color:var(--fg-3);margin-top:2px}
+  .mermaid-wrap{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:0 0 18px;overflow-x:auto}
+  pre.mermaid{margin:0;background:none;border:none;font-size:12px;text-align:center}
+  .wk{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin:0 0 18px}
+  .wk .card{margin:0;padding:14px 16px}
+  .wk h4{display:flex;gap:8px;align-items:center;margin:0 0 8px}
+  .wk ul{font-size:13.5px;padding-left:18px}
+  .gate{display:flex;gap:14px;align-items:flex-start}
+  .gate .g{font-family:var(--mono);font-weight:700;color:var(--warn);font-size:13px;white-space:nowrap;padding-top:2px}
+  .chk{list-style:none;padding-left:0}
+  .chk li::before{content:"☐ ";color:var(--fg-3);font-family:var(--mono)}
+  footer{border-top:1px solid var(--line);padding:24px 16px 60px;color:var(--fg-3);font-size:12.5px;max-width:1240px;margin:0 auto;font-family:var(--mono)}
+  .theme{position:fixed;right:16px;bottom:16px;background:var(--bg-2);border:1px solid var(--line);color:var(--fg-2);border-radius:999px;padding:8px 14px;font-family:var(--mono);font-size:12px;cursor:pointer;z-index:50}
+  .theme:hover{color:var(--fg);border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="inner">
+    <p class="eyebrow">Implementation Plan · v1.2 · Broadcast-first · sau Gate G0</p>
+    <h1>PitchVision AI — Kế hoạch triển khai</h1>
+    <p class="sub">Đợt triển khai này tập trung vào <strong>các trận đấu đã phát sóng</strong> (broadcast, có trên YouTube hoặc file ghi lại). Live stream và camera riêng của CLB (Veo, Pixellot, camera khán đài) chuyển sang <strong>Phase C</strong> sau bản 1.0.</p>
+    <div class="meta">
+      <span class="chip on">Broadcast-first</span>
+      <span class="chip on">Bắt đầu: 07/10/2026</span>
+      <span class="chip on">Alpha: 04/12/2026</span>
+      <span class="chip on">Beta: 26/01/2027</span>
+      <span class="chip on">1.0: 26/03/2027</span>
+      <span class="chip">Phase C (camera): sau 1.0</span>
+      <span class="chip">Đội 3 người + DevOps bán thời gian</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<nav class="toc">
+  <div class="t">Mục lục</div>
+  <a href="#status">▶ Trạng thái thực hiện</a>
+  <a href="#g0">G0. Quyết định Gate G0 (v1.2)</a>
+  <a href="#s0">0. Thay đổi so với v1.0</a>
+  <a href="#s1">1. Tóm tắt</a>
+  <a href="#s2">2. Giả định &amp; đội ngũ</a>
+  <a href="#s3">3. Timeline tổng</a>
+  <a href="#s4">4. Phase 0 — Spike</a>
+  <a href="#s5">5. M1 — Broadcast → Tactical map</a>
+  <a href="#s6">6. M2 — Tracking xuyên cắt cảnh</a>
+  <a href="#s7">7. M3 — Thống kê &amp; Billing</a>
+  <a href="#s8">8. M4 — Chiến thuật &amp; AI report</a>
+  <a href="#s8c">9. Phase C — Camera &amp; Live</a>
+  <a href="#s9">10. Đường găng &amp; phụ thuộc</a>
+  <a href="#s10">11. Cổng quyết định</a>
+  <a href="#s11">12. Truy vết yêu cầu</a>
+  <a href="#s12">13. Chất lượng &amp; Kiểm thử</a>
+  <a href="#s13">14. Hạ tầng &amp; Môi trường</a>
+  <a href="#s14">15. Phát hành</a>
+  <a href="#s15">16. Rủi ro thực thi</a>
+  <a href="#s16">17. Cách làm việc</a>
+  <a href="#s17">18. Tuần đầu tiên</a>
+</nav>
+
+<main>
+
+<!-- STATUS:BEGIN -->
+<section id="status">
+  <h2><span class="n">▶</span>Trạng thái thực hiện</h2>
+  <p>Cập nhật: <code>2026-10-05</code> · Xong: <strong>5</strong> · Một phần: <strong>4</strong> · Bị chặn: <strong>1</strong> · Không đạt: <strong>1</strong>. Nguồn: <code>docs/status.json</code> → <code>python3 docs/update_status.py</code>.</p>
+  <table>
+    <thead><tr><th>ID</th><th>Hạng mục</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td class="id">SP-01</td><td>Golden set broadcast (clip + nhãn)</td><td><span class="pill" style="color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)">Một phần</span></td><td>19/20 trận × 15 phút đã tải (data/golden). Thiếu J1 League do YouTube bot-check. Nhãn loại cảnh 855 khung đã có (SP-09); nhãn bbox/đội chưa làm.</td></tr>
+      <tr><td class="id">SP-02</td><td>FPS detector theo GPU</td><td><span class="pill" style="color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)">Một phần</span></td><td><strong>Mac M4 (MPS, YOLOv11-m COCO):</strong> ~9 fps ở 1280 và 960, batch không giúp → máy dev không dùng để xử lý trận (90' ≈ 4,3 giờ). Giải mã + resize CPU 78 fps — không phải nút thắt. CoreML export lỗi (coremltools chưa hỗ trợ torch 2.14) — bỏ, không thuộc kiến trúc. <strong>Chất lượng:</strong> pretrained COCO đã bắt đủ cầu thủ cả vùng bóng râm; trung vị 12 người/frame; thấy bóng ở 54% frame (cần model bóng riêng như AD). <strong>Còn lại:</strong> chạy <code>spikes/sp02_bench.py --backend engine</code> trên 4090 / RunPod L4, T4 để đối chiếu AD 15.1.</td></tr>
+      <tr><td class="id">SP-03</td><td>Homography trên cảnh toàn cảnh</td><td><span class="pill" style="color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,transparent)">Không đạt</span></td><td><strong>Không đạt G0 với model có sẵn.</strong> Dùng pitch-keypoint pretrained của roboflow/sports (YOLOv8-pose 32 điểm) + RANSAC trên 543 khung toàn cảnh. Metric tự kiểm tra (sai số trên chính các điểm fit) báo 86% "thành công" nhưng <strong>overlay cho thấy vạch sân lệch tỉ lệ/vị trí ở đa số khung</strong> → metric đó vô dụng; metric độc lập (vạch chiếu trùng vạch trắng thật) chỉ 0.15–0.3, gần 0% khung đạt. Nguyên nhân thấy được: (1) model "tưởng tượng" keypoint tự tin ở mép ảnh (cờ góc, góc vòng cấm ngoài khung); (2) cảnh giữa sân chỉ có vạch giữa + vòng tròn → điểm gần thẳng hàng, hình học suy biến; (3) điểm trên vòng tròn lệch do phối cảnh. Lọc điểm sát mép không cải thiện. <strong>Hướng xử lý (theo bảng G0):</strong> +2 tuần M1 cho calibration: fine-tune keypoint trên SoccerNet-Calibration + nhãn golden set, tinh chỉnh H theo vạch trắng (line-based refinement), làm mượt theo thời gian, thử baseline mã mở của SoccerNet Calibration challenge (vd TVCalib / NBJW). Giấy phép trọng số roboflow (YOLOv8 AGPL) → G-LEGAL. <strong>→ PO duyệt +2 tuần M1 (task M1-CV-18…22).</strong></td></tr>
+      <tr><td class="id">SP-04</td><td>Phân đội SigLIP + UMAP + KMeans</td><td><span class="pill" style="color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)">Xong</span></td><td><strong>Đạt G0 (≥ 90%).</strong> 19 trận, ~450 crop thân áo/trận từ 30 khung toàn cảnh; SigLIP-base → UMAP 3D → KMeans(2). Chấm bằng mắt 456 crop mẫu: <strong>~98% đúng đội</strong> (6–7 lỗi, tập trung ở áo sọc Juventus/Hammarby, FC Seoul, MLS NEXT). Baseline HSV chỉ khớp SigLIP 86% (thấp nhất 63%) → giữ SigLIP như ADR-009, HSV chỉ làm fallback CPU. <strong>Cần thêm:</strong> trọng tài/thủ môn bị gộp vào một cụm → bước tách vai trò riêng (FR-204). Code <code>spikes/sp04_teams.py</code>, montage <code>spikes/results/sp04/montage.jpg</code>.</td></tr>
+      <tr><td class="id">SP-05</td><td>Tracking qua ranh giới / cắt cảnh</td><td><span class="pill" style="color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)">Một phần</span></td><td><strong>Baseline không nhãn — rủi ro cao.</strong> 90 s × 2 trận (Lyon–Barca, Miami–LAFC), giải mã tuần tự, 25 fps, YOLOv11-m COCO imgsz 960. <strong>ByteTrack mặc định:</strong> ~13–14 cầu thủ trong khung nhưng 311–320 ID → <strong>mỗi cầu thủ bị chia ~23 ID / 90 s</strong>, track sống trung vị 1,3–2,3 s. <strong>BoT-SORT + bù chuyển động camera (GMC), buffer 3 s:</strong> Lyon 320→255 ID (18 ID/cầu thủ, 3,2 s), Miami không đổi. Chỉ <strong>15–22% track mới sinh ngay sau cắt cảnh</strong> → phần lớn đứt track xảy ra <em>trong</em> cùng một cảnh (người nhỏ, detection chập chờn, che khuất, camera lia), không chủ yếu do cắt cảnh. Tần suất cắt cảnh 4–7 lần/phút (~400–600/trận). <strong>Chưa đo được tiêu chí G0</strong> (ID switch tại ranh giới segment) vì cần nhãn ID. <strong>Hướng xử lý:</strong> detector bóng đá fine-tune ở 1280 px, ReID ngoại hình + ràng buộc đội, <strong>ghép track offline toàn cục</strong> (xử lý offline nên làm được), đo HOTA trên SoccerNet-tracking. Đề xuất dời việc nối track (M1-CV-13 → M2-CV-02) lên sớm hơn hoặc thêm 1 tuần ở M2. <strong>→ PO duyệt +1 tuần M2 (M2-CV-08, M2-CV-09).</strong></td></tr>
+      <tr><td class="id">SP-06</td><td>Parity 4090 vs RunPod</td><td><span class="pill" style="color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,transparent)">Bị chặn</span></td><td>Cần tài khoản RunPod + máy 4090.</td></tr>
+      <tr><td class="id">SP-07</td><td>Upload multipart lên R2</td><td><span class="pill" style="color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)">Xong</span></td><td><strong>Đạt trên Cloudflare R2 thật.</strong> Trình duyệt PUT thẳng từng part lên R2 qua presigned URL (API chỉ tạo upload, ký theo lô 32 URL, complete); XHR để có tiến độ; retry backoff; resume bằng localStorage + ListParts. Bucket <code>pitchvision-spike</code> (APAC), token chỉ Object R/W trên bucket đó, hết hạn 04/11/2026. File golden 663 MB, part 16 MiB (40 part), Chrome headless từ mạng nhà: <strong>4 luồng 7,3 MB/s, 8 luồng 20,7 MB/s</strong>; <strong>20% part bị ngắt → 9 retry, vẫn xong</strong> (14 MB/s); <strong>đóng tab sau 11/40 part → mở lại resume 29 part</strong> (16 MB/s). md5 object = md5 file ở mọi kịch bản; object thử đã xoá. Tốc độ phụ thuộc mạng uplink, không phải giới hạn R2 → mặc định FE nên dùng 6–8 luồng. Bắt buộc: CORS bucket có <code>ExposeHeaders: ETag</code>; part bằng nhau (trừ part cuối), ≥ 5 MiB; R2 có sẵn rule tự huỷ multipart bỏ dở. Cùng code chạy được trên S3 local (SeaweedFS). <strong>Phát hiện phụ:</strong> image MinIO không còn kéo công khai được → AD “MinIO self-host” cần thay (SeaweedFS/Garage, chờ PO). Code: <code>spikes/sp07_upload/</code> (server.py, index.html, .env không commit), <code>spikes/sp07_run.py</code>; kết quả <code>spikes/results/sp07/sp07_results_r2.json</code>.</td></tr>
+      <tr><td class="id">SP-08</td><td>Sync overlay requestVideoFrameCallback</td><td><span class="pill" style="color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)">Xong</span></td><td><strong>Đạt — dùng requestVideoFrameCallback + <code>round(mediaTime × 25)</code> cho overlay.</strong> Clip 60 s (25 fps, 1280×720, GOP 2 s) có khắc mã nhị phân số khung; trang test đọc mã từ khung đang hiển thị và so với chỉ số overlay. Chrome (headless, giải mã GPU và phần mềm): <strong>rVFC 1× khớp đúng khung 100%</strong> (~370 mẫu), 2× khớp 93–97% và 100% trong ±1 (lệch −1 là do đọc pixel sau callback, không phải overlay sai); tua khi dừng 40/40 đúng khung. <strong>Cách ngây thơ (rAF + <code>floor(currentTime × fps)</code>)</strong>: 1× chỉ đúng 39–69%, 2× đúng 15–18%, lệch tới 2–4 khung → không dùng. Ở 2× trình duyệt bỏ qua ~40% khung (không callback) — chấp nhận được vì overlay luôn vẽ theo khung thực sự hiển thị. Chưa đo: Safari/Firefox, Chrome có cửa sổ hiển thị thật (tab ẩn thì video không tải). Script: <code>spikes/sp08_prepare.py</code>, <code>spikes/sp08_run.py</code>, trang: <code>spikes/sp08_overlay/</code>, kết quả: <code>spikes/results/sp08/</code>.</td></tr>
+      <tr><td class="id">SP-09</td><td>Shot classifier baseline</td><td><span class="pill" style="color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)">Xong</span></td><td><strong>Đạt G0 (≥ 95%).</strong> 855 khung có nhãn (19 trận, mỗi 20 s), đánh giá leave-videos-out: <strong>GBM 99.1%</strong> (precision toàn cảnh 99.2%, recall 99.5%; trận tệ nhất 95.6%); luật tay (tỷ lệ cỏ + số người + kích thước người) 96.0%. Đặc trưng: tỷ lệ cỏ, vạch trắng, cạnh, số/kích thước người từ YOLO. <strong>Độ phủ toàn cảnh</strong> thực tế: trung vị 71%, thấp nhất 40% (Hearts v Hibs nhiều VAR). <strong>Giới hạn:</strong> nhãn do Claude gán (cần PO soát), mới phân 2 lớp (chưa tách replay), chưa đo phát hiện ranh giới cắt cảnh. Code: <code>spikes/sp09_*.py</code>, kết quả <code>spikes/results/sp09/sp09_results.json</code>.</td></tr>
+      <tr><td class="id">SP-10</td><td>Tải YouTube từ cloud</td><td><span class="pill" style="color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)">Một phần</span></td><td>Từ IP dân dụng: 19/20 thành công, bị bot-check sau ~12 GB / 75 phút; cần yt-dlp ≥ 2026.08.19. Chưa đo từ IP datacenter.</td></tr>
+      <tr><td class="id">SP-11</td><td>Detector giấy phép mở (G-LEGAL)</td><td><span class="pill" style="color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)">Xong</span></td><td><strong>Detector giấy phép mở khả thi → đề xuất D-FINE-M (Apache-2.0) làm nền cho M1-CV-04.</strong> 190 khung toàn cảnh (19 trận × 10), Mac M4 MPS, conf 0.35, chỉ chấm người/bóng đứng trên sân (mặt nạ cỏ); chưa có nhãn bbox nên recall đo theo đồng thuận của các họ detector khác + chấm mắt. <strong>YOLOv11-m@1280</strong> (AGPL): ~8–10 fps, 14,9 người/khung, recall người 84%, người nhỏ &lt;40px 30%, bóng ở 48% khung (gần như toàn bóng thật). <strong>D-FINE-M obj2coco@640</strong>: ~9 fps (ngang YOLO), 16,2 người/khung, recall người 98%, người nhỏ 90%, bóng ở 79% khung nhưng ~15–25% bóng giả ở ngưỡng 0.35 (cần chỉnh ngưỡng / fine-tune). RT-DETRv2-R50@640: chậm hơn (5–8 fps), kém D-FINE. Chạy @1280 cho DETR chậm 3–5× và bắt thêm khán giả → không đáng. Chưa đo: TensorRT trên NVIDIA (D-FINE có export ONNX/TRT), độ chính xác sau fine-tune. G-LEGAL cần kiểm tra thêm giấy phép dữ liệu tiền huấn luyện Objects365 của bản obj2coco. Script: <code>spikes/sp11_detectors.py</code>, kết quả + grid: <code>spikes/results/sp11/</code>.</td></tr>
+    </tbody>
+  </table>
+  <h3>Nhật ký</h3>
+  <ul>
+      <li><code>2026-10-05</code> SP-07 xong trên R2 thật: upload multipart từ trình duyệt 663 MB, 8 luồng ~21 MB/s (mạng nhà), retry khi lỗi và resume sau khi đóng tab đều đạt, md5 khớp. Bucket pitchvision-spike + CORS + token giới hạn đã cấu hình.</li>
+      <li><code>2026-10-05</code> <strong>PO chốt G-LEGAL detector:</strong> D-FINE (Apache-2.0) làm nền cho M1-CV-04, Ultralytics Enterprise là dự phòng. Đã cập nhật AD/PLAN/PRD. Còn mở: keypoint sân M1-CV-05 (YOLOv11-pose, AGPL), giấy phép Objects365.</li>
+      <li><code>2026-10-05</code> SP-07: upload multipart từ trình duyệt (presigned part, retry, resume) đạt trên S3 local, md5 khớp; còn chạy lại trên R2 thật. MinIO không còn image công khai → đề xuất SeaweedFS/Garage cho bản self-host (cần sửa AD).</li>
+      <li><code>2026-10-05</code> SP-08 xong: overlay theo rVFC + mediaTime khớp đúng khung 100% ở 1× và khi tua (Chrome); cách dùng currentTime trong rAF lệch 1–4 khung → FE dùng rVFC (M1-FE overlay).</li>
+      <li><code>2026-10-05</code> SP-11 xong: D-FINE-M (Apache-2.0) ngang tốc độ YOLOv11-m trên MPS, bắt người nhỏ và bóng tốt hơn trước fine-tune (bóng giả nhiều hơn ở ngưỡng 0.35). Đề xuất PO chọn D-FINE thay Ultralytics trước M1-CV-04 (19/10); giữ Ultralytics Enterprise làm phương án dự phòng.</li>
+      <li><code>2026-10-05</code> <strong>Gate G0 — PO duyệt:</strong> (1) +2 tuần M1 cho calibration → alpha 04/12/2026; (2) +1 tuần M2 cho ghép track offline + ReID → public beta 26/01/2027; (3) giấy phép model vào G-LEGAL (hạn 15/01/2027) — gồm Ultralytics YOLO AGPL-3.0. 1.0 dời sang 26/03/2027. Chi tiết: mục G0 của PLAN.</li>
+      <li><code>2026-10-05</code> Tổng kết spike trên Mac: <strong>đạt</strong> SP-09 (phân loại cảnh 99,1%), SP-04 (phân đội ~98%); <strong>không đạt</strong> SP-03 (homography); <strong>rủi ro cao</strong> SP-05 (tracking); SP-02 chờ GPU NVIDIA. Cần PO quyết ở Gate G0 về +2 tuần calibration và kế hoạch tracking.</li>
+      <li><code>2026-10-05</code> SP-05 baseline: tracker online mặc định phân mảnh ~18–24 ID/cầu thủ/90 s; cắt cảnh chỉ gây ~15–22% số lần đứt. BoT-SORT+GMC cải thiện nhẹ ở 1/2 trận. Cần ghép track offline + ReID; chờ nhãn ID để đo G0.</li>
+      <li><code>2026-10-05</code> SP-03 KHÔNG ĐẠT: homography từ keypoint pretrained lệch trên đa số khung broadcast. Rủi ro R1 xác nhận → đề xuất thêm 2 tuần calibration vào M1 (chờ PO quyết ở G0).</li>
+      <li><code>2026-10-05</code> SP-04 xong: phân đội SigLIP+UMAP+KMeans ~98% trên 19 trận broadcast (chấm trực quan), vượt mục tiêu 90%; HSV kém hơn rõ.</li>
+      <li><code>2026-10-05</code> SP-09 xong: phân loại toàn cảnh / không toàn cảnh đạt 99.1% leave-videos-out (luật tay 96.0%). Độ phủ toàn cảnh broadcast trung vị 71% → xác nhận cần badge coverage (PLAN M3).</li>
+      <li><code>2026-10-05</code> SP-02 baseline trên Mac M4: 8.6–8.9 fps (MPS), detection pretrained đạt yêu cầu về độ phủ cầu thủ; script benchmark sẵn sàng cho CUDA/TensorRT. Mẫu: <code>spikes/results/sp02_sample.jpg</code>.</li>
+      <li><code>2026-10-05</code> Tải golden set broadcast v0: 19/20 trận, 7.5 GB, 1080p (1×50 fps, 4×60 fps, 1×25 fps, 13×30 fps). Contact sheet + manifest trong data/golden.</li>
+  </ul>
+</section>
+<!-- STATUS:END -->
+
+<section id="g0">
+  <h2><span class="n">G0</span>Quyết định Gate G0 — PLAN v1.2 (05/10/2026)</h2>
+  <div class="note risk">
+    <span class="lbl">Lịch trong bảng này thay thế mọi ngày cũ ở các mục 1, 3, 5–9 bên dưới</span>
+    <p>Spike trên Mac cho thấy: phân loại cảnh (99,1%) và phân đội (~98%) đạt; <strong>homography không đạt</strong>; <strong>tracking phân mảnh nặng</strong> (~18–24 ID / cầu thủ / 90 s, đa số đứt trong cùng cảnh). PO đã duyệt cả 3 đề xuất.</p>
+  </div>
+  <table>
+    <thead><tr><th>#</th><th>Quyết định</th><th>Ảnh hưởng</th></tr></thead>
+    <tbody>
+      <tr><td class="id">1</td><td><strong>+2 tuần M1 cho calibration</strong> (W7–W8)</td><td>M1 thành 8 tuần · private alpha <strong>04/12/2026</strong></td></tr>
+      <tr><td class="id">2</td><td><strong>+1 tuần M2 cho ghép track offline toàn cục + ReID</strong></td><td>M2 thành 5 tuần (qua kỳ nghỉ lễ) · public beta <strong>26/01/2027</strong></td></tr>
+      <tr><td class="id">3</td><td><strong>Giấy phép model vào G-LEGAL</strong></td><td>Hạn G-LEGAL dời <strong>15/01/2027</strong>; phạm vi mở rộng (xem dưới)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Lịch mới</h3>
+  <table>
+    <thead><tr><th>Giai đoạn</th><th>Thời gian</th><th>Phát hành</th></tr></thead>
+    <tbody>
+      <tr><td>Spike (Mac)</td><td>05/10/2026 — xong; phần GPU NVIDIA (SP-02, SP-06) làm sau</td><td>—</td></tr>
+      <tr><td><span class="pill m1">M1</span> Broadcast → Tactical map + calibration</td><td>12/10 – <strong>04/12/2026</strong> (8 tuần)</td><td>Private alpha 04/12</td></tr>
+      <tr><td><span class="pill m2">M2</span> Tracking + ghép track offline</td><td>07/12 – 18/12, nghỉ lễ 21/12–01/01, 04/01 – <strong>22/01/2027</strong> (5 tuần)</td><td>Public beta <strong>26/01/2027</strong> (sau G-LEGAL)</td></tr>
+      <tr><td><span class="pill m3">M3</span> Thống kê &amp; Billing</td><td>25/01 – <strong>26/02/2027</strong></td><td>Ra mắt trả phí 26/02</td></tr>
+      <tr><td><span class="pill m4">M4</span> Chiến thuật &amp; AI</td><td>01/03 – <strong>26/03/2027</strong></td><td><strong>Bản 1.0 — 26/03/2027</strong></td></tr>
+      <tr><td>Phase C</td><td>Từ 29/03/2027 (~7 tuần)</td><td>Bản 1.1 Camera &amp; Live</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Task mới — M1 W7 (23/11) &amp; W8 (30/11): calibration</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Việc</th><th>Track</th></tr></thead>
+    <tbody>
+      <tr><td class="id">M1-CV-18</td><td>Bộ đánh giá calibration: 200 khung golden có homography đúng (gán ≥ 4 điểm tay) → đo sai số tại chân cầu thủ (m) + độ trùng vạch. <strong>Tiêu chí: ≥ 85% khung toàn cảnh sai số &lt; 1 m</strong></td><td><span class="pill cv">CV</span> <span class="pill all">PO</span></td></tr>
+      <tr><td class="id">M1-CV-19</td><td>Fine-tune keypoint sân trên SoccerNet-Calibration + 300 khung golden; phạt keypoint ngoài khung hình</td><td><span class="pill cv">CV</span></td></tr>
+      <tr><td class="id">M1-CV-20</td><td>Tinh chỉnh homography theo vạch trắng (tối ưu độ trùng vạch — metric từ SP-03 làm hàm mục tiêu)</td><td><span class="pill cv">CV</span></td></tr>
+      <tr><td class="id">M1-CV-21</td><td>Lan truyền homography trong cùng cảnh bằng optical flow trên mặt sân; chỉ tính lại keypoint khi trôi; làm mượt theo thời gian</td><td><span class="pill cv">CV</span></td></tr>
+      <tr><td class="id">M1-CV-22</td><td>So sánh baseline mã mở của SoccerNet Calibration challenge (vd TVCalib, NBJW) — kiểm tra giấy phép trước</td><td><span class="pill cv">CV</span></td></tr>
+      <tr><td class="id">M1-FE-17</td><td>SCR-15 hiệu chỉnh tay thành luồng chính khi chất lượng thấp: gợi ý khung tốt nhất, áp cho cả cảnh</td><td><span class="pill fe">FE</span></td></tr>
+      <tr><td class="id">M1-BE-23</td><td>Dùng 2 tuần dư: kéo sớm Corrections API (M2-BE-01) + hardening/bảo mật staging</td><td><span class="pill be">BE</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Task mới — M2 tuần thêm: ghép track offline</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Việc</th><th>Track</th></tr></thead>
+    <tbody>
+      <tr><td class="id">M2-CV-08</td><td>Ghép tracklet toàn cục offline (min-cost flow / Hungarian theo cửa sổ): ngoại hình OSNet + ràng buộc đội + số áo + chuyển động trên toạ độ sân; trong cảnh và qua cắt cảnh</td><td><span class="pill cv">CV</span></td></tr>
+      <tr><td class="id">M2-CV-09</td><td>Nhãn ID: 5 clip × 2 phút (thuê ngoài) + HOTA trên SoccerNet-tracking; đo lại chỉ số phân mảnh của SP-05</td><td><span class="pill cv">CV</span> <span class="pill all">PO</span></td></tr>
+      <tr><td class="id">—</td><td><strong>Tiêu chí thoát bổ sung:</strong> ≤ 3 ID / cầu thủ / 10 phút trước khi người dùng sửa tay (baseline SP-05: ~120–160)</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h3>G-LEGAL mở rộng (hạn 15/01/2027)</h3>
+  <ul>
+    <li><strong>Ultralytics YOLO (v8, v11) — AGPL-3.0.</strong> <strong>PO chốt 05/10/2026:</strong> detector dùng <strong>D-FINE (Apache-2.0)</strong> làm nền cho M1-CV-04 (theo SP-11); giấy phép Enterprise của Ultralytics là phương án dự phòng nếu D-FINE sau fine-tune không đạt. Còn kiểm tra: giấy phép dữ liệu Objects365 (tiền huấn luyện bản obj2coco). Keypoint sân (M1-CV-05, YOLOv11-pose) vẫn thuộc Ultralytics AGPL — cần quyết riêng.</li>
+    <li>Trọng số pitch-keypoint của roboflow/sports (huấn luyện bằng YOLOv8 → AGPL) — chỉ dùng cho spike.</li>
+    <li>Điều khoản dataset SoccerNet (một phần chỉ cho nghiên cứu) và các baseline calibration mã mở.</li>
+    <li>Không đổi: tải YouTube, bản quyền broadcast, DMCA, thời gian lưu video gốc.</li>
+    <li>Thành phần đã ổn: SigLIP (Apache-2.0), ByteTrack (MIT), UMAP/scikit-learn (BSD).</li>
+  </ul>
+</section>
+
+
+<!-- ============ 0 ============ -->
+<section id="s0">
+  <h2><span class="n">00</span>Thay đổi so với v1.0</h2>
+  <table>
+    <thead><tr><th>Hạng mục</th><th>v1.0</th><th>v1.1 (broadcast-first)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Nguồn video ưu tiên</strong></td><td>Upload · YouTube (M2) · RTSP (M2)</td><td><strong>YouTube URL + upload file broadcast ngay M1</strong>; RTSP/RTMP → Phase C</td></tr>
+      <tr><td><strong>Loại footage</strong></td><td>Broadcast + Veo + khán đài + điện thoại</td><td><strong>Chỉ broadcast</strong> (camera chính của đài, có cắt cảnh, replay, đồ hoạ)</td></tr>
+      <tr><td><strong>Người dùng chính</strong></td><td>HLV có camera riêng</td><td><strong>Analyst / scout đối thủ, creator nội dung</strong>; HLV dùng camera riêng → Phase C</td></tr>
+      <tr><td><strong>Stage mới</strong></td><td>—</td><td><strong>S2b Shot segmentation</strong>: phát hiện cắt cảnh, phân loại cảnh (toàn cảnh / cận cảnh / replay / khác); chỉ phân tích toàn cảnh</td></tr>
+      <tr><td><strong>Stage mới</strong></td><td>—</td><td><strong>Đọc đồng hồ trận từ scoreboard</strong> (M2): ánh xạ thời gian video ↔ phút trận đấu, nhận diện hiệp</td></tr>
+      <tr><td><strong>Tracking</strong></td><td>ReID sau che khuất</td><td><strong>ReID xuyên cắt cảnh</strong> là trọng tâm M2 — mỗi lần đài cắt cảnh, mọi track đều đứt</td></tr>
+      <tr><td><strong>Thống kê</strong></td><td>Tính trên toàn trận</td><td>Tính trên <strong>thời gian có cảnh toàn cảnh</strong>, luôn hiển thị <strong>độ phủ (coverage %)</strong>; loại replay</td></tr>
+      <tr><td><strong>Kiểm chứng stats</strong></td><td>GPS vest + đối chiếu tay</td><td><strong>So với số liệu chính thức đã công bố</strong> của trận (possession, quãng đường)</td></tr>
+      <tr><td><strong>Thể thức</strong></td><td>11v11 · 9v9 · 7v7</td><td><strong>11v11</strong>; 9v9 / 7v7 → Phase C</td></tr>
+      <tr><td><strong>M2</strong></td><td>5 tuần (có Live)</td><td><strong>4 tuần</strong> (bỏ Live) — xong trước nghỉ lễ 18/12</td></tr>
+      <tr><td><strong>Ngày 1.0</strong></td><td>12/03/2027</td><td><strong>05/03/2027</strong> (sớm 1 tuần)</td></tr>
+      <tr><td><strong>Rủi ro mới</strong></td><td>—</td><td><strong>Pháp lý YouTube &amp; bản quyền broadcast</strong>; YouTube chặn IP datacenter → thêm cổng G-LEGAL và spike SP-10</td></tr>
+    </tbody>
+  </table>
+  <div class="note risk">
+    <span class="lbl">Cần biết trước khi bắt đầu</span>
+    <ul>
+      <li><strong>Pháp lý:</strong> tải video YouTube bằng công cụ như yt-dlp trái với Điều khoản dịch vụ của YouTube, và footage broadcast thuộc bản quyền của giải đấu / đài. Với một SaaS thương mại đây là rủi ro bị khiếu nại và gỡ bỏ. Plan vẫn làm YouTube ingest ở M1 theo yêu cầu, nhưng <strong>public beta bị chặn bởi cổng G-LEGAL</strong> (rà soát pháp lý, mục 11) và upload file luôn là đường thay thế ngang hàng.</li>
+      <li><strong>Kỹ thuật:</strong> YouTube thường chặn tải từ IP datacenter ("confirm you're not a bot"). Spike SP-10 đo điều này từ RunPod và cloud trước khi cam kết.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 1 ============ -->
+<section id="s1">
+  <h2><span class="n">01</span>Tóm tắt</h2>
+  <div class="kpi">
+    <div><div class="v">3 ngày</div><div class="k">Spike broadcast + YouTube</div></div>
+    <div><div class="v">6 tuần</div><div class="k">M1 · Private alpha</div></div>
+    <div><div class="v">4 tuần</div><div class="k">M2 · Public beta</div></div>
+    <div><div class="v">5 tuần</div><div class="k">M3 · Ra mắt trả phí</div></div>
+    <div><div class="v">4 tuần</div><div class="k">M4 · Bản 1.0</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Giai đoạn</th><th>Thời gian</th><th>Kết quả cho người dùng</th><th>Phát hành</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Phase 0 · Spike</strong></td><td>07/10 – 09/10/2026</td><td>(nội bộ) Số đo FPS, homography, phân loại cảnh, tải YouTube từ cloud</td><td>Go/no-go</td></tr>
+      <tr><td><span class="pill m1">M1</span> Broadcast → Tactical map</td><td>12/10 – 20/11/2026</td><td>Dán link YouTube hoặc upload → video có bbox + nhãn đội + tactical map; đoạn replay/cận cảnh được đánh dấu; export MP4</td><td><strong>Private alpha</strong> · 5 analyst/CLB</td></tr>
+      <tr><td><span class="pill m2">M2</span> Tracking xuyên cắt cảnh</td><td>23/11 – 18/12/2026</td><td>ID cầu thủ giữ qua các lần cắt cảnh, số áo, phút trận từ scoreboard, sửa kết quả, chia sẻ</td><td><strong>Public beta 05/01/2027</strong> (sau G-LEGAL)</td></tr>
+      <tr><td><span class="pill m3">M3</span> Thống kê &amp; Billing</td><td>04/01 – 05/02/2027</td><td>Possession, thể lực, heatmap, mạng chuyền — có độ phủ; export dữ liệu; gói Pro</td><td><strong>Ra mắt trả phí</strong></td></tr>
+      <tr><td><span class="pill m4">M4</span> Chiến thuật &amp; AI</td><td>08/02 – 05/03/2027</td><td>Sơ đồ đội hình, Voronoi, việt vị, báo cáo AI có trích dẫn, PDF</td><td><strong>Bản 1.0</strong></td></tr>
+      <tr><td><strong>Phase C</strong> Camera &amp; Live</td><td>Từ 08/03/2027 (~7 tuần)</td><td>Live RTSP/RTMP, Veo/Pixellot/khán đài, 7v7/9v9, import Veo/Hudl</td><td>Bản 1.1</td></tr>
+    </tbody>
+  </table>
+  <div class="note warn">
+    <span class="lbl">Ba điều quyết định thành bại</span>
+    <ol>
+      <li><strong>Shot segmentation đúng.</strong> Nếu nhầm cận cảnh/replay thành toàn cảnh, homography sai và mọi thống kê sai theo. Đây là stage mới quan trọng nhất của đợt này.</li>
+      <li><strong>ReID xuyên cắt cảnh.</strong> Một trận broadcast có vài trăm lần cắt cảnh; không nối được track qua các lần cắt thì không có thống kê theo cầu thủ.</li>
+      <li><strong>Đường vào YouTube ổn định và hợp pháp</strong> — đo ở spike, rà soát pháp lý trước beta.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="s2">
+  <h2><span class="n">02</span>Giả định &amp; đội ngũ</h2>
+  <table>
+    <thead><tr><th>Track</th><th>Vai trò</th><th>Phụ trách chính</th><th>Phân bổ</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill cv">CV</span></td><td>ML / CV engineer</td><td><code>packages/cv-core</code>, shot segmentation, detection, homography, tracking + ReID, OCR, stats, tactics</td><td>100%</td></tr>
+      <tr><td><span class="pill be">BE</span></td><td>Backend engineer</td><td>API, identity, YouTube ingest, orchestrator, ComputeBackend, R2, DB, WS, billing, LLM report</td><td>100%</td></tr>
+      <tr><td><span class="pill fe">FE</span></td><td>Frontend engineer</td><td><code>apps/web</code> theo prototype: design system, mọi SCR, sync engine, timeline theo cảnh, tactical map</td><td>100%</td></tr>
+      <tr><td><span class="pill ops">OPS</span></td><td>DevOps (bán thời gian)</td><td>CI/CD, image CUDA, Terraform R2/Cloudflare/DB, K8s + KEDA, egress cho YouTube ingest</td><td>~40%</td></tr>
+      <tr><td><span class="pill all">PO</span></td><td>Product owner (mày)</td><td>Cổng quyết định, rà soát pháp lý, tuyển alpha, danh sách trận golden, nghiệm thu</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Máy <strong>RTX 4090</strong> cho dev/self-host; <strong>RunPod</strong> (T4/L4/4090) cho đo đạc và burst.</li>
+    <li>Cloudflare (R2, Workers, CDN), Anthropic API, Stripe (từ M3), Resend.</li>
+    <li>Footage broadcast trên YouTube thường là <strong>720p/1080p, 25/30/50/60 fps</strong>, nén mạnh. Stage S2 chuẩn hoá về <strong>25 fps, cạnh dài 1280px</strong> — trận 90' luôn ≈ 135.000 frame bất kể nguồn.</li>
+    <li>Một region cho M1–M2 (mặc định EU); region 2 bật ở M3.</li>
+    <li>Mỗi tuần 4 ngày công cho việc mới. Nghỉ lễ 21/12/2026 – 01/01/2027.</li>
+  </ul>
+  <div class="note">
+    <span class="lbl">Nếu làm một mình</span>
+    <p>Nhân ~2.2: M1 ≈ 13 tuần, M2 ≈ 9 tuần. Broadcast-first giúp làm một mình khả thi hơn v1.0 vì đã bỏ Live và camera nghiệp dư. Khuyến nghị dừng ở M2 để public beta.</p>
+  </div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="s3">
+  <h2><span class="n">03</span>Timeline tổng</h2>
+  <div class="mermaid-wrap"><pre class="mermaid">
+gantt
+  dateFormat YYYY-MM-DD
+  axisFormat %d/%m
+  excludes weekends
+  section Phase 0
+  Spike trên Mac (xong)        :done, sp, 2026-10-05, 1d
+  section M1 (8 tuần)
+  Nền móng + YouTube + S2b     :m1a, 2026-10-12, 15d
+  Homography + tiles + UI      :m1b, after m1a, 15d
+  Calibration (+2 tuần)        :crit, m1c, 2026-11-23, 10d
+  M1 Private alpha             :milestone, a1, 2026-12-04, 0d
+  section M2 (5 tuần)
+  Tracking + corrections       :m2a, 2026-12-07, 10d
+  Nghỉ lễ                      :done, hol, 2026-12-21, 10d
+  ReID + OCR + đồng hồ trận    :m2b, 2027-01-04, 10d
+  Ghép track offline (+1 tuần) :crit, m2c, 2027-01-18, 5d
+  G-LEGAL                      :milestone, gl, 2027-01-15, 0d
+  Public beta                  :milestone, pb, 2027-01-26, 0d
+  section M3
+  Stats + Billing + i18n       :m3, 2027-01-25, 25d
+  Ra mắt trả phí               :milestone, p3, 2027-02-26, 0d
+  section M4
+  Tactics + AI report          :m4, 2027-03-01, 20d
+  Bản 1.0                      :milestone, v1, 2027-03-26, 0d
+  section Phase C
+  Camera &amp; Live             :pc, 2027-03-29, 35d
+</pre></div>
+
+  <h3>3.1 Lịch tuần</h3>
+  <table>
+    <thead><tr><th>Tuần</th><th>Ngày</th><th>Milestone</th><th>Trọng tâm</th></tr></thead>
+    <tbody>
+      <tr><td class="id">W0</td><td>07/10 – 09/10</td><td>Spike</td><td>Đo thật trên broadcast, tải YouTube từ cloud, go/no-go</td></tr>
+      <tr><td class="id">W1</td><td>12/10</td><td rowspan="6"><span class="pill m1">M1</span></td><td>Nền móng: monorepo, CI, DB, design system, cv-core, golden set broadcast</td></tr>
+      <tr><td class="id">W2</td><td>19/10</td><td>Auth, upload R2, <strong>YouTube ingest</strong>, fine-tune detector + shot classifier</td></tr>
+      <tr><td class="id">W3</td><td>26/10</td><td><strong>Shot segmentation</strong>, jobs + orchestrator, phân đội, sync engine</td></tr>
+      <tr><td class="id">W4</td><td>02/11</td><td>Homography trên cảnh toàn cảnh, tiles có timeline cảnh, Processing/Teams UI</td></tr>
+      <tr><td class="id">W5</td><td>09/11</td><td>End-to-end, timeline theo cảnh trong workspace, tối ưu GPU, export</td></tr>
+      <tr><td class="id">W6</td><td>16/11</td><td>Hardening, staging, nghiệm thu, <strong>alpha 20/11</strong></td></tr>
+      <tr><td class="id">W7</td><td>23/11</td><td rowspan="4"><span class="pill m2">M2</span></td><td>Tracking trong cảnh + corrections</td></tr>
+      <tr><td class="id">W8</td><td>30/11</td><td><strong>ReID xuyên cắt cảnh</strong>, phát hiện replay, chia sẻ</td></tr>
+      <tr><td class="id">W9</td><td>07/12</td><td>OCR số áo + <strong>đồng hồ trận từ scoreboard</strong>, RunPod, <strong>G-LEGAL 11/12</strong></td></tr>
+      <tr><td class="id">W10</td><td>14/12</td><td>Bóng, bảo mật, tải thử, nghiệm thu M2 <strong>18/12</strong></td></tr>
+      <tr><td class="id">—</td><td>21/12 – 01/01</td><td colspan="2">Nghỉ lễ · trực sự cố alpha</td></tr>
+      <tr><td class="id">W11–15</td><td>04/01 – 05/02</td><td><span class="pill m3">M3</span></td><td><strong>Public beta 05/01</strong> · stats, Timescale, Stripe, i18n, region 2 · <strong>trả phí 05/02</strong></td></tr>
+      <tr><td class="id">W16–19</td><td>08/02 – 05/03</td><td><span class="pill m4">M4</span></td><td>Tactics, AI report · <strong>1.0 ngày 05/03</strong></td></tr>
+      <tr><td class="id">W20+</td><td>từ 08/03</td><td>Phase C</td><td>Camera &amp; Live</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="s4">
+  <h2><span class="n">04</span>Phase 0 — Spike (3 ngày, broadcast)</h2>
+  <p>Xác nhận bảng ước tính AD 15.1 trên footage broadcast thật, và hai rủi ro mới: phân loại cảnh và tải YouTube từ cloud. Code để trong <code>spikes/</code>, không merge vào <code>packages/</code>.</p>
+  <table>
+    <thead><tr><th>ID</th><th>Việc</th><th>Track</th><th>Ngày</th><th>Đầu ra</th></tr></thead>
+    <tbody>
+      <tr><td class="id">SP-01</td><td>Chọn 3 đoạn broadcast <strong>5 phút</strong> (có cắt cảnh, replay, cận cảnh) từ 3 giải / đài khác nhau, có ít nhất một nguồn 50 fps. Gán nhãn 50 frame/clip (bbox + đội) và nhãn loại cảnh từng giây</td><td><span class="pill all">PO</span> <span class="pill cv">CV</span></td><td>D1</td><td>150 frame + nhãn cảnh 900 giây</td></tr>
+      <tr><td class="id">SP-02</td><td>YOLOv11-m pretrained → TensorRT FP16; FPS batch 16 ở 1280/960px trên 4090, L4, T4</td><td><span class="pill cv">CV</span></td><td>D1–D2</td><td>Bảng FPS × GPU</td></tr>
+      <tr><td class="id">SP-03</td><td>Keypoint sân + RANSAC homography, <strong>chỉ trên cảnh toàn cảnh</strong>: % frame đạt</td><td><span class="pill cv">CV</span></td><td>D2</td><td>% homography / clip</td></tr>
+      <tr><td class="id">SP-04</td><td>Phân đội SigLIP + UMAP + KMeans</td><td><span class="pill cv">CV</span></td><td>D2</td><td>% phân đội đúng</td></tr>
+      <tr><td class="id">SP-05</td><td>Tracking qua ranh giới segment <strong>và qua cắt cảnh</strong>: đếm track đứt, thử nối lại bằng ngoại hình + đội + vị trí</td><td><span class="pill cv">CV</span></td><td>D3</td><td>% track nối lại đúng sau cắt cảnh (baseline)</td></tr>
+      <tr><td class="id">SP-06</td><td>Parity: cùng clip qua 4090 và RunPod</td><td><span class="pill be">BE</span> <span class="pill ops">OPS</span></td><td>D2–D3</td><td>Sai lệch toạ độ</td></tr>
+      <tr><td class="id">SP-07</td><td>Presigned multipart 2 GB lên R2 từ browser</td><td><span class="pill be">BE</span> <span class="pill fe">FE</span></td><td>D1</td><td>Upload + resume chạy</td></tr>
+      <tr><td class="id">SP-08</td><td><code>requestVideoFrameCallback</code> + canvas overlay 23 đối tượng; độ lệch khi tua</td><td><span class="pill fe">FE</span></td><td>D2–D3</td><td>Lệch ≤ 1 frame?</td></tr>
+      <tr><td class="id">SP-09</td><td><strong>Shot classifier baseline</strong>: (a) heuristic tỷ lệ cỏ xanh + mật độ vạch; (b) model nhỏ fine-tune trên SoccerNet camera-shot. Phát hiện ranh giới cắt cảnh (khác biệt histogram)</td><td><span class="pill cv">CV</span></td><td>D1–D3</td><td>Độ chính xác toàn cảnh vs không, F1 ranh giới</td></tr>
+      <tr><td class="id">SP-10</td><td><strong>Tải YouTube từ cloud</strong>: yt-dlp từ RunPod và 1 VM cloud, 20 URL broadcast khác nhau; ghi tỷ lệ thành công, lỗi bot-check, tốc độ, định dạng/fps lấy được</td><td><span class="pill be">BE</span> <span class="pill ops">OPS</span></td><td>D1–D2</td><td>Tỷ lệ tải thành công từ IP datacenter</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.1 Tiêu chí go/no-go (Gate G0, 09/10)</h3>
+  <table>
+    <thead><tr><th>Chỉ số</th><th>Mục tiêu</th><th>Nếu không đạt</th></tr></thead>
+    <tbody>
+      <tr><td>T4 · 1280px</td><td>≥ 50 FPS</td><td>960px; nếu vẫn thiếu, sàn T4 = 40 FPS, cloud mặc định L4</td></tr>
+      <tr><td>L4 · stride 2</td><td>trận 90' ≤ 15 phút</td><td>Keypoint mỗi 10 frame; D-FINE-S cho chế độ Fast</td></tr>
+      <tr><td>4090 · stride 1</td><td>trận 90' ≤ 20 phút</td><td>Mục tiêu chuẩn chuyển thành "≥ 2 GPU song song"</td></tr>
+      <tr><td><strong>Phân loại cảnh</strong> toàn cảnh vs không</td><td>≥ 95% theo giây</td><td>Dùng model (b); nếu &lt; 90% → thêm 1 tuần huấn luyện ở M1 W3, lùi alpha 1 tuần</td></tr>
+      <tr><td>Homography trên cảnh toàn cảnh</td><td>≥ 85% frame</td><td>No-go lịch hiện tại — thêm 2 tuần huấn luyện keypoint</td></tr>
+      <tr><td>Phân đội</td><td>≥ 90% (broadcast dễ hơn)</td><td>Bắt buộc xác nhận đội (UX-1)</td></tr>
+      <tr><td><strong>Tải YouTube từ cloud</strong></td><td>≥ 90% URL thành công</td><td>Phương án theo thứ tự: ingest chạy trên máy 4090 nội bộ (IP dân dụng của văn phòng); yêu cầu người dùng upload file; xem lại phạm vi YouTube với G-LEGAL. <strong>Không dùng proxy dân cư thuê</strong> — rủi ro pháp lý</td></tr>
+      <tr><td>Parity backend</td><td>&lt; 1 cm</td><td>Khoá phiên bản TensorRT + driver</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="s5">
+  <h2><span class="n">05</span><span class="pill m1">M1</span> Broadcast → Tactical map — 6 tuần (12/10 – 20/11)</h2>
+  <p><strong>Mục tiêu:</strong> người dùng dán link YouTube (hoặc upload file broadcast), chờ xử lý, xác nhận đội, xem video có bbox + nhãn đội + confidence đồng bộ tactical map; các đoạn replay/cận cảnh hiển thị rõ là "không phân tích"; export MP4. PRD US-01…06, FR-101, 102, 104, 105, FR-200, FR-300; AD S1, S2, <strong>S2b</strong>, S3–S5, S7, S8, S11; UIUX SCR-01…15, 20a, 25, 26, 40, 41, 50–53.</p>
+
+  <h3>W1 · 12/10 — Nền móng</h3>
+  <div class="wk">
+    <div class="card"><h4><span class="pill cv">CV</span></h4><ul>
+      <li><code>M1-CV-01</code> <code>cv-core</code> + <code>Runtime</code> TensorRT → ONNX CUDA → ONNX CPU · 2d</li>
+      <li><code>M1-CV-02</code> <code>VideoReader</code> (PyAV + NVDEC, theo khoảng thời gian, stride) · 1d</li>
+      <li><code>M1-CV-03</code> <strong>Golden set broadcast v0</strong>: 10 trận từ ≥ 5 giải/đài; phân tầng theo độ phân giải, fps, ngày/đêm, thời tiết, màu áo gần nhau, bóng đá nữ/trẻ; script mAP + phân đội + phân loại cảnh · 2d</li></ul></div>
+    <div class="card"><h4><span class="pill be">BE</span></h4><ul>
+      <li><code>M1-BE-01</code> Monorepo uv + pnpm, import-linter · 1d</li>
+      <li><code>M1-BE-02</code> <code>packages/schemas</code>: PipelineConfig, GpuTask, WS, manifest, <strong>tile format + shot timeline</strong> · 1d</li>
+      <li><code>M1-BE-03</code> Alembic + DDL AD 9.3 + bảng <code>shots</code> (video_id, t0, t1, type, conf) + RLS · 2d</li>
+      <li><code>M1-BE-04</code> FastAPI skeleton, RFC 9457, Idempotency-Key · 1d</li></ul></div>
+    <div class="card"><h4><span class="pill fe">FE</span></h4><ul>
+      <li><code>M1-FE-01</code> Vite + React + TS + Tailwind; token từ prototype · 1d</li>
+      <li><code>M1-FE-02</code> Component lib (Radix) theo prototype · 3d</li>
+      <li><code>M1-FE-03</code> Router (modal qua query string), Query, client OpenAPI, i18n EN · 1d</li></ul></div>
+    <div class="card"><h4><span class="pill ops">OPS</span></h4><ul>
+      <li><code>M1-OPS-01</code> Compose + profile gpu-local</li>
+      <li><code>M1-OPS-02</code> Dockerfile worker CUDA 12.4 + TensorRT; Dockerfile api</li>
+      <li><code>M1-OPS-03</code> CI: lint, type, test, import-linter, build image</li></ul></div>
+  </div>
+
+  <h3>W2 · 19/10 — Xác thực, upload, YouTube, huấn luyện</h3>
+  <div class="wk">
+    <div class="card"><h4><span class="pill cv">CV</span></h4><ul>
+      <li><code>M1-CV-04</code> Fine-tune D-FINE-M (Apache-2.0, chốt theo SP-11) trên SoccerNet-v3 + DFL + Roboflow (đều là broadcast) · 3d nền</li>
+      <li><code>M1-CV-05</code> Fine-tune YOLOv11-pose 32 keypoint (SoccerNet Calibration) · nền</li>
+      <li><code>M1-CV-06</code> <strong>Shot classifier</strong>: fine-tune trên SoccerNet camera-shot + nhãn SP-01; 4 lớp: <code>main_wide</code>, <code>close_up</code>, <code>replay</code>, <code>other</code> (khán đài, đồ hoạ, logo chuyển cảnh) · 2d nền</li>
+      <li><code>M1-CV-07</code> Stage <strong>S2</strong>: chuẩn hoá về 25 fps (50/60 fps → giảm mẫu), 1280px, keyframe 2s · 1d</li></ul></div>
+    <div class="card"><h4><span class="pill be">BE</span></h4><ul>
+      <li><code>M1-BE-05</code> Identity: đăng ký, đăng nhập, xác minh email, đặt lại mật khẩu, JWT RS256, Google OIDC · 2d</li>
+      <li><code>M1-BE-06</code> Org, vai trò, region claim, lời mời · 1d</li>
+      <li><code>M1-BE-07</code> Storage R2/MinIO + presigned multipart (part cố định 16 MiB) + CORS · 1d</li>
+      <li><code>M1-BE-08</code> <strong>YouTube ingest (S1)</strong>: <code>POST /videos/from-url</code>, allowlist domain, lấy metadata (tiêu đề, thời lượng, độ phân giải, fps), chặn &gt; 3 giờ / livestream đang phát / video riêng tư, bắt buộc <code>rights_confirmed</code>, tải luồng tốt nhất ≤ 1080p, yt-dlp khoá phiên bản; chạy trên đường egress chọn ở G0 · 1d</li></ul></div>
+    <div class="card"><h4><span class="pill fe">FE</span></h4><ul>
+      <li><code>M1-FE-04</code> SCR-02…06 · 2d</li>
+      <li><code>M1-FE-05</code> SCR-07 onboarding · 1d</li>
+      <li><code>M1-FE-06</code> Top bar G (<strong>ẩn mục Live</strong> — Phase C), SCR-52, SCR-53 · 1d</li></ul></div>
+    <div class="card"><h4><span class="pill ops">OPS</span></h4><ul>
+      <li><code>M1-OPS-04</code> Terraform R2 (EU jurisdiction), lifecycle, token theo vai trò</li>
+      <li><code>M1-OPS-05</code> Email, DNS, staging trống</li>
+      <li><code>M1-OPS-06</code> Worker ingest có đường egress riêng theo kết quả SP-10; metric tỷ lệ tải thành công</li></ul></div>
+  </div>
+
+  <h3>W3 · 26/10 — Phân loại cảnh, job, phân đội</h3>
+  <div class="wk">
+    <div class="card"><h4><span class="pill cv">CV</span></h4><ul>
+      <li><code>M1-CV-08</code> <strong>Stage S2b shot segmentation</strong>: ranh giới cắt cảnh + loại cảnh mỗi đoạn; làm mượt (đoạn &lt; 1s gộp); ghi bảng <code>shots</code>; <strong>segment xử lý cắt theo ranh giới cảnh</strong> thay vì cố định 120s · 2d</li>
+      <li><code>M1-CV-09</code> Stage <strong>S3 calibrate</strong> chỉ lấy mẫu từ <code>main_wide</code> · 1d</li>
+      <li><code>M1-CV-10</code> Stage <strong>S4 infer</strong> v1: chỉ chạy trên <code>main_wide</code>; detect, lọc ngoài sân, ByteTrack, phân đội theo track, Parquet + <code>_SUCCESS</code> · 2d</li></ul></div>
+    <div class="card"><h4><span class="pill be">BE</span></h4><ul>
+      <li><code>M1-BE-09</code> <code>POST /jobs</code>, máy trạng thái job · 1d</li>
+      <li><code>M1-BE-10</code> Orchestrator Celery: DAG có S2b, fan-out theo cảnh, retry, checkpoint · 2d</li>
+      <li><code>M1-BE-11</code> ComputeBackend + LocalGpuBackend · 1d</li>
+      <li><code>M1-BE-12</code> WebSocket + Redis pub/sub · 1d</li></ul></div>
+    <div class="card"><h4><span class="pill fe">FE</span></h4><ul>
+      <li><code>M1-FE-07</code> SCR-10 Library, menu ⋮, DLG-01, DLG-04 · 2d</li>
+      <li><code>M1-FE-08</code> <strong>Sync engine</strong> với dữ liệu giả (gồm shot timeline): PlaybackClock, TileStore, Web Worker · 3d</li></ul></div>
+    <div class="card"><h4><span class="pill all">PO</span></h4><ul>
+      <li>Mở rộng golden set lên 15 trận</li>
+      <li>Bắt đầu thủ tục rà soát pháp lý (G-LEGAL)</li></ul></div>
+  </div>
+
+  <h3>W4 · 02/11 — Homography, tiles</h3>
+  <div class="wk">
+    <div class="card"><h4><span class="pill cv">CV</span></h4><ul>
+      <li><code>M1-CV-11</code> Homography trên <code>main_wide</code>, smoother <strong>reset tại mỗi cắt cảnh</strong>, <code>h_quality</code> · 2d</li>
+      <li><code>M1-CV-12</code> Chiếu toạ độ; outlier vận tốc · 1d</li>
+      <li><code>M1-CV-13</code> <strong>S5 stitch</strong> v1: ghép trong cùng cảnh (ranh giới segment); <strong>chưa nối qua cắt cảnh</strong> (M2) · 2d</li></ul></div>
+    <div class="card"><h4><span class="pill be">BE</span></h4><ul>
+      <li><code>M1-BE-13</code> S7 tiles (kèm loại cảnh mỗi frame) · 1d</li>
+      <li><code>M1-BE-14</code> S8 load-db 5Hz · 1d</li>
+      <li><code>M1-BE-15</code> Manifest (gồm shot timeline + <strong>coverage %</strong>), teams, tracks · 2d</li>
+      <li><code>M1-BE-16</code> Tile serving: route self-host + Cloudflare Worker HMAC · 1d</li></ul></div>
+    <div class="card"><h4><span class="pill fe">FE</span></h4><ul>
+      <li><code>M1-FE-09</code> SCR-11: <strong>tab YouTube là tab mặc định</strong> (fetch preview, rights, analyze) + tab Upload (multipart, resume) + tab Import "Coming soon"; <strong>bỏ tab Live</strong> · 2d</li>
+      <li><code>M1-FE-10</code> SCR-12 settings (ẩn chọn thể thức — chỉ 11v11) · 1d</li>
+      <li><code>M1-FE-11</code> OverlayRenderer · 2d</li></ul></div>
+    <div class="card"><h4><span class="pill all">PO</span></h4><ul>
+      <li>Chốt UX-1, UX-3</li>
+      <li>Ký 5 alpha: ưu tiên <strong>analyst / scout / creator</strong></li></ul></div>
+  </div>
+
+  <h3>W5 · 09/11 — End-to-end</h3>
+  <div class="wk">
+    <div class="card"><h4><span class="pill cv">CV</span></h4><ul>
+      <li><code>M1-CV-14</code> Tối ưu TensorRT, NVDEC, engine cache · 2d</li>
+      <li><code>M1-CV-15</code> Golden eval nightly theo nhóm (gồm độ chính xác phân loại cảnh) · 1d</li>
+      <li><code>M1-CV-16</code> Mã lỗi + manual team mode · 2d</li></ul></div>
+    <div class="card"><h4><span class="pill be">BE</span></h4><ul>
+      <li><code>M1-BE-17</code> Exports + S11 render (watermark Free) · 2d</li>
+      <li><code>M1-BE-18</code> Quota phút · 1d</li>
+      <li><code>M1-BE-19</code> Thông báo in-app + email · 1d</li>
+      <li><code>M1-BE-20</code> Hiệu chỉnh tay 4 điểm → recompute CPU · 1d</li></ul></div>
+    <div class="card"><h4><span class="pill fe">FE</span></h4><ul>
+      <li><code>M1-FE-12</code> <strong>SCR-20 workspace</strong>: TacticalMapRenderer, layers, phím tắt; <strong>timeline tô theo loại cảnh</strong> (replay / cận cảnh màu xám có nhãn), map hiện "Not available — replay" khi không phải toàn cảnh, nút "Skip to next live action" · 3d</li>
+      <li><code>M1-FE-13</code> SCR-13 Processing (thêm bước "Detect shots"), SCR-14 Teams · 2d</li></ul></div>
+    <div class="card"><h4><span class="pill ops">OPS</span></h4><ul>
+      <li><code>M1-OPS-07</code> Staging cloud một region</li>
+      <li><code>M1-OPS-08</code> Sentry, OTel, Prometheus; cảnh báo tỷ lệ YouTube ingest lỗi</li></ul></div>
+  </div>
+
+  <h3>W6 · 16/11 — Hoàn thiện &amp; nghiệm thu</h3>
+  <div class="wk">
+    <div class="card"><h4><span class="pill cv">CV</span></h4><ul>
+      <li><code>M1-CV-17</code> Chạy tiêu chí thoát; model card vào registry</li></ul></div>
+    <div class="card"><h4><span class="pill be">BE</span></h4><ul>
+      <li><code>M1-BE-21</code> Integration test: URL YouTube → job → tile → API</li>
+      <li><code>M1-BE-22</code> Rate limit, seccomp ffprobe, <strong>SSRF cho URL ingest</strong> (đã có URL từ M1)</li></ul></div>
+    <div class="card"><h4><span class="pill fe">FE</span></h4><ul>
+      <li><code>M1-FE-14</code> SCR-15, SCR-25 (video), SCR-26, SCR-51 · 2d</li>
+      <li><code>M1-FE-15</code> SCR-40, SCR-41 (waitlist), SCR-50 · 2d</li>
+      <li><code>M1-FE-16</code> SCR-01 landing (thông điệp: "Analyze any broadcast match"), Playwright F1, F3, F4, F8</li></ul></div>
+    <div class="card"><h4><span class="pill all">Nghiệm thu</span></h4><ul>
+      <li>Demo từ link YouTube trên staging</li>
+      <li>Alpha <strong>20/11</strong></li></ul></div>
+  </div>
+
+  <div class="card">
+    <h4>Tiêu chí thoát M1</h4>
+    <ul class="chk">
+      <li>Link YouTube trận 90' → kết quả trong ≤ 25 phút trên 4090 (gồm tải + xử lý)</li>
+      <li>Phân loại cảnh toàn cảnh vs không ≥ 95% theo giây trên golden set</li>
+      <li>mAP@50 ≥ 0.85 (broadcast), phân đội ≥ 90% — báo theo từng nhóm golden set</li>
+      <li>Homography ≥ 85% frame toàn cảnh</li>
+      <li>Footage 50/60 fps xử lý đúng (chuẩn hoá về 25 fps, đồng bộ overlay đúng)</li>
+      <li>YouTube ingest ≥ 95% thành công trên danh sách 30 URL kiểm thử từ staging</li>
+      <li>Overlay lệch ≤ 1 frame; replay/cận cảnh không hiện toạ độ trên map</li>
+      <li>Luồng F1, F2, F3, F4, F8 chạy end-to-end, khớp prototype</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="s6">
+  <h2><span class="n">06</span><span class="pill m2">M2</span> Tracking xuyên cắt cảnh — 4 tuần (23/11 – 18/12/2026)</h2>
+  <p><strong>Mục tiêu:</strong> mỗi cầu thủ một ID xuyên suốt trận dù đài cắt cảnh hàng trăm lần; số áo + tên; phút trận lấy từ scoreboard; sửa kết quả; chia sẻ. PRD US-07…09 (US-07 Live → Phase C), US-16, FR-400; AD ADR-006, 012; UIUX SCR-20b, 21, 22, 23, 27, 28.</p>
+  <table>
+    <thead><tr><th>Tuần</th><th><span class="pill cv">CV</span></th><th><span class="pill be">BE</span></th><th><span class="pill fe">FE</span></th></tr></thead>
+    <tbody>
+      <tr><td class="id">W7<br>23/11</td>
+        <td><code>M2-CV-01</code> Tinh chỉnh ByteTrack; HOTA trên <strong>SoccerNet-tracking</strong> (broadcast) + golden set</td>
+        <td><code>M2-BE-01</code> Corrections API + revision<br><code>M2-BE-02</code> Recompute S7/S8 từ Parquet + corrections</td>
+        <td><code>M2-FE-01</code> SCR-20b Players<br><code>M2-FE-02</code> SCR-23 Player drawer</td></tr>
+      <tr><td class="id">W8<br>30/11</td>
+        <td><code>M2-CV-02</code> <strong>ReID xuyên cắt cảnh</strong>: OSNet embedding + đội + số áo (khi có) + liên tục vị trí trên sân trước/sau cắt (nếu cùng camera chính) → gán lại ID toàn cục bằng Hungarian theo từng lần cắt<br><code>M2-CV-03</code> <strong>Phát hiện replay</strong> mạnh hơn: logo chuyển cảnh của đài, tốc độ chậm, khớp nội dung với đoạn đã phát — loại khỏi tracking/stats</td>
+        <td><code>M2-BE-03</code> Share link + API viewer chỉ đọc<br><code>M2-BE-04</code> Endpoint người giữ bóng</td>
+        <td><code>M2-FE-03</code> SCR-22 sửa trên video/map + Undo<br><code>M2-FE-04</code> SCR-21 Roster + DLG-09, DLG-03</td></tr>
+      <tr><td class="id">W9<br>07/12</td>
+        <td><code>M2-CV-04</code> OCR số áo + vote (S6) — broadcast cho số áo rõ hơn camera nghiệp dư<br><code>M2-CV-05</code> <strong>Đọc đồng hồ scoreboard</strong>: phát hiện vùng scoreboard, OCR mm:ss, suy ra hiệp + bù giờ → ánh xạ thời gian video ↔ phút trận</td>
+        <td><code>M2-BE-05</code> RunPodBackend + router burst + parity nightly<br><code>M2-BE-06</code> YouTube ingest hardening: cập nhật yt-dlp nhanh, retry, giám sát, thông báo lỗi rõ</td>
+        <td><code>M2-FE-05</code> SCR-27 Share, SCR-28 viewer<br><code>M2-FE-06</code> <strong>Timeline hiển thị phút trận</strong> (49' thay vì 1:14:36 thời gian video), nhảy theo phút<br><code>M2-FE-07</code> SCR-25 tab Map video</td></tr>
+      <tr><td class="id">W10<br>14/12</td>
+        <td><code>M2-CV-06</code> Model bóng riêng + Kalman<br>Nghiệm thu HOTA, ReID, OCR</td>
+        <td><code>M2-BE-07</code> Bảo mật trước beta (mục 13.3), k6</td>
+        <td><code>M2-FE-08</code> Playwright F5*, F7, F11; polish beta<br><small>*F5 (Live) chuyển Phase C — thay bằng F4 YouTube</small></td></tr>
+    </tbody>
+  </table>
+  <div class="card">
+    <h4>Tiêu chí thoát M2</h4>
+    <ul class="chk">
+      <li>HOTA ≥ 70 trong cảnh toàn cảnh</li>
+      <li><strong>Nối track qua cắt cảnh đúng ≥ 80%</strong> (đo trên golden set có nhãn ID)</li>
+      <li>OCR số áo ≥ 80% với số nhìn rõ</li>
+      <li>Đồng hồ trận khớp ± 2s trên ≥ 90% trận có scoreboard</li>
+      <li>Replay bị loại khỏi tracking ≥ 95%</li>
+      <li>Correction → cập nhật ≤ 60s; Undo hoạt động</li>
+      <li>Parity LocalGpu vs RunPod &lt; 1 cm</li>
+      <li><strong>G-LEGAL đã qua</strong> — điều kiện bắt buộc cho public beta</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="s7">
+  <h2><span class="n">07</span><span class="pill m3">M3</span> Thống kê &amp; Billing — 5 tuần (04/01 – 05/02/2027)</h2>
+  <p>Public beta mở ngày <strong>05/01</strong> song song với đầu M3. Stats tính trên thời gian có cảnh toàn cảnh; mọi con số kèm độ phủ.</p>
+  <table>
+    <thead><tr><th>Tuần</th><th><span class="pill cv">CV</span></th><th><span class="pill be">BE</span></th><th><span class="pill fe">FE</span></th></tr></thead>
+    <tbody>
+      <tr><td class="id">W11<br>04/01</td>
+        <td><code>M3-CV-01</code> Thể lực: quãng đường, ngưỡng tốc độ, nước rút — <strong>ngoại suy có kiểm soát cho đoạn không quan sát được</strong> (gắn cờ ước tính)</td>
+        <td><code>M3-BE-01</code> Nén Timescale, retention, bảng stats có revision; trực sự cố beta</td>
+        <td><code>M3-FE-01</code> SCR-20a Overview đủ, <strong>badge độ phủ</strong> ("Tactical data for 71% of match time")</td></tr>
+      <tr><td class="id">W12<br>11/01</td>
+        <td><code>M3-CV-02</code> Possession (trên thời gian toàn cảnh) + đường chuyền + mạng chuyền</td>
+        <td><code>M3-BE-02</code> S9 + recompute; Stats API</td>
+        <td><code>M3-FE-02</code> SCR-20c Heatmaps</td></tr>
+      <tr><td class="id">W13<br>18/01</td>
+        <td><code>M3-CV-03</code> Heatmap + vị trí trung bình</td>
+        <td><code>M3-BE-03</code> Export JSON/CSV (có cờ <code>shot_type</code>, <code>estimated</code>); API key</td>
+        <td><code>M3-FE-03</code> SCR-20d Passing; SCR-20f Data; API keys + DLG-07</td></tr>
+      <tr><td class="id">W14<br>25/01</td>
+        <td><code>M3-CV-04</code> <strong>Kiểm chứng với số liệu chính thức đã công bố</strong> của 10 trận golden (possession, quãng đường đội): mục tiêu sai lệch possession &lt; 5 điểm %, quãng đường đội &lt; 10%</td>
+        <td><code>M3-BE-04</code> Stripe Checkout, Portal, webhook, quota theo gói</td>
+        <td><code>M3-FE-04</code> SCR-41 với Stripe, SCR-40 Billing; SCR-25 tab Data</td></tr>
+      <tr><td class="id">W15<br>01/02</td>
+        <td>Sửa lỗi theo kiểm chứng</td>
+        <td><code>M3-BE-05</code> Region 2 (Q8)</td>
+        <td><code>M3-FE-05</code> i18n ES, PT, DE, FR, VI; mét/yard</td></tr>
+    </tbody>
+  </table>
+  <div class="card">
+    <h4>Tiêu chí thoát M3</h4>
+    <ul class="chk">
+      <li>Possession sai lệch &lt; 5 điểm % so với số liệu chính thức trên 10 trận</li>
+      <li>Quãng đường đội &lt; 10% so với số liệu chính thức (nơi có công bố)</li>
+      <li>Mọi chỉ số hiển thị độ phủ; số ước tính có nhãn rõ</li>
+      <li>Stripe test-mode end-to-end; region 2 độc lập</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="s8">
+  <h2><span class="n">08</span><span class="pill m4">M4</span> Chiến thuật &amp; AI report — 4 tuần (08/02 – 05/03/2027)</h2>
+  <table>
+    <thead><tr><th>Tuần</th><th><span class="pill cv">CV</span></th><th><span class="pill be">BE</span></th><th><span class="pill fe">FE</span></th></tr></thead>
+    <tbody>
+      <tr><td class="id">W16<br>08/02</td><td><code>M4-CV-01</code> Nhận diện sơ đồ theo pha (chỉ trên cảnh toàn cảnh, cần ≥ 70% cầu thủ trong khung)</td><td><code>M4-BE-01</code> S10 + API</td><td><code>M4-FE-01</code> SCR-20e Tactics</td></tr>
+      <tr><td class="id">W17<br>15/02</td><td><code>M4-CV-02</code> Dòng phòng ngự, độ rộng, độ nén, Voronoi — <strong>chỉ tính khi đủ cầu thủ trong khung</strong> (broadcast thường không thấy đủ 22 người)</td><td><code>M4-BE-02</code> Tầng LLM Claude (<code>claude-sonnet-5-5</code>), facts JSON có ID, trích dẫn bắt buộc; facts gồm <strong>độ phủ</strong></td><td><code>M4-FE-02</code> Layer Voronoi/Shape/Offside (PixiJS)</td></tr>
+      <tr><td class="id">W18<br>22/02</td><td><code>M4-CV-03</code> Việt vị + sự kiện trên timeline (theo phút trận)</td><td><code>M4-BE-03</code> Fact-checker; benchmark Sonnet vs <code>claude-opus-5-5</code> (Q6)</td><td><code>M4-FE-03</code> SCR-24 AI report</td></tr>
+      <tr><td class="id">W19<br>01/03</td><td>Đánh giá sơ đồ với chuyên gia 20 trận</td><td><code>M4-BE-04</code> PDF, đa ngôn ngữ, audit 50 báo cáo</td><td><code>M4-FE-04</code> SCR-25 tab PDF; Playwright F6, F9</td></tr>
+    </tbody>
+  </table>
+  <div class="card">
+    <h4>Tiêu chí thoát M4</h4>
+    <ul class="chk">
+      <li>Sơ đồ đúng ≥ 80% theo chuyên gia trên 20 trận</li>
+      <li>100% nhận định có số liệu kiểm chứng; báo cáo nêu rõ độ phủ dữ liệu</li>
+      <li>Layer WebGL 60 FPS trên laptop tầm trung</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 8c ============ -->
+<section id="s8c">
+  <h2><span class="n">09</span>Phase C — Camera &amp; Live (sau 1.0, ~7 tuần)</h2>
+  <p>Toàn bộ phần đã chuyển ra khỏi đợt này. Kiến trúc AD giữ nguyên chỗ cho chúng (ComputeBackend, MediaMTX, live-worker), nên Phase C là <strong>thêm vào</strong>, không phải làm lại.</p>
+  <table>
+    <thead><tr><th>Hạng mục</th><th>Nội dung</th><th>Ước lượng</th><th>Màn hình</th></tr></thead>
+    <tbody>
+      <tr><td>Live RTSP / RTMP / SRT</td><td>MediaMTX, live-worker, Redis Streams, WebRTC WHEP, đồng bộ pts, thang giảm cấp, ghi phiên</td><td>3 tuần</td><td>SCR-11 tab Live, SCR-30, 31, 32, DLG-10, mục Live trên top bar</td></tr>
+      <tr><td>Camera nghiệp dư</td><td>Thu &amp; gán nhãn footage Veo/Pixellot/khán đài; fine-tune detector + keypoint; dewarp panoramic; golden set nhóm camera</td><td>3 tuần</td><td>—</td></tr>
+      <tr><td>Thể thức 9v9 / 7v7</td><td>Mô hình sân nhỏ, keypoint theo kích thước sân</td><td>1 tuần</td><td>SCR-12 chọn thể thức</td></tr>
+      <tr><td>Import Veo / Hudl / Pixellot</td><td>Tuỳ Q9</td><td>2 tuần</td><td>SCR-11 tab Import</td></tr>
+    </tbody>
+  </table>
+  <p>Shot segmentation (S2b) vẫn chạy với camera riêng nhưng gần như toàn bộ là <code>main_wide</code> — không cần thay đổi.</p>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="s9">
+  <h2><span class="n">10</span>Đường găng &amp; phụ thuộc</h2>
+  <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  SP["Spike G0"]:::crit --> CV1["cv-core + Runtime"]:::crit
+  CV1 --> SHOT["S2b Shot segmentation"]:::crit
+  SHOT --> CV8["S4 infer (main_wide)"]:::crit
+  CV7["S3 phân đội"] --> CV8
+  CV8 --> CV9["Homography"]:::crit
+  CV9 --> CV11["S5 stitch"]:::crit
+  YT["YouTube ingest S1"] --> SHOT
+  BE3["DB + schemas"] --> BE9["Orchestrator"]:::crit
+  BE9 --> CV8
+  CV11 --> BE12["S7 tiles + S8"]:::crit
+  BE12 --> BE14["Results API + tiles"]:::crit
+  FE8["Sync engine (data giả)"]:::crit --> FE12["SCR-20 workspace"]:::crit
+  BE14 --> FE12
+  FE12 --> M1(("M1 alpha")):::ms
+  M1 --> RE["ReID xuyên cắt cảnh"]:::crit --> COR["Corrections"]:::crit --> ST["Stats S9"]:::crit --> TA["Tactics S10"]:::crit --> RP["AI report S12"]:::crit --> M4(("1.0")):::ms
+  M1 --> CLK["Đồng hồ scoreboard"] --> M2(("M2"))
+  COR --> M2
+  LEGAL["G-LEGAL"]:::crit --> PB(("Public beta")):::ms
+  M2 --> PB
+  ST --> STR["Stripe"] --> M3(("M3 paid")):::ms
+  classDef crit stroke:#ff6b6b,stroke-width:2px
+  classDef ms fill:#3ddc84,color:#052412,stroke:#3ddc84
+</pre></div>
+  <table>
+    <thead><tr><th>Phụ thuộc</th><th>Rủi ro chặn</th><th>Cách gỡ</th></tr></thead>
+    <tbody>
+      <tr><td>Toàn bộ pipeline ← S2b phân loại cảnh</td><td>Model phân loại chưa xong ở W3</td><td>Dùng heuristic từ SP-09 (a) làm bản tạm; model thay sau mà không đổi interface</td></tr>
+      <tr><td>FE workspace ← tile + shot timeline</td><td>Chờ BE</td><td>Chốt schema W1; dữ liệu giả có cả đoạn replay/cận cảnh</td></tr>
+      <tr><td>Stats theo cầu thủ ← ReID xuyên cắt cảnh</td><td>Nối sai → stats cầu thủ sai</td><td>Đo từ M1 (nightly); stats cấp đội (possession, đội hình) không phụ thuộc ReID nên vẫn ra được</td></tr>
+      <tr><td>Public beta ← G-LEGAL</td><td>Pháp lý chưa xong</td><td>Beta mở với upload file trước, bật YouTube khi G-LEGAL qua (feature flag)</td></tr>
+      <tr><td>Billing ← UX-5, Q2</td><td>Chưa có giá</td><td>Gate G4 trước W14</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="s10">
+  <h2><span class="n">11</span>Cổng quyết định</h2>
+  <table>
+    <thead><tr><th>Gate</th><th>Quyết định</th><th>Hạn</th><th>Chặn</th><th>Mặc định nếu chưa chốt</th></tr></thead>
+    <tbody>
+      <tr><td class="id">G0</td><td>Go/no-go; đòn bẩy hiệu năng; <strong>đường egress cho YouTube ingest</strong></td><td>09/10</td><td>Toàn bộ M1</td><td>—</td></tr>
+      <tr><td class="id">G1</td><td>Region đầu tiên</td><td>19/10</td><td>M1-OPS-04</td><td>EU</td></tr>
+      <tr><td class="id">G1</td><td><strong>UX-1</strong> bắt buộc xác nhận đội?</td><td>04/11</td><td>M1-FE-13</td><td>Có "Skip for now"</td></tr>
+      <tr><td class="id">G1</td><td><strong>UX-3</strong> landing trong app?</td><td>04/11</td><td>M1-FE-16</td><td>Trong app</td></tr>
+      <tr><td class="id">G1</td><td>SCR-41 khi chưa có Stripe</td><td>09/11</td><td>M1-FE-15</td><td>Waitlist</td></tr>
+      <tr><td class="id"><strong>G-LEGAL</strong></td><td><strong>Rà soát pháp lý</strong>: (1) tải từ YouTube vs Điều khoản YouTube; (2) xử lý footage broadcast có bản quyền; (3) điều khoản dịch vụ, cam kết quyền của người dùng, quy trình gỡ bỏ (DMCA); (4) thời gian lưu video gốc (đề xuất xoá video gốc sau 30 ngày, giữ dữ liệu dẫn xuất); (5) phương án phát lại qua YouTube embed thay vì lưu video</td><td><strong>11/12</strong></td><td>Public beta</td><td>Beta chỉ mở upload file; YouTube giữ cho alpha có thoả thuận</td></tr>
+      <tr><td class="id">G2</td><td><strong>Q5</strong> thu correction để huấn luyện</td><td>20/11</td><td>Data &amp; privacy</td><td>Opt-in, mặc định tắt</td></tr>
+      <tr><td class="id">G4</td><td><strong>UX-5 + Q2</strong> giá, mô hình kinh doanh</td><td>18/01</td><td>Stripe</td><td>Giá tạm của prototype</td></tr>
+      <tr><td class="id">G4</td><td><strong>Q8</strong> region 2</td><td>18/01</td><td>M3-BE-05</td><td>US</td></tr>
+      <tr><td class="id">G5</td><td><strong>Q7</strong> API công khai</td><td>05/02</td><td>Rate limit, tài liệu</td><td>Chỉ Pro</td></tr>
+      <tr><td class="id">G6</td><td><strong>Q6</strong> Sonnet hay Opus</td><td>26/02</td><td>M4-BE-03</td><td>Sonnet nếu đạt fact-check</td></tr>
+      <tr><td class="id">→ C</td><td><strong>Q9</strong> import Veo/Hudl · <strong>UX-2</strong> Live cho gói Free</td><td>Trước Phase C</td><td>Phase C</td><td>—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 11 ============ -->
+<section id="s11">
+  <h2><span class="n">12</span>Truy vết yêu cầu</h2>
+  <table>
+    <thead><tr><th>Mốc</th><th>PRD</th><th>AD</th><th>UIUX (màn hình)</th><th>Flow</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill m1">M1</span></td><td>US-01…06 · FR-101, <strong>102</strong>, 104, 105 · FR-200 · FR-300</td><td>S1 (upload + YouTube), S2, <strong>S2b</strong>, S3–S5, S7, S8, S11</td><td>01–07, 10, <strong>11 (YouTube mặc định, Upload, Import-soon; không Live)</strong>, 12–15, 20a, 25, 26, 40, 41, 50–53</td><td>F1, F2, F3, <strong>F4</strong>, F8, F12</td></tr>
+      <tr><td><span class="pill m2">M2</span></td><td>US-08, 09, 16 · FR-401…406 · <strong>đồng hồ trận</strong></td><td>S5 (ReID xuyên cắt), S6, replay</td><td>20b, 21, 22, 23, 25 (map), 27, 28</td><td>F6 (một phần), F7, F11</td></tr>
+      <tr><td><span class="pill m3">M3</span></td><td>US-10…13 · FR-500</td><td>S9, Timescale, Stripe, region 2</td><td>20a (đủ + coverage), 20c, 20d, 20f, 40 billing/API, 41</td><td>F6, F10</td></tr>
+      <tr><td><span class="pill m4">M4</span></td><td>US-14, 15 · FR-600</td><td>S10, S12</td><td>20e, 24, 25 (PDF)</td><td>F9</td></tr>
+      <tr><td>Phase C</td><td><strong>US-07</strong> · FR-103 · thể thức 9v9/7v7</td><td>MediaMTX, live-worker</td><td>11 (Live), 30, 31, 32, DLG-10, G.E03</td><td><strong>F5</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h3>12.1 Thứ tự xây API</h3>
+  <table>
+    <thead><tr><th>Tuần</th><th>Endpoint</th><th>Màn hình</th></tr></thead>
+    <tbody>
+      <tr><td class="id">W2</td><td><code>/auth/*</code>, <code>/orgs</code>, <code>/invites</code>, <code>/me</code>, <code>POST /videos/uploads</code>, <strong><code>POST /videos/from-url</code></strong>, <code>GET /videos</code></td><td>SCR-02…07, 10, 11, 40, 52</td></tr>
+      <tr><td class="id">W3</td><td><code>/jobs</code>, <code>WS /ws</code></td><td>SCR-11, 12, 13, DLG-02</td></tr>
+      <tr><td class="id">W4</td><td><code>/results/{id}/manifest</code> (gồm <code>shots</code>, <code>coverage</code>), <code>/teams</code>, <code>/tracks</code>, tile CDN</td><td>SCR-14, 20</td></tr>
+      <tr><td class="id">W5</td><td><code>/calibration</code>, <code>/exports</code>, <code>/notifications</code>, <code>/usage</code></td><td>SCR-15, 25, 26, 51</td></tr>
+      <tr><td class="id">W7–9</td><td><code>/corrections</code>, <code>/players</code>, <code>/shares</code>, <code>/s/{token}</code>, <code>/match-clock</code></td><td>SCR-20b, 21–23, 27, 28</td></tr>
+      <tr><td class="id">W11–14</td><td><code>/stats</code>, <code>/heatmap</code>, <code>/passes</code>, <code>/api-keys</code>, <code>/billing/*</code></td><td>SCR-20a/c/d/f, 40, 41</td></tr>
+      <tr><td class="id">W16–19</td><td><code>/tactics</code>, <code>/reports</code></td><td>SCR-20e, 24</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 12 ============ -->
+<section id="s12">
+  <h2><span class="n">13</span>Chất lượng &amp; Kiểm thử</h2>
+  <h3>13.1 Definition of Done</h3>
+  <ul class="chk">
+    <li>Review ≥ 1 người, CI xanh</li>
+    <li>Màn hình khớp prototype, đúng bảng điều hướng UIUX; <code>data-testid</code> theo mã <code>SCR-xx.Exx</code></li>
+    <li>API có trong OpenAPI, có test contract</li>
+    <li>Stage CV có test trên clip broadcast 10s (có ít nhất một cắt cảnh) chạy CPU</li>
+    <li>Không giảm golden eval &gt; 2 điểm ở bất kỳ nhóm nào</li>
+  </ul>
+
+  <h3>13.2 Cổng tự động</h3>
+  <table>
+    <thead><tr><th>Cổng</th><th>Khi</th><th>Chặn</th></tr></thead>
+    <tbody>
+      <tr><td>Unit + contract + pipeline CPU 10s</td><td>Mỗi PR</td><td>Merge</td></tr>
+      <tr><td>Playwright luồng theo milestone + so ảnh với prototype</td><td>Merge vào main</td><td>Staging</td></tr>
+      <tr><td>Golden eval theo nhóm: mAP, phân đội, <strong>phân loại cảnh</strong>, HOTA, <strong>nối qua cắt cảnh</strong>, sai số toạ độ, possession vs chính thức</td><td>Nightly + PR đổi model</td><td>Merge model</td></tr>
+      <tr><td><strong>YouTube canary</strong>: tải 5 URL cố định mỗi 6 giờ từ môi trường prod</td><td>Liên tục</td><td>Cảnh báo (yt-dlp hỏng, bị chặn IP)</td></tr>
+      <tr><td>Parity LocalGpu vs RunPod</td><td>Nightly từ M2</td><td>Release</td></tr>
+      <tr><td>k6 tải</td><td>Cuối milestone</td><td>Release</td></tr>
+    </tbody>
+  </table>
+
+  <h3>13.3 Bảo mật trước public beta</h3>
+  <ul class="chk">
+    <li>Cô lập tenant: API, RLS, R2 prefix, tile Worker</li>
+    <li>SSRF qua URL ingest: IP nội bộ, metadata, redirect, domain ngoài allowlist</li>
+    <li>File độc hại vào ffmpeg; giới hạn tài nguyên worker ingest</li>
+    <li>JWT, refresh reuse, thu hồi phiên</li>
+    <li>Rate limit + quota không vượt được khi gọi song song</li>
+  </ul>
+
+  <h3>13.4 Dữ liệu &amp; nhãn (broadcast)</h3>
+  <table>
+    <thead><tr><th>Bộ dữ liệu</th><th>Kích thước</th><th>Khi nào</th></tr></thead>
+    <tbody>
+      <tr><td>Golden set broadcast (≥ 5 giải/đài, phân tầng)</td><td>10 → 30 trận</td><td>W1 → W15</td></tr>
+      <tr><td>Nhãn bbox + đội</td><td>2.000 frame</td><td>W1–W3</td></tr>
+      <tr><td>Nhãn loại cảnh theo giây</td><td>10 trận (~15 giờ)</td><td>W1–W3 (có thể bán tự động từ SoccerNet + soát tay)</td></tr>
+      <tr><td>Nhãn ID xuyên cắt cảnh</td><td>5 trận × 10 phút</td><td>W6–W8</td></tr>
+      <tr><td>Số liệu chính thức để đối chiếu</td><td>10 trận</td><td>W13</td></tr>
+      <tr><td>Đánh giá sơ đồ chuyên gia</td><td>20 trận</td><td>W18–W19</td></tr>
+    </tbody>
+  </table>
+  <p>SoccerNet (v2/v3, Calibration, Tracking, camera-shot) đều là broadcast — dùng được trực tiếp cho huấn luyện và đánh giá. Kiểm tra điều khoản sử dụng dataset (một số chỉ cho nghiên cứu) trước khi dùng trọng số huấn luyện từ đó cho sản phẩm thương mại — đưa vào G-LEGAL.</p>
+</section>
+
+<!-- ============ 13 ============ -->
+<section id="s13">
+  <h2><span class="n">14</span>Hạ tầng &amp; Môi trường</h2>
+  <table>
+    <thead><tr><th>Môi trường</th><th>Hạ tầng</th><th>GPU</th><th>Có từ</th></tr></thead>
+    <tbody>
+      <tr><td><strong>local</strong></td><td>Compose, MinIO</td><td>CPU / 4090</td><td>W1</td></tr>
+      <tr><td><strong>gpu-dev</strong></td><td>Máy 4090 chung</td><td>4090</td><td>W3</td></tr>
+      <tr><td><strong>staging</strong></td><td>1 region, R2, Cloudflare Worker; worker ingest theo egress G0</td><td>4090 + RunPod</td><td>W5</td></tr>
+      <tr><td><strong>production</strong></td><td>K8s + KEDA, Argo CD</td><td>L4 spot + RunPod</td><td>W10 (beta 05/01)</td></tr>
+      <tr><td><strong>production-2</strong></td><td>Cell region 2</td><td>như trên</td><td>W15</td></tr>
+    </tbody>
+  </table>
+  <p>Chi phí ước tính giữ như v1.0 (staging ~150–250 USD/tháng; production ~600–1.200 USD/region; gán nhãn ~1.500–3.000 USD). Bỏ Live giảm nhu cầu GPU on-demand thường trực.</p>
+</section>
+
+<!-- ============ 14 ============ -->
+<section id="s14">
+  <h2><span class="n">15</span>Phát hành</h2>
+  <table>
+    <thead><tr><th>Bản</th><th>Ngày</th><th>Người dùng</th><th>Điều kiện</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Private alpha</strong></td><td>20/11/2026</td><td>5 analyst / scout / creator được mời</td><td>Thoát M1</td></tr>
+      <tr><td><strong>Public beta</strong></td><td>05/01/2027</td><td>Đăng ký tự do, gói Free</td><td>Thoát M2 + <strong>G-LEGAL</strong> + bảo mật 13.3</td></tr>
+      <tr><td><strong>Paid launch</strong></td><td>05/02/2027</td><td>Free + Pro</td><td>Thoát M3</td></tr>
+      <tr><td><strong>1.0</strong></td><td>05/03/2027</td><td>Free + Pro + Team</td><td>Thoát M4</td></tr>
+      <tr><td><strong>1.1 Camera &amp; Live</strong></td><td>~ cuối 04/2027</td><td>+ HLV có camera riêng</td><td>Phase C</td></tr>
+    </tbody>
+  </table>
+  <p>YouTube ingest nằm sau <strong>feature flag riêng</strong> theo org/region để tắt nhanh nếu cần.</p>
+</section>
+
+<!-- ============ 15 ============ -->
+<section id="s15">
+  <h2><span class="n">16</span>Rủi ro thực thi</h2>
+  <table>
+    <thead><tr><th>Rủi ro</th><th>Dấu hiệu sớm</th><th>Phản ứng</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Pháp lý YouTube / bản quyền broadcast</strong></td><td>G-LEGAL kết luận không được tải YouTube cho SaaS</td><td>Upload file là đường chính; xem xét phát lại qua YouTube embed (chỉ lưu dữ liệu dẫn xuất); quy trình DMCA; không lưu lâu video gốc</td></tr>
+      <tr><td><strong>YouTube chặn IP / yt-dlp hỏng</strong></td><td>Canary lỗi, SP-10 &lt; 90%</td><td>Khoá + cập nhật nhanh yt-dlp; ingest qua máy nội bộ; thông báo lỗi rõ + gợi ý upload</td></tr>
+      <tr><td><strong>Phân loại cảnh sai</strong></td><td>Golden eval cảnh &lt; 95%</td><td>Nâng ngưỡng tin cậy (bỏ đoạn mơ hồ thay vì phân tích sai); thêm nhãn từ alpha</td></tr>
+      <tr><td><strong>ReID xuyên cắt cảnh kém</strong></td><td>&lt; 70% ở W8</td><td>Dựa thêm vào OCR số áo (W9); stats cầu thủ hiện cờ "low confidence"; người dùng nối track nhanh trong roster</td></tr>
+      <tr><td>Độ phủ thấp (đài nhiều cận cảnh)</td><td>Coverage &lt; 55% trên nhiều trận</td><td>Hiển thị rõ; ưu tiên footage "tactical cam" / full-match replay góc rộng khi có</td></tr>
+      <tr><td>Broadcast không thấy đủ 22 cầu thủ</td><td>Tactics thiếu dữ liệu</td><td>Chỉ tính chỉ số đội hình trên frame đủ cầu thủ; nói rõ trong báo cáo</td></tr>
+      <tr><td>Điều khoản dataset nghiên cứu</td><td>Giấy phép SoccerNet không cho thương mại</td><td>Huấn luyện lại trên dữ liệu được phép / tự gán nhãn; đưa vào G-LEGAL sớm</td></tr>
+      <tr><td>Phạm vi phình</td><td>Backlog &gt; 120% năng lực</td><td>PO xếp hạng; không thêm vào milestone đang chạy</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 16 ============ -->
+<section id="s16">
+  <h2><span class="n">17</span>Cách làm việc</h2>
+  <div class="grid2">
+    <div class="card"><h4>Nhịp</h4><ul><li>Sprint 1 tuần theo đúng tuần trong tài liệu</li><li>Thứ Sáu: demo staging + golden eval</li><li>Cuối milestone: nghiệm thu theo checklist</li></ul></div>
+    <div class="card"><h4>Mã nguồn</h4><ul><li>Trunk-based, PR &lt; 400 dòng</li><li>Nhánh theo mã task (<code>m1-cv-08-shot-seg</code>)</li><li>ADR mới khi lệch AD</li></ul></div>
+    <div class="card"><h4>Theo dõi</h4><ul><li>Mỗi task = 1 GitHub issue</li><li>Nhãn: track, milestone, SCR/FR</li><li>Burn-up theo milestone</li></ul></div>
+    <div class="card"><h4>Tài liệu sống</h4><ul><li>PRD/AD/UIUX đã gắn ghi chú broadcast-first</li><li>Prototype là chuẩn hình ảnh</li></ul></div>
+  </div>
+</section>
+
+<!-- ============ 17 ============ -->
+<section id="s17">
+  <h2><span class="n">18</span>Tuần đầu tiên — checklist</h2>
+  <h3>Trước 07/10</h3>
+  <ul class="chk">
+    <li>Repo <code>pitchvision</code>, mời thành viên</li>
+    <li>RunPod, Cloudflare (R2), Anthropic, Resend; một VM cloud nhỏ cho SP-10</li>
+    <li>Máy 4090 cài driver + Docker + NVIDIA Container Toolkit</li>
+    <li><strong>Danh sách 20 URL YouTube trận broadcast</strong> (≥ 5 giải/đài, có 50 fps, có trận nữ/trẻ) — PO</li>
+    <li>Chọn 3 đoạn 5 phút cho SP-01 — PO</li>
+    <li>Liên hệ luật sư / tư vấn cho G-LEGAL — PO</li>
+  </ul>
+  <h3>07/10 – 09/10 · Spike</h3>
+  <ul class="chk"><li>SP-01 … SP-10 (mục 4); Thứ Sáu: Gate G0</li></ul>
+  <h3>12/10 – 16/10 · 10 PR đầu tiên</h3>
+  <ol>
+    <li>Monorepo + import-linter (<code>M1-BE-01</code>)</li>
+    <li>Compose + gpu-local (<code>M1-OPS-01</code>)</li>
+    <li>CI (<code>M1-OPS-03</code>)</li>
+    <li><code>packages/schemas</code> — <strong>tile + shot timeline + manifest chốt trước</strong> (<code>M1-BE-02</code>)</li>
+    <li>Migrations + bảng <code>shots</code> + RLS (<code>M1-BE-03</code>)</li>
+    <li>FastAPI skeleton (<code>M1-BE-04</code>)</li>
+    <li><code>cv-core</code> Runtime + VideoReader (<code>M1-CV-01, 02</code>)</li>
+    <li>Golden set broadcast + eval (<code>M1-CV-03</code>)</li>
+    <li>Web token + component lib (<code>M1-FE-01, 02</code>)</li>
+    <li>Web router + query + client + i18n (<code>M1-FE-03</code>)</li>
+  </ol>
+  <div class="note ok">
+    <span class="lbl">Bước tiếp theo đề xuất</span>
+    <p>(1) Viết code spike SP-02…SP-05, SP-09, SP-10 để mày chạy trên 4090 + RunPod; (2) dựng khung monorepo + 10 PR đầu; (3) tạo task thành GitHub issues.</p>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer>
+  PitchVision AI — Implementation Plan v1.2 (broadcast-first, sau Gate G0) · 2026-10-05 · Dựa trên PRD v1.3, AD v1.2, UI/UX v1.1, Prototype · Bản v1.0 thay thế
+</footer>
+
+<button class="theme" id="themeBtn">◐ Theme</button>
+<script>
+(function(){
+  var btn=document.getElementById('themeBtn'),root=document.documentElement;
+  try{var s=localStorage.getItem('pv-theme');if(s)root.setAttribute('data-theme',s)}catch(e){}
+  btn.addEventListener('click',function(){var c=root.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';var n=c==='dark'?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('pv-theme',n)}catch(e){}window.dispatchEvent(new Event('pv-theme'))});
+})();
+</script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const els=Array.from(document.querySelectorAll('pre.mermaid'));
+  els.forEach(e=>{e.dataset.src=e.textContent});
+  const eff=()=>{const t=document.documentElement.getAttribute('data-theme');if(t)return t;return matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'};
+  async function render(){
+    mermaid.initialize({startOnLoad:false,securityLevel:'loose',theme:eff()==='dark'?'dark':'default',gantt:{barHeight:18,fontSize:11,sectionFontSize:12,leftPadding:180,useWidth:1100},flowchart:{curve:'basis'}});
+    els.forEach(e=>{e.removeAttribute('data-processed');e.innerHTML='';e.textContent=e.dataset.src});
+    try{await mermaid.run({nodes:els})}catch(err){console.error(err)}
+  }
+  render();window.addEventListener('pv-theme',render);
+</script>
+</body>
+</html>

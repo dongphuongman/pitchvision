@@ -1,0 +1,97 @@
+{
+  "BukNW8GRI5A": {
+    "crops": 414,
+    "cluster_share": 0.457,
+    "siglip_vs_hsv_agreement": 0.964
+  },
+  "ZKLKNUMtL6w": {
+    "crops": 444,
+    "cluster_share": 0.464,
+    "siglip_vs_hsv_agreement": 0.867
+  },
+  "TyCCa3tyhZw": {
+    "crops": 355,
+    "cluster_share": 0.445,
+    "siglip_vs_hsv_agreement": 0.961
+  },
+  "TAI1eZYx5Kg": {
+    "crops": 483,
+    "cluster_share": 0.53,
+    "siglip_vs_hsv_agreement": 0.783
+  },
+  "WQUD7YPsOho": {
+    "crops": 422,
+    "cluster_share": 0.438,
+    "siglip_vs_hsv_agreement": 0.836
+  },
+  "wyKftTv03Ag": {
+    "crops": 448,
+    "cluster_share": 0.52,
+    "siglip_vs_hsv_agreement": 0.877
+  },
+  "EhqJ8-g1YvU": {
+    "crops": 247,
+    "cluster_share": 0.506,
+    "siglip_vs_hsv_agreement": 0.854
+  },
+  "UKFYHHQzTvM": {
+    "crops": 575,
+    "cluster_share": 0.428,
+    "siglip_vs_hsv_agreement": 0.784
+  },
+  "caZwnRXhkAk": {
+    "crops": 459,
+    "cluster_share": 0.564,
+    "siglip_vs_hsv_agreement": 0.987
+  },
+  "Ido_K83gIs4": {
+    "crops": 343,
+    "cluster_share": 0.455,
+    "siglip_vs_hsv_agreement": 0.921
+  },
+  "MZjaWGwbtEc": {
+    "crops": 368,
+    "cluster_share": 0.465,
+    "siglip_vs_hsv_agreement": 0.859
+  },
+  "zQqjHc_ZGcc": {
+    "crops": 448,
+    "cluster_share": 0.518,
+    "siglip_vs_hsv_agreement": 0.674
+  },
+  "btFTQmt1Dgo": {
+    "crops": 354,
+    "cluster_share": 0.381,
+    "siglip_vs_hsv_agreement": 0.754
+  },
+  "aSq-QJh-5UA": {
+    "crops": 505,
+    "cluster_share": 0.442,
+    "siglip_vs_hsv_agreement": 0.885
+  },
+  "_DfZB1Y-E_k": {
+    "crops": 468,
+    "cluster_share": 0.549,
+    "siglip_vs_hsv_agreement": 0.942
+  },
+  "EYj9Wbo0n44": {
+    "crops": 518,
+    "cluster_share": 0.664,
+    "siglip_vs_hsv_agreement": 0.631
+  },
+  "AZd7qfwQtfM": {
+    "crops": 263,
+    "cluster_share": 0.586,
+    "siglip_vs_hsv_agreement": 0.817
+  },
+  "jYQL469dLjY": {
+    "crops": 449,
+    "cluster_share": 0.575,
+    "siglip_vs_hsv_agreement": 0.837
+  },
+  "_FPE6jjJQ8M": {
+    "crops": 518,
+    "cluster_share": 0.417,
+    "siglip_vs_hsv_agreement": 0.994
+  }
+}

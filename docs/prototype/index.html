@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PitchVision Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0f14; --s1:#10171f; --s2:#151e28; --s3:#1c2733; --ln:#202d3a; --ln2:#2b3a4a;
+  --fg:#e8eef5; --fg2:#a3b3c4; --fg3:#6f8296;
+  --ac:#3ddc84; --ac-ink:#052412; --info:#4da3ff; --warn:#ffb648; --dan:#ff6b6b;
+  --A:#4da3ff; --B:#ff6b6b; --ref:#f2c94c; --ball:#ff8a3d;
+  --sh:0 24px 64px rgba(0,0,0,.45);
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+:root[data-theme="light"]{
+  --bg:#f3f5f8; --s1:#ffffff; --s2:#f7f9fb; --s3:#edf1f5; --ln:#e1e7ed; --ln2:#cfd8e1;
+  --fg:#111c27; --fg2:#4a5c6e; --fg3:#7a8a9b; --ac:#0f9d58; --ac-ink:#ffffff; --info:#1a73e8; --warn:#b26a00; --dan:#d33b3b;
+  --sh:0 24px 64px rgba(20,30,45,.18);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+#app{min-width:1280px;min-height:100vh}
+a{color:inherit;text-decoration:none}
+[data-go],[data-toggle],[data-toast],[data-chip],[data-scroll],[data-theme-toggle]{cursor:pointer}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--fg3)} .fg2{color:var(--fg2)}
+.row{display:flex;align-items:center;gap:10px} .col{display:flex;flex-direction:column;gap:10px}
+.sp{flex:1} .rel{position:relative}
+.ic{flex:none;display:block}
+h1,h2,h3,h4{margin:0;letter-spacing:-.01em}
+
+/* buttons */
+.btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid var(--ln2);background:var(--s2);color:var(--fg);font:600 13.5px var(--font);display:inline-flex;align-items:center;gap:8px;white-space:nowrap;transition:background .12s,border-color .12s}
+.btn:hover{background:var(--s3)}
+.btn.primary{background:var(--ac);color:var(--ac-ink);border-color:transparent}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--fg2)}
+.btn.ghost:hover{background:var(--s3);color:var(--fg)}
+.btn.danger{background:transparent;color:var(--dan);border-color:color-mix(in srgb,var(--dan) 40%,transparent)}
+.btn.danger.solid{background:var(--dan);color:#fff;border-color:transparent}
+.btn.sm{height:30px;padding:0 11px;font-size:13px}
+.btn.lg{height:44px;padding:0 20px;font-size:15px;border-radius:10px}
+.btn.icon{width:34px;padding:0;justify-content:center}
+.btn.sm.icon{width:30px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.lnk{color:var(--ac);font-weight:600}
+.lnk:hover{text-decoration:underline}
+.iconbtn{position:relative;width:34px;height:34px;border-radius:8px;border:0;background:transparent;color:var(--fg2);display:grid;place-items:center}
+.iconbtn:hover{background:var(--s3);color:var(--fg)}
+.iconbtn .dot{position:absolute;top:3px;right:2px;min-width:16px;height:16px;border-radius:8px;background:var(--dan);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;padding:0 4px}
+
+/* form */
+.field{display:grid;gap:6px} .field>label{font-size:12.5px;color:var(--fg2);font-weight:600}
+.input{height:38px;border:1px solid var(--ln2);background:var(--bg);border-radius:8px;padding:0 12px;color:var(--fg);font:14px var(--font);width:100%;display:flex;align-items:center;gap:8px}
+.input.focus{border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 22%,transparent)}
+.input .ph{color:var(--fg3)}
+.input.err{border-color:var(--dan)}
+.help{font-size:12.5px;color:var(--fg3)} .help.err{color:var(--dan)}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--fg2)}
+.box{flex:none;width:18px;height:18px;border-radius:5px;border:1.5px solid var(--ln2);display:grid;place-items:center;margin-top:1px}
+.box.on{background:var(--ac);border-color:var(--ac);color:var(--ac-ink)}
+.rad{flex:none;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--ln2);margin-top:1px;display:grid;place-items:center}
+.rad.on{border-color:var(--ac)} .rad.on::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--ac)}
+.tgl{flex:none;width:36px;height:20px;border-radius:10px;background:var(--ln2);position:relative}
+.tgl::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.tgl.on{background:var(--ac)} .tgl.on::after{left:18px}
+.seg{display:inline-flex;background:var(--s3);border-radius:9px;padding:3px;gap:2px}
+.seg a{padding:5px 12px;border-radius:7px;color:var(--fg2);font-size:13px;font-weight:600}
+.seg a.on{background:var(--s1);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.slider{height:4px;border-radius:2px;background:var(--ln2);position:relative}
+.slider i{position:absolute;left:0;top:0;bottom:0;background:var(--ac);border-radius:2px}
+.slider b{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--ac);transform:translate(-50%,-50%)}
+.rcard{border:1.5px solid var(--ln2);border-radius:12px;padding:16px;display:flex;gap:12px;background:var(--s2)}
+.rcard.on{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 7%,var(--s2))}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:650;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.b-ok{color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent)}
+.b-run{color:var(--info);background:color-mix(in srgb,var(--info) 14%,transparent)}
+.b-warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.b-err{color:var(--dan);background:color-mix(in srgb,var(--dan) 14%,transparent)}
+.b-mute{color:var(--fg2);background:var(--s3)}
+.b-pro{color:#c49bff;background:rgba(176,124,255,.15);font-size:10.5px;padding:2px 7px;letter-spacing:.04em}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--dan);box-shadow:0 0 0 0 rgba(255,107,107,.6);animation:pl 1.6s infinite}
+@keyframes pl{70%{box-shadow:0 0 0 8px rgba(255,107,107,0)}100%{box-shadow:0 0 0 0 rgba(255,107,107,0)}}
+
+/* surfaces */
+.card{background:var(--s1);border:1px solid var(--ln);border-radius:14px}
+.card.p{padding:18px 20px}
+.ct{font-size:13px;font-weight:700;color:var(--fg2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.banner{display:flex;gap:12px;align-items:center;padding:10px 14px;border-radius:10px;border:1px solid;font-size:13.5px}
+.banner.warn{background:color-mix(in srgb,var(--warn) 9%,transparent);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+.banner.warn .bi{color:var(--warn)}
+.banner.info{background:color-mix(in srgb,var(--info) 9%,transparent);border-color:color-mix(in srgb,var(--info) 30%,transparent)}
+.banner.info .bi{color:var(--info)}
+.banner.err{background:color-mix(in srgb,var(--dan) 9%,transparent);border-color:color-mix(in srgb,var(--dan) 30%,transparent)}
+.banner.err .bi{color:var(--dan)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--ln)}
+.tabs a{padding:11px 14px;color:var(--fg2);font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;gap:8px;align-items:center}
+.tabs a:hover{color:var(--fg)} .tabs a.on{color:var(--fg);border-color:var(--ac)}
+.tabs .soon{font-size:10.5px;color:var(--fg3);border:1px solid var(--ln2);padding:0 6px;border-radius:4px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:11.5px;color:var(--fg3);font-weight:650;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--ln);white-space:nowrap}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--ln);font-size:13.5px;vertical-align:middle}
+.tbl tr.click{cursor:pointer} .tbl tr.click:hover td{background:var(--s2)}
+.tbl tr.sel td{background:color-mix(in srgb,var(--ac) 8%,transparent)}
+.kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--ln2);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--fg2);background:var(--s2)}
+hr.d{border:0;border-top:1px solid var(--ln);margin:16px 0}
+
+/* menus */
+.menu{position:absolute;display:none;background:var(--s1);border:1px solid var(--ln2);border-radius:12px;padding:6px;min-width:220px;box-shadow:var(--sh);z-index:70}
+.menu.open{display:block}
+.menu a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;font-size:13.5px;color:var(--fg)}
+.menu a:hover{background:var(--s3)}
+.menu a.dn{color:var(--dan)}
+.menu a .k{margin-left:auto}
+.menu hr{border:0;border-top:1px solid var(--ln);margin:6px 2px}
+.menu .mh{padding:8px 10px 6px;font-size:12px;color:var(--fg3)}
+
+/* topbar */
+.tb{height:58px;display:flex;align-items:center;gap:22px;padding:0 20px;border-bottom:1px solid var(--ln);background:var(--s1);position:sticky;top:0;z-index:30}
+.logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15.5px;letter-spacing:-.02em}
+.logo i{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,#3ddc84,#1b8f52);position:relative}
+.logo i::after{content:"";position:absolute;inset:6px;border:2px solid #04210f;border-radius:50%}
+.logo.lg{font-size:20px} .logo.lg i{width:30px;height:30px}
+.nav{display:flex;gap:2px}
+.nav a{padding:7px 12px;border-radius:8px;color:var(--fg2);font-weight:600;display:flex;gap:7px;align-items:center}
+.nav a:hover{color:var(--fg);background:var(--s3)} .nav a.on{color:var(--fg);background:var(--s3)}
+.nav .cnt{font-size:11px;background:var(--info);color:#04121f;border-radius:8px;padding:0 6px;font-weight:700}
+.meter{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--fg2);font-weight:600;padding:4px 8px;border-radius:8px}
+.meter:hover{background:var(--s3)}
+.meter i{display:block;width:96px;height:4px;border-radius:2px;background:var(--ln2);overflow:hidden}
+.meter b{display:block;height:100%;background:var(--ac)}
+.avatar{width:32px;height:32px;border-radius:50%;border:0;background:linear-gradient(135deg,#4da3ff,#7c5cff);color:#fff;font-weight:700;font-size:12px}
+
+/* page */
+.page{padding:26px 32px 60px;max-width:1400px;margin:0 auto}
+.ph{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.ph h1{font-size:24px;font-weight:750}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--fg2);font-weight:600;font-size:13.5px}
+.back:hover{color:var(--fg)}
+
+/* modal / drawer / toast */
+.mbg{position:fixed;inset:0;background:rgba(3,7,11,.62);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:80;padding:24px}
+:root[data-theme="light"] .mbg{background:rgba(20,30,45,.38)}
+.modal{background:var(--s1);border:1px solid var(--ln);border-radius:16px;width:660px;max-height:calc(100vh - 48px);overflow:auto;box-shadow:var(--sh)}
+.modal.sm{width:480px} .modal.lg{width:920px}
+.mhd{padding:18px 22px;border-bottom:1px solid var(--ln);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.mhd h3{font-size:17px;font-weight:700}
+.mbd{padding:20px 22px}
+.mft{padding:14px 22px;border-top:1px solid var(--ln);display:flex;align-items:center;gap:10px}
+.drawer{position:fixed;right:0;top:58px;bottom:0;width:400px;background:var(--s1);border-left:1px solid var(--ln);z-index:60;box-shadow:var(--sh);overflow:auto}
+#toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;transition:.2s;z-index:200;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+#toast .t{background:#1d2834;color:#e8eef5;border:1px solid #2b3a4a;padding:11px 14px;border-radius:12px;display:flex;gap:14px;align-items:center;box-shadow:var(--sh);font-size:13.5px}
+
+/* visuals */
+svg.frame{display:block;width:100%;height:100%}
+svg.frame .pl[data-go]:hover rect.bb{stroke-width:3}
+svg.tmap{display:block;width:100%;height:100%}
+.thumb{position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:12px 12px 0 0;background:#1d4f28}
+.thumb .dur{position:absolute;right:8px;bottom:8px;background:rgba(5,9,13,.78);color:#fff;font:600 11.5px var(--mono);padding:2px 6px;border-radius:5px}
+.thumb .st{position:absolute;left:8px;top:8px}
+.thumb .st .badge{backdrop-filter:blur(6px);background:rgba(5,9,13,.72)}
+.thumb .prog{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(0,0,0,.4)} .thumb .prog i{display:block;height:100%;background:var(--info)}
+
+/* landing */
+.lp-h{height:68px;display:flex;align-items:center;gap:28px;padding:0 48px;border-bottom:1px solid var(--ln)}
+.lp-h nav{display:flex;gap:22px;color:var(--fg2);font-weight:600}
+.lp-h nav a:hover{color:var(--fg)}
+.hero{display:grid;grid-template-columns:1fr 1.25fr;gap:56px;align-items:center;padding:72px 48px 56px;max-width:1440px;margin:0 auto}
+.eyebrow{font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ac)}
+.hero h1{font-size:54px;line-height:1.04;letter-spacing:-.035em;margin:14px 0 18px;font-weight:800}
+.hero p{font-size:17.5px;color:var(--fg2);max-width:52ch;margin:0 0 28px}
+.hero-n{margin-top:18px;color:var(--fg3);font-size:13px}
+.hero-v{display:grid;grid-template-columns:1fr 210px;gap:12px;background:var(--s1);border:1px solid var(--ln);border-radius:18px;padding:12px;box-shadow:var(--sh)}
+.hv-frame{position:relative;aspect-ratio:16/9;border-radius:10px;overflow:hidden}
+.hv-map{background:#fff;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column}
+.hv-map .cap{color:#111;font-weight:700;font-size:13px;text-align:center;margin-bottom:6px}
+.vhud{position:absolute;left:10px;top:8px;font:700 12px var(--mono);color:#fff;background:rgba(5,9,13,.6);padding:3px 7px;border-radius:5px}
+.feat{max-width:1440px;margin:0 auto;padding:24px 48px 64px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.feat .card{padding:22px} .feat h3{font-size:16px;margin:12px 0 6px} .feat p{margin:0;color:var(--fg2);font-size:13.5px}
+.fi{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--ac) 14%,transparent);color:var(--ac)}
+.pricing{max-width:1100px;margin:0 auto;padding:16px 48px 80px}
+.pricing h2{font-size:32px;text-align:center;margin-bottom:28px;letter-spacing:-.02em}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.plan{padding:24px;display:flex;flex-direction:column;gap:12px}
+.plan.hl{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
+.plan .pr{font-size:34px;font-weight:800;letter-spacing:-.02em} .plan .pr small{font-size:14px;color:var(--fg3);font-weight:500}
+.plan ul{margin:0;padding:0;list-style:none;display:grid;gap:8px;color:var(--fg2);font-size:13.5px}
+.plan li{display:flex;gap:8px;align-items:center} .plan li .ic{color:var(--ac)}
+.lp-f{border-top:1px solid var(--ln);padding:24px 48px;display:flex;gap:22px;color:var(--fg3);font-size:13px}
+.lp-f a:hover{color:var(--fg)}
+
+/* auth */
+.auth{display:grid;grid-template-columns:1.1fr 1fr;min-height:100vh}
+.auth-art{position:relative;overflow:hidden;background:#1d4f28}
+.auth-art svg{position:absolute;inset:0;width:100%;height:100%}
+.auth-art::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,10,14,.2),rgba(6,10,14,.85))}
+.auth-q{position:absolute;left:48px;right:48px;bottom:48px;z-index:2;color:#fff}
+.auth-q h2{font-size:34px;line-height:1.1;letter-spacing:-.03em;margin:18px 0 8px;font-weight:800}
+.auth-q p{color:rgba(255,255,255,.75);margin:0;font-size:15px}
+.auth-form{display:grid;place-items:center;padding:40px;background:var(--bg)}
+.af{width:400px;display:flex;flex-direction:column;gap:16px}
+.af h1{font-size:26px;font-weight:750;letter-spacing:-.02em}
+.af .sub{color:var(--fg2);margin:-8px 0 4px}
+.or{display:flex;align-items:center;gap:12px;color:var(--fg3);font-size:12.5px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--ln)}
+.gbtn{justify-content:center;height:42px;width:100%}
+.center{min-height:100vh;display:grid;place-items:center;padding:40px}
+.steps{display:flex;gap:8px;align-items:center;color:var(--fg3);font-size:12.5px;font-weight:600}
+.steps i{width:28px;height:4px;border-radius:2px;background:var(--ln2)} .steps i.on{background:var(--ac)}
+.strength{display:flex;gap:4px} .strength i{flex:1;height:4px;border-radius:2px;background:var(--ln2)} .strength i.on{background:var(--ac)}
+
+/* library */
+.filters{display:flex;gap:10px;align-items:center;margin-bottom:20px}
+.vgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.vcard{background:var(--s1);border:1px solid var(--ln);border-radius:12px;transition:border-color .12s,transform .12s}
+.vcard:hover{border-color:var(--ln2);transform:translateY(-1px)}
+.vcard .vb{padding:12px 14px 14px;display:flex;gap:8px}
+.vcard h4{font-size:14.5px;font-weight:650;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vcard .m{font-size:12.5px;color:var(--fg3)}
+.empty{display:grid;place-items:center;text-align:center;padding:90px 20px;border:1.5px dashed var(--ln2);border-radius:18px;background:var(--s1)}
+.empty h2{font-size:22px;margin:18px 0 6px} .empty p{color:var(--fg2);margin:0 0 22px}
+
+/* new analysis */
+.drop{border:1.5px dashed var(--ln2);border-radius:14px;padding:28px;text-align:center;background:var(--s2);color:var(--fg2)}
+.drop .ic{margin:0 auto 10px;color:var(--ac)}
+.file{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--ln);border-radius:12px;background:var(--s2)}
+.file .fic{width:40px;height:40px;border-radius:10px;background:color-mix(in srgb,var(--info) 15%,transparent);color:var(--info);display:grid;place-items:center}
+.sumline{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--s2);font-size:13.5px;color:var(--fg2)}
+.pbar{height:8px;border-radius:4px;background:var(--ln2);overflow:hidden} .pbar i{display:block;height:100%;background:var(--ac);border-radius:4px}
+.pbar.info i{background:var(--info)}
+
+/* processing */
+.stepper{display:flex;align-items:center;gap:10px;margin:6px 0 26px}
+.stepper .s{display:flex;align-items:center;gap:8px;font-weight:600;color:var(--fg3);font-size:13.5px}
+.stepper .s .c{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--ln2);display:grid;place-items:center;font-size:12px}
+.stepper .s.done{color:var(--fg2)} .stepper .s.done .c{background:var(--ac);border-color:var(--ac);color:var(--ac-ink)}
+.stepper .s.now{color:var(--fg)} .stepper .s.now .c{border-color:var(--info);color:var(--info)}
+.stepper .s.fail{color:var(--dan)} .stepper .s.fail .c{border-color:var(--dan);background:var(--dan);color:#fff}
+.stepper .ln{flex:1;height:2px;background:var(--ln2)} .stepper .ln.done{background:var(--ac)}
+.big{font-size:56px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.mosaic{display:grid;grid-template-columns:repeat(45,1fr);gap:3px}
+.mosaic i{aspect-ratio:1;border-radius:3px;background:var(--ln2)}
+.mosaic i.d{background:var(--ac)} .mosaic i.r{background:var(--info);animation:blink 1.2s infinite} .mosaic i.f{background:var(--dan)}
+@keyframes blink{50%{opacity:.45}}
+
+/* teams */
+.crops{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.crop{aspect-ratio:3/5;border-radius:8px;overflow:hidden;background:#2a6a34;border:1px solid rgba(255,255,255,.06)}
+.crop svg{width:100%;height:100%;display:block}
+.sw{display:flex;gap:8px}
+.sw i{width:26px;height:26px;border-radius:50%;border:2px solid transparent;box-shadow:inset 0 0 0 2px var(--s1)}
+.sw i.on{border-color:var(--fg)}
+.sw i.custom{background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)}
+
+/* workspace */
+.ws{padding:16px 20px 60px;max-width:1600px;margin:0 auto}
+.ws-h{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.crumb{display:flex;align-items:center;gap:10px;font-size:15px}
+.crumb a{color:var(--fg2);font-weight:600} .crumb a:hover{color:var(--fg)} .crumb b{font-weight:700;font-size:17px}
+.ws-main{display:grid;grid-template-columns:1fr 330px;gap:14px;margin-top:12px}
+.vid{background:#000;border-radius:14px;overflow:hidden;border:1px solid var(--ln)}
+.vwrap{position:relative;aspect-ratio:16/9}
+.vwrap .vhud{left:12px;top:10px}
+.ctrl{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--s1);border-top:1px solid var(--ln)}
+.ctrl .btn.icon{background:transparent;border-color:transparent}
+.ctrl .btn.icon:hover{background:var(--s3)}
+.tl{flex:1;position:relative;height:30px}
+.tl .bar{position:absolute;left:0;right:0;top:13px;height:5px;border-radius:3px;background:var(--ln2)}
+.tl .played{position:absolute;left:0;top:13px;height:5px;border-radius:3px;background:var(--ac)}
+.tl .low{position:absolute;top:11px;height:9px;border-radius:2px;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--warn) 70%,transparent) 0 3px,transparent 3px 6px)}
+.tl .sel{position:absolute;top:6px;height:19px;border-radius:4px;background:color-mix(in srgb,var(--info) 20%,transparent);border:1px solid var(--info)}
+.tl .knob{position:absolute;top:8px;width:14px;height:14px;border-radius:50%;background:#fff;transform:translateX(-50%);box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.tl .shot{position:absolute;top:12px;height:7px;background:var(--fg3);opacity:.75;border-radius:1px}
+.tl .mk{position:absolute;top:0;width:2px;height:8px;background:var(--fg2);border-radius:1px}
+.layers{display:flex;gap:6px;align-items:center;padding:10px 14px;background:var(--s1);border-top:1px solid var(--ln);flex-wrap:wrap}
+.chip{height:28px;padding:0 10px;border-radius:7px;border:1px solid var(--ln2);background:transparent;color:var(--fg3);font:600 12.5px var(--font);display:inline-flex;align-items:center;gap:6px}
+.chip.on{color:var(--fg);background:var(--s3);border-color:var(--ln2)}
+.chip.on::before{content:"";width:7px;height:7px;border-radius:2px;background:var(--ac)}
+.chip .b-pro{margin-left:2px}
+.mapp{background:var(--s1);border:1px solid var(--ln);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.mapp .mapbox{flex:1;min-height:0;display:grid;place-items:center}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--fg2);flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px}
+.tabc{padding-top:18px}
+.statrow{display:grid;grid-template-columns:110px 1fr 1fr 110px;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--ln)}
+.statrow:last-child{border-bottom:0}
+.statrow .k{grid-column:2/4;text-align:center;font-size:12px;color:var(--fg3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:-6px}
+.statrow .v{font:700 16px var(--mono)} .statrow .v.r{text-align:right}
+.dual{grid-column:2/4;display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px}
+.dual i:first-child{background:var(--A)} .dual i:last-child{background:var(--B)}
+.tdot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.tsq{width:10px;height:10px;border-radius:2px;display:inline-block}
+.ctxm{position:absolute;z-index:20;display:block}
+.ctxm .menu{position:static;display:block}
+.cite{display:inline-flex;align-items:center;font:600 11px var(--mono);color:var(--ac);background:color-mix(in srgb,var(--ac) 12%,transparent);padding:0 5px;border-radius:4px;margin:0 2px;vertical-align:1px}
+.cite.on{outline:1.5px solid var(--ac)}
+.pop{position:absolute;z-index:40;width:300px;background:var(--s1);border:1px solid var(--ln2);border-radius:12px;box-shadow:var(--sh);padding:14px}
+
+/* settings */
+.set{display:grid;grid-template-columns:230px 1fr;gap:32px}
+.snav{display:flex;flex-direction:column;gap:2px}
+.snav a{display:flex;gap:10px;align-items:center;padding:9px 12px;border-radius:9px;color:var(--fg2);font-weight:600}
+.snav a:hover{background:var(--s3);color:var(--fg)} .snav a.on{background:var(--s3);color:var(--fg)}
+.sec{display:flex;flex-direction:column;gap:18px;max-width:760px}
+.sec h2{font-size:20px;font-weight:750}
+.frm{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* live */
+.livebar{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--s1);border-bottom:1px solid var(--ln)}
+.lv{display:grid;grid-template-columns:1fr 340px;gap:14px;padding:14px 20px}
+.lbadge{display:inline-flex;align-items:center;gap:8px;background:var(--dan);color:#fff;font-weight:800;font-size:12px;letter-spacing:.08em;padding:4px 10px;border-radius:6px}
+.metric{display:flex;flex-direction:column;font-size:11.5px;color:var(--fg3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.metric b{font:700 15px var(--mono);color:var(--fg);text-transform:none;letter-spacing:0}
+
+/* proto toolbar */
+.proto{position:fixed;left:16px;bottom:16px;z-index:300;display:flex;align-items:center;gap:8px;background:rgba(10,14,19,.94);border:1px solid #2b3a4a;border-radius:14px;padding:8px 10px;box-shadow:0 12px 40px rgba(0,0,0,.5);color:#e8eef5;font:13px var(--font);backdrop-filter:blur(8px)}
+.proto .id{font:700 12px var(--mono);color:#3ddc84;padding:0 6px;min-width:120px}
+.proto select{height:30px;background:#151e28;color:#e8eef5;border:1px solid #2b3a4a;border-radius:8px;padding:0 8px;font:13px var(--font);max-width:260px}
+.proto button,.proto a{height:30px;padding:0 10px;border-radius:8px;border:1px solid #2b3a4a;background:#151e28;color:#e8eef5;font:600 12.5px var(--font);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.proto button.on{border-color:#ffb648;color:#ffb648}
+.proto .sepv{width:1px;height:20px;background:#2b3a4a}
+body.hot #app [data-go],body.hot #ov [data-go],body.hot [data-toggle],body.hot [data-toast]{outline:2px dashed #ffb648!important;outline-offset:2px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="g-std" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1218"/><stop offset="1" stop-color="#1e2a33"/></linearGradient>
+    <pattern id="g-crowd" width="14" height="10" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="1.6" fill="#8a7a6a"/><circle cx="10" cy="6" r="1.6" fill="#5a6d82"/><circle cx="6" cy="9" r="1.4" fill="#a65a4a"/><circle cx="12" cy="1" r="1.3" fill="#c9c2b0"/>
+    </pattern>
+    <linearGradient id="g-vig" x1="0" y1="0" x2="0" y2="1"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient>
+  </defs>
+</svg>
+<div id="app"></div>
+<div id="ov"></div>
+<div id="toast"></div>
+<div class="proto">
+  <span style="font-weight:700;color:#a3b3c4">Prototype</span>
+  <span class="sepv"></span>
+  <button id="pPrev" title="Màn hình trước">‹</button>
+  <select id="pSel"></select>
+  <button id="pNext" title="Màn hình sau">›</button>
+  <span class="id" id="pId"></span>
+  <span class="sepv"></span>
+  <button id="pBack">← Back</button>
+  <button id="pHot" title="Tô viền mọi vùng bấm được">Hotspots</button>
+  <button id="pTheme">◐ Theme</button>
+  <a id="pSpec" target="_blank">Spec ↗</a>
+</div>
+
+<script>
+/* ================= icons ================= */
+const ICP={
+plus:'<path d="M12 5v14M5 12h14"/>',search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+chev:'<path d="m6 9 6 6 6-6"/>',chevR:'<path d="m9 18 6-6-6-6"/>',chevL:'<path d="m15 18-6-6 6-6"/>',
+more:'<circle cx="12" cy="5" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="19" r="1.4" fill="currentColor"/>',
+play:'<path d="M7 4l13 8-13 8z" fill="currentColor"/>',pause:'<path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor"/>',
+skipb:'<path d="M19 20 9 12l10-8v16zM5 19V5"/>',skipf:'<path d="m5 4 10 8-10 8V4zM19 5v14"/>',
+expand:'<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
+download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+link:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+live:'<circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/>',
+x:'<path d="M18 6 6 18M6 6l12 12"/>',check:'<path d="M20 6 9 17l-5-5"/>',
+alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
+sparkle:'<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z"/>',
+share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
+users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+key:'<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+back:'<path d="M19 12H5M12 19l-7-7 7-7"/>',
+grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+trash:'<path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+edit:'<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/>',
+stop:'<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>',
+refresh:'<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.8-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>',
+layers:'<path d="m12 2 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5"/>',
+mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>',
+globe:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/>',
+lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+yt:'<rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3z" fill="currentColor"/>',
+video:'<path d="m23 7-7 5 7 5z"/><rect x="1" y="5" width="15" height="14" rx="2"/>',
+info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+swap:'<path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/>',
+target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+help:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+building:'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>',
+card:'<rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/>',
+shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+sliders:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',zap:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>',
+shirt:'<path d="M20.4 3.5 16 2a4 4 0 0 1-8 0L3.6 3.5a2 2 0 0 0-1.3 2.2l.6 3.5a1 1 0 0 0 1 .8H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.2a1 1 0 0 0 1-.8l.6-3.5a2 2 0 0 0-1.3-2.2z"/>',
+map:'<path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4z"/><path d="M8 2v16M16 6v16"/>',
+chart:'<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/>',
+user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+undo:'<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
+scissors:'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
+merge:'<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
+ext:'<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/>',
+server:'<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/>',
+signal:'<path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16"/>'
+};
+const ic=(n,s=16,sw=2)=>`<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${ICP[n]||''}</svg>`;
+
+/* ================= helpers ================= */
+const B=(label,to,cls='',extra='')=>`<button class="btn ${cls}" ${to?`data-go="${to}"`:''} ${extra}>${label}</button>`;
+const L=(label,to,cls='')=>`<a class="lnk ${cls}" data-go="${to}">${label}</a>`;
+const T=t=>`data-toast="${t}"`;
+const box=(on)=>`<span class="box ${on?'on':''}">${on?ic('check',12,3):''}</span>`;
+const chk=(on,label,extra='')=>`<label class="chk" data-chip ${extra}>${box(on)}<span>${label}</span></label>`;
+const rad=(on)=>`<span class="rad ${on?'on':''}"></span>`;
+const tgl=(on)=>`<span class="tgl ${on?'on':''}" data-chip></span>`;
+const seg=(items)=>`<div class="seg">${items.map(([l,on,to])=>`<a class="${on?'on':''}" ${to?`data-go="${to}"`:'data-chip'}>${l}</a>`).join('')}</div>`;
+const field=(label,inner,help='')=>`<div class="field"><label>${label}</label>${inner}${help?`<div class="help">${help}</div>`:''}</div>`;
+const inp=(v,ph=false,cls='')=>`<div class="input ${cls}">${ph?`<span class="ph">${v}</span>`:v}</div>`;
+const modal=(size,title,body,foot,close)=>`<div class="mbg" data-go="${close}" data-self><div class="modal ${size}" data-stop><div class="mhd"><h3>${title}</h3><button class="iconbtn" data-go="${close}">${ic('x',18)}</button></div><div class="mbd">${body}</div>${foot?`<div class="mft">${foot}</div>`:''}</div></div>`;
+const rnd=(i)=>{const x=Math.sin(i*999.1)*10000;return x-Math.floor(x)};
+
+/* ================= data ================= */
+const TEAMS={A:{name:'France',short:'FRA',c:'#4da3ff',kit:'#1e3d8f',sh:'#f2f4f8'},B:{name:'Switzerland',short:'SUI',c:'#ff6b6b',kit:'#cf1f2e',sh:'#f2f4f8'},R:{name:'Referee',short:'REF',c:'#f2c94c',kit:'#1b1b1b',sh:'#1b1b1b'}};
+const PL=[
+{id:1,t:'A',gk:1,x:8,y:34,n:1,nm:'T. Morel',cf:.91,kit:'#22a06b',pos:'GK'},
+{id:2,t:'A',x:34,y:9,n:2,nm:'L. Duval',cf:.86,pos:'RB'},
+{id:3,t:'A',x:30,y:25,n:4,nm:'R. Kessler',cf:.88,pos:'CB'},
+{id:4,t:'A',x:30,y:43,n:5,nm:'A. Lemaire',cf:.84,pos:'CB'},
+{id:5,t:'A',x:35,y:59,n:3,nm:'M. Garnier',cf:.83,pos:'LB'},
+{id:6,t:'A',x:50,y:18,n:13,nm:'N. Faure',cf:.85,pos:'CM'},
+{id:7,t:'A',x:46,y:34,n:6,nm:'P. Roussel',cf:.87,pos:'DM'},
+{id:8,t:'A',x:52,y:50,n:8,nm:'E. Girard',cf:.82,pos:'CM'},
+{id:9,t:'A',x:70,y:13,n:7,nm:'Y. Bonnet',cf:.83,pos:'RW'},
+{id:10,t:'A',x:78,y:30,n:9,nm:'O. Petit',cf:.81,pos:'ST'},
+{id:11,t:'A',x:72,y:52,n:10,nm:'K. Martin',cf:.86,pos:'LW'},
+{id:12,t:'B',gk:1,x:100,y:35,n:1,nm:'J. Keller',cf:.79,kit:'#e8a317',pos:'GK'},
+{id:13,t:'B',x:88,y:15,n:2,nm:'S. Brunner',cf:.88,pos:'RB'},
+{id:14,t:'B',x:86,y:29,n:5,nm:'F. Frei',cf:.85,pos:'CB'},
+{id:15,t:'B',x:87,y:41,n:4,nm:'L. Meier',cf:.77,pos:'CB'},
+{id:16,t:'B',x:84,y:56,n:3,nm:'D. Huber',cf:.85,pos:'LB'},
+{id:17,t:'B',x:74,y:12,n:8,nm:'M. Baumann',cf:.82,pos:'RM'},
+{id:18,t:'B',x:70,y:27,n:10,nm:'G. Widmer',cf:.86,pos:'CM'},
+{id:19,t:'B',x:71,y:42,n:6,nm:'R. Graf',cf:.88,pos:'CM'},
+{id:20,t:'B',x:73,y:58,n:13,nm:'T. Steiner',cf:.75,pos:'LM'},
+{id:21,t:'B',x:58,y:30,n:9,nm:'N. Fischer',cf:.84,pos:'ST'},
+{id:22,t:'B',x:56,y:45,n:11,nm:'B. Schmid',cf:.80,pos:'ST'},
+{id:23,t:'R',x:64,y:40,n:0,nm:'Referee',cf:.76,pos:'REF'}
+];
+const BALL={x:77,y:31.5};
+const stat=p=>({min:p.t==='R'?94:(p.id===20?61:94),dist:(9.4+((p.id*37)%26)/10).toFixed(1),top:p.id===10?'33.1':(27.2+((p.id*13)%45)/10).toFixed(1),spr:8+(p.id*7)%25,pas:20+(p.id*11)%48,acc:74+(p.id*5)%20});
+const byId=id=>PL.find(p=>p.id===+id)||PL[10];
+
+/* ================= pitch geometry ================= */
+const sampleSeg=(x0,y0,x1,y1,n=14)=>Array.from({length:n+1},(_,i)=>[x0+(x1-x0)*i/n,y0+(y1-y0)*i/n]);
+function pitchLines(m,attr){
+  const pl=pts=>`<polyline points="${pts.map(p=>{const q=m(p[0],p[1]);return q[0].toFixed(2)+','+q[1].toFixed(2)}).join(' ')}"/>`;
+  const ln=(a,b,c,d)=>pl(sampleSeg(a,b,c,d));
+  const arc=(cx,cy,r,a0,a1,n=40)=>pl(Array.from({length:n+1},(_,i)=>{const a=a0+(a1-a0)*i/n;return[cx+r*Math.cos(a),cy+r*Math.sin(a)]}));
+  let s=ln(0,0,105,0)+ln(105,0,105,68)+ln(105,68,0,68)+ln(0,68,0,0)+ln(52.5,0,52.5,68)+arc(52.5,34,9.15,0,Math.PI*2,64);
+  for(const side of [0,1]){
+    const X=v=>side?105-v:v;
+    s+=ln(X(0),13.84,X(16.5),13.84)+ln(X(16.5),13.84,X(16.5),54.16)+ln(X(16.5),54.16,X(0),54.16);
+    s+=ln(X(0),24.84,X(5.5),24.84)+ln(X(5.5),24.84,X(5.5),43.16)+ln(X(5.5),43.16,X(0),43.16);
+    s+=side?arc(94,34,9.15,Math.PI-0.927,Math.PI+0.927,20):arc(11,34,9.15,-0.927,0.927,20);
+  }
+  return `<g ${attr}>${s}</g>`;
+}
+function mapper(cam=72){const top=122,bot=770;return (x,y)=>{const v=Math.max(-0.06,y/68);const s=Math.sign(v)*Math.pow(Math.abs(v),1.1);const k=13+13.5*s;return[640+(x-cam)*k,top+(bot-top)*s,s]}}
+
+/* ================= broadcast frame ================= */
+function figure(p,m,o){
+  const [sx,sy,s]=m(p.x,p.y);const h=26+54*s,w=h*.42;const T=TEAMS[p.t];const kit=p.kit||T.kit;const x=sx-w/2,y=sy-h;
+  const sel=o.sel==p.id;
+  const go=o.click&&p.t!=='R'?`data-go="${o.click(p)}"`:'';const cx=o.ctx&&p.t!=='R'?`data-ctx="${o.ctx(p)}"`:'';
+  let g=`<g class="pl" ${go} ${cx}>`;
+  g+=`<ellipse cx="${sx}" cy="${sy}" rx="${w*.55}" ry="${w*.16}" fill="rgba(0,0,0,.28)"/>`;
+  if(sel)g+=`<ellipse cx="${sx}" cy="${sy}" rx="${w*1.1}" ry="${w*.34}" fill="none" stroke="#3ddc84" stroke-width="2.5"/>`;
+  g+=`<path d="M${sx-w*.14} ${y+h*.64}L${sx-w*.2} ${y+h*.97}M${sx+w*.14} ${y+h*.64}L${sx+w*.24} ${y+h*.95}" stroke="#d2a07c" stroke-width="${w*.13}" stroke-linecap="round"/>`;
+  g+=`<rect x="${sx-w*.3}" y="${y+h*.52}" width="${w*.6}" height="${h*.15}" rx="${w*.05}" fill="${T.sh}"/>`;
+  g+=`<rect x="${sx-w*.33}" y="${y+h*.19}" width="${w*.66}" height="${h*.36}" rx="${w*.14}" fill="${kit}"/>`;
+  g+=`<circle cx="${sx}" cy="${y+h*.1}" r="${w*.17}" fill="#c99a78"/>`;
+  if(o.boxes){g+=`<rect class="bb" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="${T.c}" stroke-width="${sel?3:1.6}"/>`;}
+  if(o.labels){
+    let txt=(o.names&&p.t!=='R'?`#${p.n} ${p.nm}`:T.name)+(o.conf?' '+p.cf.toFixed(2):'')+(o.ids?` · ${p.id}`:'');
+    const tw=txt.length*6.7+14,lx=sx-tw/2,ly=y-20;
+    g+=`<rect x="${lx}" y="${ly}" width="${tw}" height="17" rx="3" fill="rgba(6,10,14,.74)"/><rect x="${lx}" y="${ly}" width="3" height="17" rx="1" fill="${T.c}"/><text x="${lx+8}" y="${ly+12.5}" font-family="Inter,sans-serif" font-size="11.5" font-weight="650" fill="#fff">${txt}</text>`;
+  }
+  return g+'</g>';
+}
+function frame(o={}){
+  o={boxes:1,labels:1,conf:1,ball:1,kp:1,cam:72,...o};const m=mapper(o.cam);
+  const players=(o.players||PL).map(p=>o.jit?{...p,x:p.x+(rnd(p.id+o.jit)-.5)*o.jit*2,y:p.y+(rnd(p.id*3+o.jit)-.5)*o.jit*1.4}:p);
+  let s=`<svg class="frame" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice">`;
+  s+=`<rect width="1280" height="720" fill="#265f2f"/>`;
+  s+=`<rect width="1280" height="126" fill="url(#g-std)"/><rect width="1280" height="96" fill="url(#g-crowd)" opacity=".55"/>`;
+  s+=`<rect y="96" width="1280" height="26" fill="#0b2f63"/>`;
+  for(let i=0;i<8;i++)s+=`<text x="${20+i*170}" y="114" font-family="Inter,sans-serif" font-size="14" font-weight="800" fill="rgba(255,255,255,.85)" letter-spacing="2">PITCHVISION</text>`;
+  for(let i=-2;i<22;i++){const x0=i*5.25,x1=x0+5.25;const c=[m(x0,-2),m(x1,-2),m(x1,72),m(x0,72)];s+=`<polygon points="${c.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" fill="${i%2?'#2c7438':'#286a33'}"/>`;}
+  s+=pitchLines(m,'fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2.2"');
+  if(o.kp){const kps=[[16.5,13.84],[16.5,54.16],[88.5,13.84],[88.5,54.16],[99.5,24.84],[99.5,43.16],[105,13.84],[105,54.16],[52.5,0],[52.5,68],[52.5,24.85],[52.5,43.15],[61.65,34],[43.35,34],[105,0],[105,24.84],[105,43.16],[0,68]];
+    s+=kps.map(k=>{const q=m(k[0],k[1]);return `<rect x="${q[0]-6}" y="${q[1]-6}" width="12" height="12" fill="none" stroke="rgba(8,12,16,.85)" stroke-width="1.6"/>`}).join('');}
+  const items=[...players];
+  s+=items.sort((a,b)=>a.y-b.y).map(p=>figure(p,m,o)).join('');
+  if(o.ball){const q=m(BALL.x,BALL.y);const r=4+5*q[2];s+=`<circle cx="${q[0]+8}" cy="${q[1]-r}" r="${r}" fill="#fff" stroke="${o.boxes?'#ff8a3d':'#999'}" stroke-width="${o.boxes?2:1}"/>`;}
+  if(o.extra)s+=o.extra(m);
+  s+=`<rect width="1280" height="720" fill="url(#g-vig)"/>`;
+  return s+'</svg>';
+}
+
+/* ================= tactical map ================= */
+function tmap(o={}){
+  o={vertical:1,light:0,num:0,trail:0,shape:0,ball:1,...o};
+  const tr=o.vertical?(x,y)=>[y,105-x]:(x,y)=>[x,y];
+  const W=o.vertical?68:105,H=o.vertical?105:68;
+  const fill=o.light?'#ffffff':'#13432a',line=o.light?'#111':'rgba(255,255,255,.7)';
+  let s=`<svg class="tmap" viewBox="-4 -4 ${W+8} ${H+8}" preserveAspectRatio="xMidYMid meet">`;
+  s+=`<rect x="-4" y="-4" width="${W+8}" height="${H+8}" rx="2" fill="${fill}"/>`;
+  if(!o.light)for(let i=0;i<10;i++){const a=i*10.5;s+=o.vertical?`<rect x="0" y="${a}" width="68" height="10.5" fill="${i%2?'#154a2e':'#13432a'}"/>`:`<rect x="${a}" y="0" width="10.5" height="68" fill="${i%2?'#154a2e':'#13432a'}"/>`;}
+  s+=pitchLines(tr,`fill="none" stroke="${line}" stroke-width="${o.light?.45:.35}"`);
+  if(o.extra)s+=o.extra(tr);
+  if(o.shape){for(const t of ['A','B']){const pts=hull(PL.filter(p=>p.t===t&&!p.gk).map(p=>tr(p.x,p.y)));s+=`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${TEAMS[t].c}" fill-opacity=".12" stroke="${TEAMS[t].c}" stroke-width=".35" stroke-dasharray="1 .8"/>`;}}
+  for(const p of PL){const [X,Y]=tr(p.x,p.y);const T=TEAMS[p.t];const c=o.light?(p.t==='A'?'#111':p.t==='B'?'#fff':'#f2c94c'):T.c;const st=o.light?'#111':'#fff';const sel=o.sel==p.id;
+    if(o.trail&&p.t!=='R'){const dx=(rnd(p.id)-.5)*6,dy=(rnd(p.id*2)-.3)*6;const [a,b]=tr(p.x-dx,p.y-dy);s+=`<path d="M${a} ${b}Q${(a+X)/2+1} ${(b+Y)/2} ${X} ${Y}" fill="none" stroke="${T.c}" stroke-width=".5" opacity=".55"/>`;}
+    const go=o.click&&p.t!=='R'?`data-go="${o.click(p)}"`:'';
+    s+=`<g ${go}>`;
+    if(sel)s+=`<circle cx="${X}" cy="${Y}" r="3.4" fill="none" stroke="#3ddc84" stroke-width=".6"/>`;
+    if(p.t==='A')s+=`<circle cx="${X}" cy="${Y}" r="1.8" fill="${c}" stroke="${st}" stroke-width=".35"/>`;
+    else if(p.t==='B')s+=`<rect x="${X-1.6}" y="${Y-1.6}" width="3.2" height="3.2" rx=".3" fill="${c}" stroke="${o.light?'#111':'#fff'}" stroke-width=".35"/>`;
+    else s+=`<path d="M${X} ${Y-2}L${X+1.9} ${Y+1.4}H${X-1.9}Z" fill="#f2c94c" stroke="${st}" stroke-width=".3"/>`;
+    if(o.num&&p.t!=='R')s+=`<text x="${X}" y="${Y+.75}" text-anchor="middle" font-size="1.9" font-weight="700" font-family="Inter" fill="${p.t==='A'?'#04121f':'#2a0505'}">${p.n}</text>`;
+    s+='</g>';}
+  if(o.ball){const [X,Y]=tr(BALL.x,BALL.y);s+=`<circle cx="${X}" cy="${Y}" r="1" fill="#ff8a3d" stroke="#fff" stroke-width=".3"/>`;}
+  return s+'</svg>';
+}
+function hull(P){P=P.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);const lo=[],up=[];for(const p of P){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p)}for(const p of P.slice().reverse()){while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0)up.pop();up.push(p)}return lo.slice(0,-1).concat(up.slice(0,-1))}
+function heat(team='A',player=null){
+  const pts=PL.filter(p=>p.t===team&&!p.gk&&(!player||p.id==player));
+  return tmap({vertical:0,ball:0,extra:()=>{let s='';const cw=3,ch=3.4;for(let gx=0;gx<35;gx++)for(let gy=0;gy<20;gy++){const cx=gx*cw+cw/2,cy=gy*ch+ch/2;let v=0;for(const p of pts){const sg=player?9:7.5;v+=Math.exp(-((cx-p.x-4)**2/(2*sg*sg)+(cy-p.y)**2/(2*(sg*.8)**2)))}v=Math.min(1,v/(player?1:1.6));if(v<.06)continue;s+=`<rect x="${gx*cw}" y="${gy*ch}" width="${cw+.05}" height="${ch+.05}" fill="hsl(${60-60*v},95%,${55-8*v}%)" fill-opacity="${.15+.7*v}"/>`}return s}}).replace(/<circle[^>]*r="1.8"[^>]*\/>|<rect x="[\d.-]+" y="[\d.-]+" width="3.2"[^>]*\/>|<path d="M[\d.]+ [\d.]+L[^"]*Z"[^>]*\/>/g,'');
+}
+function passnet(sel){
+  const A=PL.filter(p=>p.t==='A');const E=[[7,3,9],[7,6,12],[7,8,10],[3,4,8],[4,5,6],[2,3,7],[6,9,9],[8,11,11],[6,10,5],[8,10,6],[9,10,7],[11,10,8],[1,3,5],[1,4,4],[5,8,6],[2,6,7],[7,10,4]];
+  return tmap({vertical:0,ball:0,extra:()=>{let s='';for(const [a,b,w] of E){const p=byId(a),q=byId(b);const on=sel&&((a==sel[0]&&b==sel[1])||(a==sel[1]&&b==sel[0]));s+=`<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${on?'#3ddc84':'#4da3ff'}" stroke-opacity="${on?1:.25+w/20}" stroke-width="${w/9}" data-go="scr-20/passing:${a}-${b}" style="cursor:pointer"/>`}
+    for(const p of A){s+=`<g data-go="scr-23/${p.id}"><circle cx="${p.x}" cy="${p.y}" r="${2.2+stat(p).pas/40}" fill="#1e3d8f" stroke="#4da3ff" stroke-width=".5"/><text x="${p.x}" y="${p.y+.8}" text-anchor="middle" font-size="2.3" font-weight="700" font-family="Inter" fill="#fff">${p.n}</text></g>`}return s}}).replace(/<g ><circle[^>]*r="1.8"[^>]*\/><\/g>|<g ><rect[^>]*width="3.2"[^>]*\/><\/g>|<g ><path[^>]*Z"[^>]*\/><\/g>/g,'');
+}
+function spark(vals,{w=600,h=80,c='#4da3ff',fill=1,mid=null}={}){
+  const mx=Math.max(...vals),mn=Math.min(...vals,0);const X=i=>i/(vals.length-1)*w,Y=v=>h-((v-mn)/(mx-mn||1))*(h-6)-3;
+  const d=vals.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none">${mid!=null?`<line x1="0" x2="${w}" y1="${Y(mid)}" y2="${Y(mid)}" style="stroke:var(--ln2)" stroke-dasharray="4 4"/>`:''}${fill?`<path d="${d}L${w} ${h}L0 ${h}Z" fill="${c}" fill-opacity=".14"/>`:''}<path d="${d}" fill="none" stroke="${c}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+}
+const series=(n,seed,base,amp)=>Array.from({length:n},(_,i)=>base+Math.sin(i/3+seed)*amp*.6+(rnd(i+seed*31)-.5)*amp);
+function crop(p,w=60){const T=TEAMS[p.t];const kit=p.kit||T.kit;return `<svg viewBox="0 0 60 100"><rect width="60" height="100" fill="${p.t==='R'?'#2a6a34':'#2b6b35'}"/><rect y="70" width="60" height="30" fill="#286433"/><circle cx="30" cy="18" r="9" fill="#c99a78"/><rect x="16" y="28" width="28" height="32" rx="6" fill="${kit}"/><text x="30" y="49" text-anchor="middle" font-family="Inter" font-weight="800" font-size="13" fill="rgba(255,255,255,.9)">${p.n||''}</text><rect x="18" y="58" width="24" height="12" rx="2" fill="${T.sh}"/><path d="M24 70 22 95M36 70l3 25" stroke="#d2a07c" stroke-width="6" stroke-linecap="round"/></svg>`}
+function formation(lines,t='A'){const c=TEAMS[t].c;let s=`<svg viewBox="0 0 68 60" width="100%" height="120"><rect width="68" height="60" rx="3" fill="#13432a"/><g fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".5"><rect x="2" y="2" width="64" height="56"/><path d="M2 30h64"/><circle cx="34" cy="30" r="6"/><rect x="18" y="47" width="32" height="11"/><rect x="18" y="2" width="32" height="11"/></g>`;
+  const rows=[1,...lines];rows.forEach((n,ri)=>{const y=54-ri*(46/(rows.length-1));for(let i=0;i<n;i++){const x=34+(i-(n-1)/2)*(56/Math.max(n,2));s+=t==='A'?`<circle cx="${x}" cy="${y}" r="2.4" fill="${c}" stroke="#fff" stroke-width=".5"/>`:`<rect x="${x-2.2}" y="${y-2.2}" width="4.4" height="4.4" fill="${c}" stroke="#fff" stroke-width=".5"/>`}});return s+'</svg>'}
+
+/* ================= shell ================= */
+function TB(active='lib'){
+  return `<header class="tb">
+  <a class="logo" data-go="scr-10"><i></i>PitchVision</a>
+  <nav class="nav">
+    <a class="${active==='lib'?'on':''}" data-go="scr-10">Library</a>
+    <a class="${active==='exp'?'on':''}" data-go="scr-26">Exports <span class="cnt">1</span></a>
+  </nav>
+  <div class="sp"></div>
+  ${B(ic('plus')+'New analysis','scr-11','primary sm')}
+  <a class="meter" data-go="scr-40/billing" title="Resets Nov 1"><span>62 / 120 min</span><i><b style="width:52%"></b></i></a>
+  <div class="rel"><button class="iconbtn" data-toggle="m-notif">${ic('bell',18)}<span class="dot">3</span></button>${notifMenu()}</div>
+  <div class="rel"><button class="avatar" data-toggle="m-user">DM</button>${userMenu()}</div>
+</header>`;
+}
+function notifMenu(open){
+  const it=(dot,ico,txt,time,to)=>`<a data-go="${to}" style="align-items:flex-start;padding:10px"><span style="width:8px;margin-top:6px">${dot?'<span class="tdot" style="width:8px;height:8px;background:var(--info)"></span>':''}</span><span style="color:var(--fg2);margin-top:1px">${ic(ico)}</span><span style="flex:1"><span style="display:block;font-weight:${dot?650:500}">${txt}</span><span class="muted" style="font-size:12px">${time}</span></span></a>`;
+  return `<div class="menu ${open?'open':''}" id="m-notif" style="right:0;top:42px;width:380px"><div class="row" style="padding:8px 10px"><b>Notifications</b><div class="sp"></div><a class="lnk" style="padding:0;font-size:12.5px" ${T('All notifications marked as read')}>Mark all as read</a></div><hr>
+  ${it(1,'check','France vs Switzerland is ready to view','2 min ago','scr-20/overview')}
+  ${it(1,'alert','Lyon vs Marseille failed during analysis','1 h ago','scr-13/error')}
+  ${it(1,'shirt','Benfica vs Porto: confirm teams to finish','3 h ago','scr-14')}
+  ${it(0,'download','Export fra_sui_full.mp4 is ready','3 h ago','scr-26')}
+  ${it(0,'users','Alex Chen joined Riverside FC','1 d ago','scr-40/members')}
+  ${it(0,'zap',"You've used 80% of this month's minutes",'2 d ago','scr-40/billing')}
+  <hr><a data-go="scr-40/preferences" style="justify-content:center;color:var(--fg2)">Notification settings</a></div>`;
+}
+function userMenu(){
+  return `<div class="menu" id="m-user" style="right:0;top:42px;width:250px"><div class="mh"><b style="color:var(--fg);font-size:13.5px">Dong M.</b><br>dm@riversidefc.com · Riverside FC</div><hr>
+  <a data-go="scr-40/profile">${ic('user')}Profile</a><a data-go="scr-40/organization">${ic('building')}Organization</a><a data-go="scr-40/billing">${ic('card')}Billing &amp; usage</a><a data-go="scr-40/preferences">${ic('sliders')}Preferences</a>
+  <a ${T('Switched to Northgate Academy (US region)')} data-go="scr-10">${ic('swap')}Switch organization<span class="k muted">2</span></a><hr>
+  <a data-go="dlg-05">${ic('zap')}Keyboard shortcuts<span class="k kbd">?</span></a><a ${T('Opens docs.pitchvision.ai in a new tab')}>${ic('help')}Help &amp; docs ${ic('ext',12)}</a><a data-theme-toggle>${ic('moon')}Theme: toggle</a><hr>
+  <a data-go="scr-02">${ic('logout')}Sign out</a></div>`;
+}
+
+/* ================= SCREENS ================= */
+const R={};
+
+/* ---------- SCR-01 Landing ---------- */
+R['scr-01']=()=>({html:`
+<div class="lp">
+<header class="lp-h"><a class="logo" data-go="scr-01"><i></i>PitchVision</a>
+  <nav><a data-scroll="features">Features</a><a data-scroll="pricing">Pricing</a><a ${T('Opens docs.pitchvision.ai in a new tab')}>Docs</a></nav>
+  <div class="sp"></div>${B('Sign in','scr-02','ghost')}${B('Get started','scr-03','primary')}</header>
+<section class="hero">
+  <div><span class="eyebrow">Computer vision for football</span>
+    <h1>Turn any match video into tactical data.</h1>
+    <p>Player detection, team recognition, a live tactical map, match stats and AI-written reports — from any broadcast match — just paste a YouTube link or upload the recording.</p>
+    <div class="row">${B('Analyze a match free','scr-03','primary lg')}${B(ic('play')+'Watch demo','','lg',T('Plays the 60-second product demo inline'))}</div>
+    <div class="hero-n">No install · 120 free minutes every month · Data stored in the EU or US</div></div>
+  <div class="hero-v"><div class="hv-frame">${frame()}<div class="vhud">FPS: 25</div></div><div class="hv-map"><div class="cap">Tactical Map</div><div style="flex:1">${tmap({light:1})}</div></div></div>
+</section>
+<section id="features" class="feat">
+  ${[['target','Detect &amp; classify','Players, goalkeepers, referees and the ball — teams recognised by kit, no setup.'],['map','Tactical map','Every position projected onto a 2D pitch, synced frame-by-frame with the video.'],['chart','Tracking &amp; stats','Possession, distance, sprints, heatmaps and passing networks per player.'],['sparkle','AI tactical report','A written summary where every claim links back to the data it came from.']].map(([i,h,p])=>`<div class="card"><div class="fi">${ic(i,20)}</div><h3>${h}</h3><p>${p}</p></div>`).join('')}
+</section>
+<section id="pricing" class="pricing"><h2>Simple pricing</h2><div class="plans">
+  <div class="card plan"><b>Free</b><div class="pr">$0<small> /month</small></div><ul><li>${ic('check')}120 minutes / month</li><li>${ic('check')}Detection, tracking &amp; tactical map</li><li>${ic('check')}720p exports with watermark</li></ul><div class="sp"></div>${B('Start free','scr-03','')}</div>
+  <div class="card plan hl"><div class="row"><b>Pro</b><span class="badge b-ok">Popular</span></div><div class="pr">$49<small> /month</small></div><ul><li>${ic('check')}900 minutes / month</li><li>${ic('check')}Stats, heatmaps, passing</li><li>${ic('check')}AI reports &amp; tactics</li><li>${ic('check')}1080p exports, API access</li></ul><div class="sp"></div>${B('Choose Pro','scr-03','primary')}</div>
+  <div class="card plan"><b>Team</b><div class="pr">Custom</div><ul><li>${ic('check')}Unlimited seats</li><li>${ic('check')}Self-hosted GPU option</li><li>${ic('check')}SSO &amp; DPA</li></ul><div class="sp"></div>${B('Contact sales','','',T('Opens the sales contact form'))}</div>
+</div><p class="muted" style="text-align:center;margin-top:14px;font-size:12.5px">Prices are placeholders — pending decision UX-5.</p></section>
+<footer class="lp-f"><span>© 2026 PitchVision</span><a data-go="scr-53">Terms</a><a data-go="scr-53">Privacy</a><a ${T('Opens status.pitchvision.ai')}>Status</a><div class="sp"></div><a data-toggle="m-lang" class="rel">${ic('globe',14)} English ▾</a></footer>
+</div>`});
+
+/* ---------- Auth layout ---------- */
+const AUTH=(inner)=>`<div class="auth"><div class="auth-art">${frame({cam:64,kp:0})}<div class="auth-q"><a class="logo lg" data-go="scr-01" style="color:#fff"><i></i>PitchVision</a><h2>Turn any match video<br>into tactical data.</h2><p>Detection · Tracking · Tactical map · Stats · AI reports</p></div></div><div class="auth-form"><div class="af">${inner}</div></div></div>`;
+const GBTN=(label,to)=>`<button class="btn gbtn" data-go="${to}"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>${label}</button>`;
+
+R['scr-02']=()=>({html:AUTH(`
+<h1>Sign in to PitchVision</h1><p class="sub">Welcome back.</p>
+${GBTN('Continue with Google','scr-10')}
+<div class="or">or</div>
+${field('Email',inp('dm@riversidefc.com',0,'focus'))}
+${field('Password',`<div class="input">••••••••••<div class="sp"></div><span class="muted">${ic('eye')}</span></div>`)}
+<div class="row"><div class="sp"></div>${L('Forgot password?','scr-04')}</div>
+${B('Sign in','scr-10','primary lg','style="width:100%;justify-content:center"')}
+<p class="fg2" style="margin:0;text-align:center">No account? ${L('Create one','scr-03')}</p>`)});
+
+R['scr-03']=()=>({html:AUTH(`
+<h1>Create your account</h1><p class="sub">Analyze your first match in minutes.</p>
+${GBTN('Sign up with Google','scr-07/1')}
+<div class="or">or</div>
+${field('Full name',inp('Dong M.'))}
+${field('Work email',inp('dm@riversidefc.com'))}
+${field('Password',`<div class="input focus">••••••••••••</div><div class="strength"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>`,'Strong · at least 10 characters')}
+<label class="chk" data-chip>${box(1)}<span>I agree to the <a class="lnk" data-go="scr-53">Terms</a> and <a class="lnk" data-go="scr-53">Privacy Policy</a></span></label>
+${B('Create account','scr-06','primary lg','style="width:100%;justify-content:center"')}
+<p class="fg2" style="margin:0;text-align:center">Already have an account? ${L('Sign in','scr-02')}</p>`)});
+
+R['scr-04']=(st)=>({html:AUTH(st==='sent'?`
+<div class="fi" style="width:48px;height:48px">${ic('mail',22)}</div>
+<h1>Check your inbox</h1><p class="sub">If an account exists for <b>dm@riversidefc.com</b>, we sent a link to reset your password. It expires in 30 minutes.</p>
+<p class="fg2" style="margin:0">Didn't get it? <span class="muted">Resend in 0:52</span></p>
+<a class="back" data-go="scr-02">${ic('back')} Back to sign in</a>
+<p class="muted" style="font-size:12.5px;margin:0">Prototype: ${L('Open the link from the email →','scr-05')}</p>`:`
+<h1>Reset your password</h1><p class="sub">Enter your email and we'll send you a reset link.</p>
+${field('Email',inp('dm@riversidefc.com',0,'focus'))}
+${B('Send reset link','scr-04/sent','primary lg','style="width:100%;justify-content:center"')}
+<a class="back" data-go="scr-02">${ic('back')} Back to sign in</a>`)});
+
+R['scr-05']=(st)=>({html:AUTH(st==='expired'?`
+<div class="banner warn"><span class="bi">${ic('alert')}</span><span>This link has expired or was already used.</span></div>
+<h1>Link expired</h1><p class="sub">Reset links are valid for 30 minutes.</p>
+${B('Request a new link','scr-04','primary lg','style="width:100%;justify-content:center"')}`:`
+<h1>Choose a new password</h1><p class="sub">For dm@riversidefc.com</p>
+${field('New password',`<div class="input focus">••••••••••••</div><div class="strength"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>`)}
+${field('Confirm password',inp('••••••••••••'))}
+${B('Update password','scr-02','primary lg',`style="width:100%;justify-content:center" ${T('Password updated. Please sign in.')}`)}
+<p class="muted" style="font-size:12.5px;margin:0">Prototype: ${L('See expired-link state','scr-05/expired')}</p>`)});
+
+R['scr-06']=()=>({html:AUTH(`
+<div class="fi" style="width:52px;height:52px">${ic('mail',24)}</div>
+<h1>Check your inbox</h1><p class="sub">We sent a verification link to <b>dm@riversidefc.com</b>. This page continues automatically once you click it — even on another device.</p>
+<div class="row">${B('Open Gmail','','',T('Opens Gmail in a new tab'))}${B('Open Outlook','','',T('Opens Outlook in a new tab'))}</div>
+<p class="fg2" style="margin:0">Didn't get it? <a class="lnk" ${T('Verification email sent again')}>Resend email</a></p>
+<p class="fg2" style="margin:0">Wrong email? ${L('Change it','scr-03')}</p>
+<hr class="d" style="margin:4px 0"><div class="row">${L('Sign out','scr-02')}<div class="sp"></div><span class="muted" style="font-size:12.5px">Prototype: ${L('Simulate link click →','scr-07/1')}</span></div>`)});
+
+/* ---------- SCR-07 Onboarding ---------- */
+R['scr-07']=(st='1')=>{const s=+st||1;const steps=`<div class="steps"><i class="on"></i><i class="${s>1?'on':''}"></i><i class="${s>2?'on':''}"></i><span style="margin-left:8px">Step ${s} of 3</span></div>`;
+let body='';
+if(s===1)body=`<h1 style="font-size:26px">Set up your organization</h1><p class="fg2" style="margin:0">This is where your team's matches live.</p>
+${field('Organization name',inp('Riverside FC Academy',0,'focus'))}
+<div class="field"><label>Type</label>${seg([['Club',0],['Academy',1],['University',0],['Media',0],['Other',0]])}</div>
+${field('Your role',`<div class="input">Head coach<div class="sp"></div>${ic('chev')}</div>`)}
+<div class="row"><div class="sp"></div>${B('Continue '+ic('chevR'),'scr-07/2','primary')}</div>`;
+if(s===2)body=`<h1 style="font-size:26px">Where should we store your data?</h1><p class="fg2" style="margin:0">Videos and tracking data stay in this region.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+  <div class="rcard on" data-chip>${rad(1)}<div><b>🇪🇺 European Union</b><div class="muted" style="font-size:13px">Frankfurt · GDPR</div><span class="badge b-ok" style="margin-top:8px">Suggested for you</span></div></div>
+  <div class="rcard" data-chip>${rad(0)}<div><b>🇺🇸 United States</b><div class="muted" style="font-size:13px">Virginia</div></div></div>
+</div>
+<div class="banner warn"><span class="bi">${ic('lock')}</span><span>This can't be changed later. <a class="lnk" ${T('Data residency: your videos, tracking data and reports never leave the selected region.')}>Learn more</a></span></div>
+<div class="row">${B(ic('chevL')+' Back','scr-07/1','ghost')}<div class="sp"></div>${B('Continue '+ic('chevR'),'scr-07/3','primary',T('Region set to EU (Frankfurt)'))}</div>`;
+if(s===3)body=`<h1 style="font-size:26px">Preferences</h1><p class="fg2" style="margin:0">You can change these anytime.</p>
+${field('Language',`<div class="input">English<div class="sp"></div>${ic('chev')}</div>`)}
+<div class="field"><label>Units</label>${seg([['Metric (m, km/h)',1],['Imperial (yd, mph)',0]])}</div>
+<div class="field"><label>Data region</label><div class="input" style="background:var(--s2)">${ic('lock',14)} European Union · Frankfurt</div></div>
+<div class="row">${B(ic('chevL')+' Back','scr-07/2','ghost')}<div class="sp"></div>${B('Finish setup','scr-10','primary',T('Welcome to PitchVision 👋'))}</div>`;
+return {html:`<div class="center"><div class="card" style="width:560px;padding:32px;display:flex;flex-direction:column;gap:18px"><div class="row"><a class="logo" data-go="scr-01"><i></i>PitchVision</a><div class="sp"></div>${steps}</div>${body}</div></div>`}};
+
+/* ---------- SCR-10 Library ---------- */
+const VIDS=[
+{t:'France vs Switzerland',st:'ready',d:'94:12',dt:'Oct 4',src:'Upload',cam:72,go:'scr-20/overview'},
+{t:'Ajax vs PSV — Eredivisie',st:'run',p:42,eta:'9 min',dt:'Oct 4',src:'YouTube',cam:52,go:'scr-13',jit:3},
+{t:'Benfica vs Porto',st:'teams',d:'96:40',dt:'Oct 2',src:'YouTube',cam:40,go:'scr-14',jit:5},
+{t:'Lyon vs Marseille',st:'fail',d:'97:05',dt:'Oct 1',src:'YouTube',cam:60,go:'scr-13/error',jit:7},
+{t:'Arsenal Women vs Chelsea Women',st:'calib',d:'94:03',dt:'Sep 29',src:'Upload · 50 fps',cam:30,go:'scr-15',jit:4},
+{t:'Dortmund U19 vs Bayern U19',st:'ready',deg:1,d:'95:40',dt:'Sep 27',src:'YouTube',cam:62,go:'scr-20/overview',jit:6},
+{t:'Celtic vs Rangers',st:'up',p:37,d:'93:00',dt:'Today',src:'Upload',cam:48,go:null,jit:8},
+{t:'Brazil vs Argentina — U20',st:'ready',d:'94:10',dt:'Sep 21',src:'YouTube',cam:80,go:'scr-20/overview',jit:2}];
+const STB={ready:['b-ok','● Ready'],run:['b-run','◐ Analyzing'],teams:['b-warn','⚠ Confirm teams'],fail:['b-err','✕ Failed'],calib:['b-warn','⚠ Calibrate pitch'],up:['b-run','⇧ Uploading']};
+R['scr-10']=(st)=>{
+const cards=VIDS.map((v,i)=>{const [bc,bl]=STB[v.st];const meta=v.st==='run'?`${v.p}% · about ${v.eta} left`:v.st==='up'?`Uploading ${v.p}% · 1.4 GB of 3.8 GB`:`${v.d} · ${v.dt} · ${v.src}`;
+const go=v.go?`data-go="${v.go}"`:`data-toggle="m-up${i}"`;
+const menu=`<div class="menu" id="m-c${i}" style="right:0;top:30px">
+<a ${v.go?`data-go="${v.go}"`:''}>${ic('eye')}Open</a><a data-go="dlg-04">${ic('edit')}Rename</a>
+${v.st==='ready'||v.st==='fail'?`<a data-go="scr-12/reanalyze">${ic('refresh')}Re-analyze</a>`:''}
+${v.st==='ready'?`<a data-go="scr-25">${ic('download')}Export</a><a data-go="scr-27">${ic('share')}Share</a>`:''}
+${v.st==='run'?`<a data-go="dlg-02">${ic('stop')}Cancel analysis</a>`:''}<hr><a class="dn" data-go="dlg-01">${ic('trash')}Delete</a></div>`;
+return `<div class="vcard"><div class="thumb" ${go}>${frame({cam:v.cam,labels:0,kp:0,jit:v.jit||0,boxes:v.st==='ready'})}<span class="st"><span class="badge ${bc}">${bl}</span></span>${v.d&&v.st!=='up'?`<span class="dur">${v.d}</span>`:''}${v.p?`<div class="prog"><i style="width:${v.p}%"></i></div>`:''}
+${v.st==='up'?`<div class="menu" id="m-up${i}" style="left:10px;top:40px;width:260px;padding:12px"><b>Uploading 37%</b><div class="pbar info" style="margin:10px 0"><i style="width:37%"></i></div><div class="muted" style="font-size:12.5px">18 MB/s · about 2 min left. Analysis starts automatically.</div></div>`:''}</div>
+<div class="vb"><div style="flex:1;min-width:0" ${go}><h4>${v.t}${v.deg?` <span title="Low pitch quality" style="color:var(--warn)">⚠</span>`:''}</h4><div class="m">${meta}</div></div><div class="rel"><button class="btn sm ghost icon" data-toggle="m-c${i}">${ic('more')}</button>${menu}</div></div></div>`}).join('');
+const empty=`<div class="empty"><div class="fi" style="width:64px;height:64px;border-radius:18px">${ic('video',30)}</div><h2>Analyze your first match</h2><p>Paste a YouTube link to a broadcast match, or upload the recording.</p><div class="row">${B(ic('yt')+'Paste a YouTube link','scr-11','primary lg')}${B(ic('upload')+'Upload a file','scr-11/upload','lg')}${B(ic('play')+'Try a sample match','scr-20/overview','lg')}</div></div>`;
+return {html:TB('lib')+`<div class="page"><div class="ph"><h1>Library</h1><span class="muted">${st==='empty'?'0':'8'} matches</span><div class="sp"></div></div>
+${st==='empty'?empty:`<div class="filters"><div class="input" style="width:340px">${ic('search')}<span class="ph">Search matches, teams…</span><span class="sp"></span><span class="kbd">/</span></div>
+<div class="rel"><button class="btn sm" data-toggle="m-fs">Status: All ${ic('chev',14)}</button><div class="menu" id="m-fs" style="top:36px"><a data-chip>All</a><a data-chip>Ready</a><a data-chip>Analyzing</a><a data-chip>Needs action</a><a data-chip>Failed</a></div></div>
+<div class="rel"><button class="btn sm" data-toggle="m-fsrc">Source: All ${ic('chev',14)}</button><div class="menu" id="m-fsrc" style="top:36px"><a>All</a><a>YouTube</a><a>Upload</a></div></div>
+<div class="sp"></div><div class="rel"><button class="btn sm ghost" data-toggle="m-sort">Sort: Newest ${ic('chev',14)}</button><div class="menu" id="m-sort" style="right:0;top:36px"><a>Newest</a><a>Oldest</a><a>Title A–Z</a><a>Duration</a></div></div>
+${seg([[ic('grid',15),1],[ic('list',15),0]])}</div>
+<div class="vgrid">${cards}</div>`}</div>`}};
+
+/* ---------- SCR-11 New analysis ---------- */
+function NEW(st='youtube'){
+const tab=st==='uploading'?'upload':st;
+const tabs=`<div class="tabs" style="padding:0 22px;margin:0 -22px 20px">
+<a class="${tab==='youtube'?'on':''}" data-go="scr-11">${ic('yt',15)}YouTube URL</a><a class="${tab==='upload'?'on':''}" data-go="scr-11/upload">${ic('upload',15)}Upload file</a>${tab==='live'?`<a class="on">${ic('live',15)}Live stream <span class="soon">Phase C</span></a>`:''}<a class="${tab==='import'?'on':''}" data-go="scr-11/import">${ic('link',15)}Import <span class="soon">Soon</span></a></div>`;
+const summary=(eta)=>`<div class="sumline">${ic('sliders')}<span><b style="color:var(--fg)">Standard mode</b> · ~${eta} · Tracking, jersey numbers, stats</span><div class="sp"></div>${L('Advanced settings','scr-12')}</div>`;
+let body='',foot='';
+if(st==='upload'){body=tabs+`<div class="drop" data-toast="Opens the file picker">${ic('upload',28)}<b style="color:var(--fg)">Drag a broadcast recording here</b> or <span class="lnk">browse files</span><div class="muted" style="font-size:12.5px;margin-top:4px">MP4, MKV, MOV, AVI · up to 5 GB · 150 min</div></div>
+<div class="file" style="margin-top:14px"><div class="fic">${ic('file',20)}</div><div style="flex:1"><b>france_switzerland_full.mp4</b><div class="muted" style="font-size:12.5px">2.3 GB · 94:12 · 1920×1080 · 25 fps</div></div><a class="lnk" style="color:var(--fg2)" ${T('File removed')}>Remove</a></div>
+<div class="col" style="margin-top:16px;gap:14px">${field('Title',inp('France vs Switzerland'))}
+${chk(1,'I own this video or have permission to analyze it')}${chk(1,'Start analysis when the upload finishes')}
+${summary('14 min')}<div class="muted" style="font-size:12.5px">Uses 94 of your 120 remaining minutes this month.</div></div>`;
+foot=`<span class="muted" style="font-size:12.5px">${ic('lock',13)} Stored in EU · Frankfurt</span><div class="sp"></div>${B('Cancel','scr-10','ghost')}${B('Start upload','scr-11/uploading','primary')}`;}
+if(st==='uploading'){body=tabs+`<div class="file"><div class="fic">${ic('file',20)}</div><div style="flex:1"><b>france_switzerland_full.mp4</b><div class="pbar" style="margin:10px 0 6px"><i style="width:62%"></i></div><div class="row muted" style="font-size:12.5px"><span>62% · 1.4 of 2.3 GB</span><div class="sp"></div><span class="mono">18 MB/s · 1m 20s left</span></div></div></div>
+<div class="banner info" style="margin-top:14px"><span class="bi">${ic('info')}</span><span>You can close this window — the upload keeps going and analysis starts automatically.</span></div>
+<p class="muted" style="font-size:12.5px;margin:14px 0 0">Prototype: ${L('Simulate upload finished →','scr-13')}</p>`;
+foot=`${B('Cancel upload','scr-10','danger',T('Upload cancelled'))}<div class="sp"></div>${B('Continue in background','scr-10','primary',T('Upload continues in the background'))}`;}
+if(st==='youtube'){body=tabs+field('YouTube link',`<div class="row"><div class="input focus" style="flex:1">${ic('link')}https://youtube.com/watch?v=Qd8x2k…</div>${B('Fetch','','',T('Video details loaded'))}</div>`)+`
+<div class="file" style="margin-top:14px;align-items:stretch"><div style="width:150px;border-radius:8px;overflow:hidden;aspect-ratio:16/9">${frame({cam:45,labels:0,boxes:0,kp:0,jit:6})}</div><div style="flex:1"><b>U19 Bundesliga — Full Match Replay</b><div class="muted" style="font-size:12.5px">FC Example TV · 1:38:20 · 1080p available</div><span class="badge b-ok" style="margin-top:8px">${ic('check',12,3)} Ready to analyze</span></div></div>
+<div class="col" style="margin-top:16px;gap:14px">${field('Title',inp('U19 Bundesliga — Full Match'))}${chk(0,'I have the rights to analyze this video')}${summary('15 min')}</div>`;
+foot=`<div class="sp"></div>${B('Cancel','scr-10','ghost')}${B('Analyze','scr-13','primary')}`;}
+if(st==='live'){body=tabs+`<p class="fg2" style="margin-top:0">Analyze a live match or training session in real time.</p><div class="ct" style="margin-top:6px">Recent sources</div>
+${[['Training pitch cam','rtsp://10.0.4.12/stream1','Online','b-ok'],['Stadium feed','RTMP push','Idle','b-mute']].map(([n,u,s,c])=>`<div class="file" style="margin-bottom:10px"><div class="fic">${ic('video',20)}</div><div style="flex:1"><b>${n}</b><div class="muted mono" style="font-size:12px">${u}</div></div><span class="badge ${c}">${s}</span>${B(ic('play')+'Start','scr-31','sm primary')}</div>`).join('')}`;
+foot=`<div class="sp"></div>${B('Cancel','scr-10','ghost')}${B('Set up a new source '+ic('chevR'),'scr-30/add','')}`;}
+if(st==='import'){body=tabs+`<div class="empty" style="padding:40px"><div class="fi" style="width:52px;height:52px">${ic('link',24)}</div><h2 style="font-size:18px">Import from Veo, Hudl &amp; Pixellot</h2><p>Bring matches straight from your camera system. Coming soon.</p>${B(ic('bell')+'Notify me','','primary',T("We'll email you when imports launch"))}</div>`;foot=`<div class="sp"></div>${B('Close','scr-10','ghost')}`;}
+return modal('lg','New analysis',body,foot,'scr-10');}
+R['scr-11']=(st)=>({html:R['scr-10']().html,ov:NEW(st||'youtube')});
+
+/* ---------- SCR-12 Advanced settings ---------- */
+R['scr-12']=(st)=>{const re=st==='reanalyze';
+const mod=(on,l,ms,pro)=>`<div class="row" style="padding:10px 0;border-bottom:1px solid var(--ln)">${tgl(on)}<span style="font-weight:600">${l}</span>${pro?'<span class="badge b-pro" data-go="scr-41/feature">PRO</span>':''}<div class="sp"></div><span class="muted" style="font-size:12px">${ms}</span></div>`;
+const body=`${re?`<div class="banner info" style="margin-bottom:16px"><span class="bi">${ic('info')}</span><span>Re-analyzing <b>France vs Switzerland</b>. Your 6 corrections will be kept.</span></div>`:''}
+<div class="field"><label>Mode</label>
+<div class="rcard on" data-chip style="margin-bottom:8px">${rad(1)}<div style="flex:1"><b>Standard</b><div class="muted" style="font-size:13px">Every frame · best accuracy</div></div><span class="mono fg2">~14 min</span></div>
+<div class="rcard" data-chip>${rad(0)}<div style="flex:1"><b>Fast</b><div class="muted" style="font-size:13px">Every 2nd frame · good for quick review</div></div><span class="mono fg2">~7 min</span></div></div>
+<div class="frm" style="margin-top:18px"><div class="field"><label>Skip non-analyzable shots</label><div class="row" style="margin-top:6px">${tgl(1)}<span class="fg2" style="font-size:13px">Replays, close-ups, crowd, graphics</span></div></div>
+<div class="field"><label>Detection confidence · <span class="mono">0.35</span></label><div class="slider" style="margin-top:14px"><i style="width:35%"></i><b style="left:35%"></b></div></div></div>
+<div class="field" style="margin-top:18px"><label>Modules</label>${mod(1,'Tracking &amp; re-identification','Required for stats')}${mod(1,'Jersey number recognition','')}${mod(1,'Match statistics','')}${mod(0,'Tactical analysis','',1)}</div>
+<div class="field" style="margin-top:16px"><label>Compute <span class="muted">(self-hosted admins)</span></label>${seg([['Auto',1],['Local GPU only',0],['Cloud only',0]])}</div>
+<div style="margin-top:16px">${chk(0,'Save as my default')}</div>`;
+const foot=`<a class="lnk" style="color:var(--fg2)" ${T('Settings reset to defaults')}>Reset to defaults</a><div class="sp"></div>${B('Cancel',re?'scr-20/overview':'scr-11','ghost')}${re?B(ic('refresh')+'Start re-analysis','scr-13','primary'):B('Apply','scr-11','primary')}`;
+return {html:re?WS('overview'):R['scr-10']().html,ov:modal('',re?'Re-analyze':'Analysis settings',body,foot,re?'scr-20/overview':'scr-11')}};
+
+/* ---------- SCR-13 Processing ---------- */
+R['scr-13']=(st)=>{const err=st==='error';
+const steps=[['Fetch video',1],['Prepare',1],['Detect shots',1],['Detect teams',1],['Analyze',err?'fail':'now'],['Finalize',0]];
+const stepper=`<div class="stepper">${steps.map(([l,s],i)=>`${i?`<span class="ln ${s===1?'done':''}"></span>`:''}<span class="s ${s===1?'done':s==='now'?'now':s==='fail'?'fail':''}"><span class="c">${s===1?ic('check',13,3):s==='fail'?ic('x',13,3):i+1}</span>${l}</span>`).join('')}</div>`;
+const mosaic=`<div class="mosaic">${Array.from({length:45},(_,i)=>`<i class="${err?(i<22?'d':i===22?'f':''):(i<19?'d':i<23?'r':'')}"></i>`).join('')}</div>`;
+const main=err?`<div class="card p" style="border-color:color-mix(in srgb,var(--dan) 40%,var(--ln))"><div class="row" style="align-items:flex-start;gap:14px"><div class="fi" style="background:color-mix(in srgb,var(--dan) 15%,transparent);color:var(--dan)">${ic('alert',20)}</div><div style="flex:1"><h3 style="font-size:18px">Analysis failed at “Analyze” · segment 23 of 45</h3><p class="fg2" style="margin:6px 0 0">The GPU worker ran out of memory. Your progress is saved — retrying continues from segment 23.</p><p class="muted mono" style="font-size:12px;margin:8px 0 0">Error code GPU_OOM · job 7f3a…c21</p></div></div>
+<div class="row" style="margin-top:18px;padding-left:54px">${B(ic('refresh')+'Retry','scr-13','primary',T('Retrying from segment 23'))}${B(ic('sliders')+'Change settings &amp; retry','scr-12/reanalyze')}${B('Contact support','','ghost',T('Opens support form with job ID attached'))}</div></div>
+<div class="card p" style="margin-top:14px"><div class="ct">Other errors — recovery actions</div><div class="row" style="gap:24px">
+<div style="flex:1"><b>TEAM_SEPARATION_FAILED</b><p class="fg2" style="margin:4px 0 10px;font-size:13px">We couldn't tell the two teams apart.</p>${B(ic('shirt')+'Pick players manually','scr-14/manual','sm')}</div>
+<div style="flex:1"><b>HOMOGRAPHY_UNAVAILABLE</b><p class="fg2" style="margin:4px 0 10px;font-size:13px">Pitch lines weren't visible enough.</p>${B(ic('target')+'Calibrate pitch manually','scr-15','sm')}</div></div></div>`
+:`<div class="card p"><div class="row" style="align-items:flex-end;gap:24px"><div class="big mono">42<span style="font-size:28px;color:var(--fg3)">%</span></div><div class="row" style="gap:28px;padding-bottom:6px"><div class="metric">Speed<b>96 fps</b></div><div class="metric">Time left<b>~9 min</b></div><div class="metric">GPUs<b>2 × L4</b></div><div class="metric">Wide shots<b>71%</b></div></div></div>
+<div class="pbar info" style="margin:18px 0 22px;height:10px"><i style="width:42%"></i></div>
+<div class="row" style="margin-bottom:10px"><span class="ct" style="margin:0">Segments</span><div class="sp"></div><span class="muted mono" style="font-size:12.5px">19 done · 4 running · 45 total</span></div>${mosaic}</div>
+<div class="banner info" style="margin-top:14px"><span class="bi">${ic('shirt')}</span><span><b>We found two teams.</b> Confirm their names now — you'll save time when the analysis finishes.</span><div class="sp"></div>${B('Confirm teams','scr-14','primary sm')}</div>`;
+return {html:TB('lib')+`<div class="page" style="max-width:1180px"><div class="row" style="margin-bottom:8px"><a class="back" data-go="scr-10">${ic('back')} Library</a><div class="sp"></div><div class="rel"><button class="btn sm ghost icon" data-toggle="m-pm">${ic('more')}</button><div class="menu" id="m-pm" style="right:0;top:36px"><a data-go="dlg-04">${ic('edit')}Rename</a><hr><a class="dn" data-go="dlg-01">${ic('trash')}Delete</a></div></div></div>
+<div class="ph" style="margin-bottom:8px"><h1>${err?'Lyon vs Marseille':'France vs Switzerland'}</h1><span class="badge ${err?'b-err':'b-run'}">${err?'✕ Failed':'◐ Analyzing'}</span></div>
+${stepper}
+<div style="display:grid;grid-template-columns:1fr 360px;gap:16px"><div>${main}</div>
+<div class="col"><div class="card" style="overflow:hidden"><div style="aspect-ratio:16/9;position:relative">${frame({cam:err?60:70,jit:err?7:0})}<div class="vhud">${err?'Last frame · 41:18':'Latest frame · 39:44'}</div></div><div style="padding:12px 14px" class="fg2">Live preview of analyzed frames</div></div>
+<div class="card p"><label class="chk" data-chip style="justify-content:space-between;width:100%"><span><b style="color:var(--fg)">Email me when it's done</b><br><span style="font-size:12.5px">dm@riversidefc.com</span></span>${tgl(1)}</label></div>
+${err?'':`<div class="row">${B('Cancel analysis','dlg-02','danger')}<div class="sp"></div>${B('Back to library','scr-10')}</div><p class="muted" style="font-size:12.5px;margin:0">Prototype: ${L('Simulate job finished →','scr-20/overview')}</p>`}</div></div></div>`}};
+
+/* ---------- SCR-14 Teams ---------- */
+R['scr-14']=(st)=>{const man=st==='manual';
+const team=(t,name,colors,on)=>{const ps=PL.filter(p=>p.t===t&&!p.gk).slice(0,8);return `<div class="card p" style="flex:1"><div class="row" style="margin-bottom:12px"><span class="${t==='A'?'tdot':'tsq'}" style="background:${TEAMS[t].c}"></span><b>Group ${t==='A'?1:2}</b><span class="muted" style="font-size:12.5px">· 11 players</span></div>
+<div class="crops">${ps.map(p=>`<div class="crop">${crop(p)}</div>`).join('')}</div>
+<div class="frm" style="margin-top:16px">${field('Team name',`<div class="input ${t==='A'?'focus':''}">${name}<div class="sp"></div>${ic('chev')}</div>`,t==='A'?'Used in 3 earlier matches':'')}
+<div class="field"><label>Display color</label><div class="sw">${colors.map((c,i)=>`<i data-chip class="${i===on?'on':''}" style="background:${c}"></i>`).join('')}<i class="custom" ${T('Opens color picker')}></i></div></div></div>
+${t==='A'?`<div class="field" style="margin-top:14px"><label>Attacking direction (1st half)</label>${seg([['← Left',0],['Right →',1]])}</div>`:''}</div>`};
+const confirm=`<div style="display:flex;gap:14px;align-items:stretch">${team('A','France',['#4da3ff','#1e3d8f','#ffffff','#3ddc84'],0)}<div style="display:grid;place-items:center">${B(ic('swap'),'','icon',T('Team names and colors swapped'))}</div>${team('B','Switzerland',['#ff6b6b','#cf1f2e','#ffffff','#f2c94c'],0)}</div>
+<div class="card p" style="margin-top:14px"><div class="row"><b>Referees &amp; goalkeepers</b><div class="sp"></div><div class="rel">${L('Fix assignment','','')}</div></div><div class="row" style="margin-top:12px;gap:14px">
+${[[PL[22],'Referee'],[PL[0],'GK · France'],[PL[11],'GK · Switzerland']].map(([p,l])=>`<div class="row" style="gap:10px"><div class="crop" style="width:40px">${crop(p)}</div><span class="fg2">${l}</span></div>`).join('')}</div></div>
+<div class="row" style="margin-top:20px"><a class="lnk" style="color:var(--fg2)" data-go="scr-14/manual">${ic('alert',14)} These groups mix both teams</a><div class="sp"></div>${B('Skip for now','scr-20/overview','ghost',T('Using “Team A / Team B” — rename anytime'))}${B('Confirm teams','scr-20/overview','primary',T('Teams confirmed'))}</div>`;
+const manual=`<div class="banner info"><span class="bi">${ic('info')}</span><span>Click at least <b>2 players from each team</b>. Click again to cycle: Team 1 → Team 2 → Referee → none.</span></div>
+<div style="display:grid;grid-template-columns:1fr 280px;gap:14px;margin-top:14px"><div class="vid"><div class="vwrap">${frame({cam:66,labels:0,conf:0,sel:10,players:PL.map(p=>({...p}))})}<div class="vhud">Sample frame 7 / 20</div></div><div class="ctrl">${B(ic('chevL'),'','sm icon',T('Previous sample frame'))}<span class="fg2">Frame 7 of 20</span>${B(ic('chevR'),'','sm icon',T('Next sample frame'))}</div></div>
+<div class="card p col"><b>Picked</b><div class="row"><span class="tdot" style="background:var(--A)"></span>Team 1<div class="sp"></div><span class="mono">3</span></div><div class="row"><span class="tsq" style="background:var(--B)"></span>Team 2<div class="sp"></div><span class="mono">2</span></div><div class="row"><span class="tdot" style="background:var(--ref)"></span>Referee<div class="sp"></div><span class="mono">1</span></div><hr class="d" style="margin:6px 0"><span class="muted" style="font-size:12.5px">Re-running team detection takes about 1 minute and re-analyzes the video.</span></div></div>
+<div class="row" style="margin-top:20px"><div class="sp"></div>${B('Cancel','scr-14','ghost')}${B(ic('refresh')+'Re-run team detection','scr-13','primary')}</div>`;
+return {html:TB('lib')+`<div class="page" style="max-width:1180px"><a class="back" data-go="scr-13">${ic('back')} Back</a><div class="ph" style="margin:10px 0 4px"><h1>${man?'Pick players for each team':'Confirm teams'}</h1></div><p class="fg2" style="margin:0 0 20px">${man?'Help us separate the teams by example.':'We grouped players by kit. Name each team and choose how it appears on the video and map.'}</p>${man?manual:confirm}</div>`}};
+
+/* ---------- SCR-15 Calibrate ---------- */
+R['scr-15']=()=>{const pts=[[88.5,13.84],[105,13.84],[105,54.16],[88.5,54.16]];
+const ex=m=>pts.map((p,i)=>{const q=m(p[0],p[1]);return `<g><circle cx="${q[0]}" cy="${q[1]}" r="15" fill="rgba(61,220,132,.25)" stroke="#3ddc84" stroke-width="2.5"/><text x="${q[0]}" y="${q[1]+5}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="14" fill="#fff">${i+1}</text></g>`}).join('')+(()=>{const q=pts.map(p=>m(p[0],p[1]));return `<polygon points="${q.map(a=>a[0]+','+a[1]).join(' ')}" fill="none" stroke="#3ddc84" stroke-width="2" stroke-dasharray="8 6"/>`})();
+const pex=tr=>pts.map((p,i)=>{const [x,y]=tr(p[0],p[1]);return `<circle cx="${x}" cy="${y}" r="2.6" fill="#3ddc84"/><text x="${x}" y="${y+1}" text-anchor="middle" font-size="2.8" font-weight="800" font-family="Inter" fill="#052412">${i+1}</text>`}).join('');
+return {html:TB('lib')+`<div class="page"><a class="back" data-go="scr-20/overview">${ic('back')} Back</a><div class="ph" style="margin:10px 0 4px"><h1>Calibrate pitch</h1><span class="badge b-warn">Pitch quality 41%</span></div><p class="fg2" style="margin:0 0 18px">Pick a frame where pitch lines are clearly visible, then drag at least 4 points onto matching landmarks.</p>
+<div style="display:grid;grid-template-columns:1fr 360px;gap:16px"><div class="vid"><div class="vwrap">${frame({cam:80,labels:0,boxes:0,kp:0,extra:ex})}<div class="vhud">34:12 · frame 51 300</div></div>
+<div class="ctrl"><span class="mono fg2">34:12</span><div class="tl"><div class="bar"></div><div class="low" style="left:18%;width:9%"></div><div class="low" style="left:61%;width:14%"></div><div class="knob" style="left:38%"></div></div><a class="lnk" ${T('Jumped to the frame with the most visible lines')}>Use suggested frame</a></div></div>
+<div class="col"><div class="card p"><div class="ct">Pitch reference</div><div style="height:250px">${tmap({vertical:0,ball:0,extra:pex}).replace(/<g ><(circle|rect|path)[^>]*\/><\/g>/g,'')}</div></div>
+<div class="card p col">${[['Penalty box corner (top right)',1],['Goal line × box edge (top)',0],['Goal line × box edge (bottom)',0],['Penalty box corner (bottom right)',0]].map(([l,f],i)=>`<div class="row"><span class="badge b-ok" style="width:24px;justify-content:center;padding:3px 0">${i+1}</span><div class="input" style="height:32px;font-size:13px;${f?'border-color:var(--ac)':''}">${l}<div class="sp"></div>${ic('chev',14)}</div></div>`).join('')}
+${B(ic('plus')+'Add point','','sm',T('Point 5 added'))}<label class="chk" data-chip style="margin-top:4px">${box(1)}<span>Preview pitch lines on video</span></label></div></div></div>
+<div class="row" style="margin-top:18px"><a class="lnk" style="color:var(--fg2)" ${T('Points reset')}>Reset</a><div class="sp"></div>${B('Cancel','scr-20/overview','ghost')}${B('Apply &amp; recompute','scr-13','primary',T('Recomputing positions · about 1 minute'))}</div></div>`}};
+
+/* ---------- SCR-20 Workspace ---------- */
+const TABS=[['overview','Overview'],['players','Players'],['heatmaps','Heatmaps'],['passing','Passing'],['tactics','Tactics'],['data','Data']];
+function WS(tab='overview',o={}){
+const [tname,targ]=tab.split(':');const replay=targ==='replay';
+const more=`<div class="menu" id="m-more" style="right:0;top:36px"><a data-go="dlg-04">${ic('edit')}Rename</a><a data-go="scr-14">${ic('shirt')}Teams &amp; colors</a><a data-go="scr-15">${ic('target')}Calibrate pitch</a><a data-go="scr-21">${ic('users')}Roster &amp; corrections</a><a data-go="scr-12/reanalyze">${ic('refresh')}Re-analyze</a><a ${T('Model v1.4.2 · Standard · 13 min on 2×L4 · $0.31')}>${ic('info')}Analysis details</a><hr><a class="dn" data-go="dlg-01">${ic('trash')}Delete</a></div>`;
+let ctx='';
+if(o.ctx){const p=byId(o.ctx);const q=mapper(72)(p.x,p.y);const h=26+54*q[2];
+ctx=`<div class="ctxm" style="left:${(q[0]+30)/12.8}%;top:${(q[1]-h)/7.2}%"><div class="menu" style="width:250px"><div class="mh"><b style="color:var(--fg)">Track ${p.id} · ${TEAMS[p.t].name}</b><br>#${p.n} ${p.nm} · conf ${p.cf}</div><hr>
+<a ${T(`Assigned #${p.n} ${p.nm} — Undo`)} data-go="scr-20/overview">${ic('user')}Assign player…</a>
+<a ${T(`Track ${p.id} moved to ${p.t==='A'?'Switzerland':'France'} — Undo`)} data-go="scr-20/overview">${ic('swap')}Change team<span class="k">${ic('chevR',14)}</span></a>
+<a ${T('Click the same player elsewhere · Esc to cancel')}>${ic('merge')}Merge with…</a>
+<a ${T('Split at 49:36 — frames after become a new track — Undo')} data-go="scr-20/overview">${ic('scissors')}Split at this frame</a>
+<a ${T('Detection removed — Undo')} data-go="scr-20/overview">${ic('trash')}Remove this detection</a><hr>
+<a data-go="scr-23/${p.id}">${ic('eye')}Open player details</a></div></div>`;}
+const content=TABC[tname]?TABC[tname](targ,o):'';
+return TB('lib')+`<div class="ws">
+<div class="ws-h"><div class="crumb"><a data-go="scr-10">Library</a><span class="muted">/</span><b>France vs Switzerland</b><span class="badge b-ok">● Ready</span><span class="muted">94:12 · Oct 4</span></div><div class="sp"></div>
+${B(ic('sparkle')+'AI report','scr-24','sm')}${B(ic('download')+'Export','scr-25','sm')}${B(ic('share')+'Share','scr-27','sm')}<div class="rel"><button class="btn sm icon" data-toggle="m-more">${ic('more')}</button>${more}</div></div>
+${o.noBanner?'':`<div class="banner warn"><span class="bi">${ic('alert')}</span><span>Pitch quality is low in <b>12%</b> of the match (striped on the timeline). Positions there are hidden from stats.</span><div class="sp"></div>${B('Calibrate pitch','scr-15','sm')}<button class="iconbtn" ${T('Hidden for this session')}>${ic('x')}</button></div>`}
+<div class="ws-main">
+<div class="vid"><div class="vwrap">${replay?frame({cam:84,boxes:0,labels:0,kp:0,ball:1,jit:2}).replace('<rect width="1280" height="720" fill="url(#g-vig)"/>','<rect width="1280" height="720" fill="url(#g-vig)"/><rect width="1280" height="720" fill="rgba(0,0,0,.18)"/>'):frame({sel:o.sel,click:p=>'scr-23/'+p.id,ctx:p=>'scr-22/'+p.id,names:o.names})}<div class="vhud">${replay?'REPLAY · not analyzed':'FPS 25 · frame 74 400 / 141 300'}</div>${replay?`<div style="position:absolute;right:14px;top:12px">${B(ic('skipf',14)+'Skip to next live action','scr-20/overview','sm primary',T('Skipped replay · jumped to 50:12'))}</div>`:''}${ctx}</div>
+<div class="ctrl">${B(ic('play',15),'','sm icon',T('Playing'))}${B(ic('skipb',15),'','sm icon',T('−1 frame'))}${B(ic('skipf',15),'','sm icon',T('+1 frame'))}
+<span class="mono fg2" style="font-size:12.5px">49:36 / 94:12</span><span class="badge b-mute mono" title="Match clock from scoreboard (M2)">49' · 2H</span>
+<div class="tl" ${T('Seek to clicked time · drag to select a range')}><div class="bar"></div><div class="played" style="width:52.6%"></div><div class="low" style="left:18%;width:4%"></div><div class="low" style="left:71%;width:8%"></div>${[[4,.8],[8.5,1.4],[13,.7],[19.5,1.6],[26,.9],[30.5,1.2],[37,.8],[41,1.8],[47.5,1],[56,1.5],[60.5,.7],[65,1.3],[69,.9],[75.5,1.7],[81,1],[86,.8],[90.5,1.4],[95,1.1]].map(([x,w])=>`<div class="shot" style="left:${x}%;width:${w}%" title="Replay / close-up — not analyzed"></div>`).join('')}${[12,24,33,44,61,80,88].map(x=>`<div class="mk" style="left:${x}%"></div>`).join('')}${o.range?'<div class="sel" style="left:36%;width:4%"></div>':''}<div class="knob" style="left:52.6%"></div></div>
+${B(ic('skipf',14)+'Next live action','scr-20/overview','sm ghost',T('Skipped close-up · jumped to 49:58'))}<div class="rel"><button class="btn sm ghost" data-toggle="m-speed">1×</button><div class="menu" id="m-speed" style="right:0;bottom:36px;min-width:100px"><a>0.25×</a><a>0.5×</a><a>1×</a><a>1.5×</a><a>2×</a></div></div>${B(ic('expand',15),'','sm icon',T('Fullscreen · map becomes picture-in-picture'))}</div>
+<div class="layers"><span class="muted" style="font-size:12px;font-weight:650;margin-right:4px">${ic('layers',14)}</span>${[['Boxes',1],['Labels',1],['Confidence',1],['IDs',0],['Names',0],['Ball',1],['Trails',0],['Voronoi',0,1],['Offside line',0,1]].map(([l,on,pro])=>`<button class="chip ${on?'on':''}" data-chip>${l}${pro?'<span class="b-pro badge">PRO</span>':''}</button>`).join('')}<div class="sp"></div><span class="muted row" style="font-size:12px;gap:6px"><i style="display:inline-block;width:14px;height:7px;background:var(--fg3);border-radius:1px;opacity:.75"></i>Replay / close-up</span><span class="muted row" style="font-size:12px;gap:6px"><i style="display:inline-block;width:14px;height:7px;background:repeating-linear-gradient(135deg,var(--warn) 0 3px,transparent 3px 6px)"></i>Low pitch quality</span><span class="badge b-ok" ${T('71% of match time is wide-angle live play')}>Coverage 71%</span></div></div>
+<div class="mapp"><div class="row"><b>Tactical map</b><div class="sp"></div>${B(ic('expand',14),'','sm icon ghost',T('Map expanded'))}</div><div class="mapbox" style="position:relative">${replay?`<div style="position:relative;width:100%;height:100%">${tmap({ball:0}).replace(/<g ><(circle|rect|path)[^>]*\/><\/g>/g,'')}<div style="position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:color-mix(in srgb,var(--s1) 82%,transparent)"><div><b>Not available</b><div class="muted" style="font-size:12.5px">Replay — positions shown only<br>during wide-angle live play</div></div></div></div>`:tmap({sel:o.sel,click:p=>'scr-23/'+p.id,trail:1})}</div>
+<div class="legend"><span><span class="tdot" style="background:var(--A)"></span>France</span><span><span class="tsq" style="background:var(--B)"></span>Switzerland</span><span><span style="color:var(--ref)">▲</span>Referee</span><span><span class="tdot" style="background:var(--ball)"></span>Ball</span></div>
+<div class="row" style="flex-wrap:wrap;gap:6px">${[['Players',1],['Ball',1],['Trails',1],['Shape',0],['Voronoi',0]].map(([l,on])=>`<button class="chip ${on?'on':''}" data-chip>${l}</button>`).join('')}</div></div></div>
+<div class="tabs" style="margin-top:18px">${TABS.map(([k,l],i)=>`<a class="${k===tname?'on':''}" data-go="scr-20/${k}">${l}<span class="kbd" style="font-size:10px;padding:0 5px">${i+1}</span></a>`).join('')}</div>
+<div class="tabc">${content}</div></div>`;}
+const TABC={
+overview:()=>{const rows=[['Possession','58%','42%',58],['Distance','112.4 km','108.9 km',51],['Passes · accuracy','412 · 86%','301 · 81%',58],['Sprints','148','131',53],['Top speed','33.1 km/h','31.8 km/h',51]];
+return `<div style="display:grid;grid-template-columns:1.1fr 1fr;gap:16px"><div class="card p"><div class="row" style="margin-bottom:6px"><span class="row" style="gap:8px"><span class="tdot" style="background:var(--A)"></span><b>France</b></span><div class="sp"></div><span class="row" style="gap:8px"><b>Switzerland</b><span class="tsq" style="background:var(--B)"></span></span></div>
+${rows.map(([k,a,b,p])=>`<div class="statrow" data-go="${k==='Distance'||k==='Sprints'||k==='Top speed'?'scr-20/players':'scr-20/passing'}" style="cursor:pointer"><div class="v">${a}</div><div class="k">${k}</div><div class="v r" style="grid-column:4">${b}</div><div class="dual"><i style="flex:${p}"></i><i style="flex:${100-p}"></i></div></div>`).join('')}
+<div class="row" style="margin-top:12px;font-size:13px"><span class="fg2">Top speed:</span>${L('#9 O. Petit · 33.1 km/h at 61:20','scr-23/10')}</div></div>
+<div class="col"><div class="card p"><div class="row"><div class="ct" style="margin:0">Possession over time</div><div class="sp"></div><span class="muted" style="font-size:12px">click to jump</span></div><div ${T('Jumped to 31:00')} style="margin-top:8px">${spark(series(30,1,58,22),{h:110,mid:50})}</div><div class="row muted mono" style="font-size:11.5px"><span>0'</span><div class="sp"></div><span>45'</span><div class="sp"></div><span>90'</span></div></div>
+<div class="card p"><div class="ct">Detection quality</div><div class="row" style="gap:28px"><div class="metric">Players<b>0.86</b></div><div class="metric">Teams<b>94%</b></div><div class="metric">Pitch<b style="color:var(--warn)">88%</b></div><div class="sp"></div>${L('Details','')}</div></div>
+<div class="row"><div class="sp"></div>${L('View all players →','scr-20/players')}</div></div></div>`},
+players:(a,o)=>`<div class="row" style="margin-bottom:12px">${seg([['All',1],['France',0],['Switzerland',0]])}<div class="sp"></div><span class="badge b-warn" data-go="scr-21">⚠ 2 unassigned</span>${B(ic('users')+'Manage roster','scr-21','sm')}</div>
+<div class="card" style="overflow:hidden"><table class="tbl"><thead><tr><th>#</th><th>Player</th><th>Team</th><th>Min</th><th>Distance ▾</th><th>Top speed</th><th>Sprints</th><th>Passes</th><th></th></tr></thead><tbody>
+${PL.filter(p=>p.t!=='R').sort((a,b)=>stat(b).dist-stat(a).dist).slice(0,12).map(p=>{const s=stat(p);return `<tr class="click ${o.sel==p.id?'sel':''}" data-go="scr-23/${p.id}"><td class="mono">${p.n}</td><td><div class="row" style="gap:10px"><div class="crop" style="width:26px;border-radius:5px">${crop(p)}</div><b>${p.nm}</b><span class="muted">${p.pos}</span></div></td><td><span class="row" style="gap:6px"><span class="${p.t==='A'?'tdot':'tsq'}" style="background:${TEAMS[p.t].c}"></span>${TEAMS[p.t].short}</span></td><td class="mono">${s.min}</td><td class="mono">${s.dist} km</td><td class="mono">${s.top} km/h</td><td class="mono">${s.spr}</td><td class="mono">${s.pas} · ${s.acc}%</td><td><button class="btn sm ghost icon" ${T('Row menu: Jump to first appearance · Show heatmap · Assign name · Merge into…')}>${ic('more')}</button></td></tr>`}).join('')}
+<tr class="click" data-go="scr-21"><td class="mono muted">?</td><td><div class="row" style="gap:10px"><div class="crop" style="width:26px;border-radius:5px">${crop({t:'B',n:''})}</div><b>Track 31</b><span class="badge b-warn">Unassigned</span></div></td><td>SUI</td><td class="mono">12</td><td class="mono">1.4 km</td><td class="mono">24.0 km/h</td><td class="mono">2</td><td class="mono">5 · 80%</td><td></td></tr></tbody></table></div>`,
+heatmaps:()=>`<div class="row" style="margin-bottom:14px;flex-wrap:wrap"><div class="input" style="width:180px;height:34px"><span class="tdot" style="background:var(--A)"></span>France<div class="sp"></div>${ic('chev')}</div><div class="input" style="width:200px;height:34px">All players<div class="sp"></div>${ic('chev')}</div><div class="input" style="width:160px;height:34px">Full match<div class="sp"></div>${ic('chev')}</div>${seg([['All phases',1],['In possession',0],['Out of possession',0]])}<div class="sp"></div>${B(ic('swap')+'Compare','','sm',T('Split view: 1st half vs 2nd half'))}${B(ic('download')+'PNG','','sm',T('heatmap_france.png downloaded'))}</div>
+<div style="display:grid;grid-template-columns:1fr 260px;gap:16px"><div class="card p"><div style="height:420px">${heat('A')}</div></div><div class="card p col"><label class="chk" data-chip>${box(0)}<span>Show average positions</span></label><label class="chk" data-chip>${box(0)}<span>Use timeline selection</span></label><hr class="d" style="margin:4px 0"><div class="ct" style="margin:0">Players</div>${PL.filter(p=>p.t==='A').slice(0,7).map(p=>`<a class="row" data-go="scr-23/${p.id}" style="gap:8px"><span class="mono muted" style="width:20px">${p.n}</span>${p.nm}<div class="sp"></div>${ic('chevR',14)}</a>`).join('')}</div></div>`,
+passing:(arg)=>{const sel=arg?arg.split('-'):[7,6];const a=byId(sel[0]),b=byId(sel[1]);
+return `<div class="row" style="margin-bottom:14px"><div class="input" style="width:180px;height:34px"><span class="tdot" style="background:var(--A)"></span>France<div class="sp"></div>${ic('chev')}</div><div class="input" style="width:200px;height:34px">Min 3 passes per link<div class="sp"></div>${ic('chev')}</div></div>
+<div style="display:grid;grid-template-columns:1fr 320px;gap:16px"><div class="card p"><div style="height:420px">${passnet(sel)}</div><div class="muted" style="font-size:12.5px;margin-top:8px">Node size = passes made · line width = passes between · click a node or line</div></div>
+<div class="card p"><div class="ct">#${a.n} ${a.nm} ⇄ #${b.n} ${b.nm} · 12</div>${[['12:41','✓ Completed'],['18:02','✕ Intercepted'],['23:15','✓ Completed'],['31:48','✓ Completed'],['44:09','✓ Completed'],['52:30','✕ Out of play'],['58:11','✓ Completed']].map(([t,r])=>`<div class="row" style="padding:9px 0;border-bottom:1px solid var(--ln)"><span class="mono">${t}</span><span class="${r[0]==='✓'?'':'muted'}">${r}</span><div class="sp"></div>${B(ic('play',13),'','sm icon',T('Seeking to '+t+' and playing'))}</div>`).join('')}</div></div>`},
+tactics:()=>`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+${[['France','In possession','4-3-3',[4,3,3],'A',.84],['France','Out of possession','4-4-2',[4,4,2],'A',.77],['Switzerland','In possession','3-4-2-1',[3,4,2,1],'B',.71],['Switzerland','Out of possession','5-4-1',[5,4,1],'B',.88]].map(([t,ph,f,l,k,c])=>`<div class="card p" style="cursor:pointer" ${T('Map now shows average positions: '+t+' · '+ph)}><div class="muted" style="font-size:12px;font-weight:600">${t} · ${ph}</div><div class="row" style="margin:4px 0 10px"><b style="font-size:22px">${f}</b><div class="sp"></div><span class="badge b-mute">${Math.round(c*100)}%</span></div>${formation(l,k)}</div>`).join('')}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
+<div class="card p"><div class="ct">Defensive line height (m)</div>${spark(series(30,4,38,10),{h:90,c:'#4da3ff'})}</div>
+<div class="card p"><div class="ct">Team width (m)</div>${spark(series(30,7,44,8),{h:90,c:'#ff6b6b'})}</div>
+<div class="card p"><div class="ct">Offside situations · 7</div>${['23:10','41:55','57:02','66:40'].map(t=>`<div class="row" style="padding:6px 0"><span class="mono">${t}</span><span class="fg2">France caught offside</span><div class="sp"></div>${B(ic('play',13),'','sm icon',T('Seek '+t+' · offside layer on'))}</div>`).join('')}</div></div>
+<div class="banner info" style="margin-top:14px"><span class="bi">${ic('sparkle')}</span><span>Turn these numbers into a written tactical summary for your staff.</span><div class="sp"></div>${B(ic('sparkle')+'Generate AI report','scr-24/empty','primary sm')}</div>`,
+data:()=>`<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="card p col"><div class="ct" style="margin:0">Raw tracking data</div><div class="row" style="gap:28px"><div class="metric">Schema<b>v1.0</b></div><div class="metric">Frames<b>141 300</b></div><div class="metric">Tracks<b>31</b></div><div class="metric">Rate<b>25 Hz</b></div></div><div class="row">${B(ic('download')+'Download JSON','scr-25/data','primary')}${B(ic('download')+'Download CSV','scr-25/data')}<div class="sp"></div>${L('View schema ↗','')}</div></div>
+<div class="card p col"><div class="ct" style="margin:0">API</div><pre class="mono" style="margin:0;background:var(--bg);border:1px solid var(--ln);border-radius:10px;padding:12px;font-size:12px;color:var(--fg2);white-space:pre-wrap">curl -H "Authorization: Bearer $PV_KEY" \\
+  https://eu.api.pitchvision.ai/api/v1/results/a3f1/tracks?from_ms=0&amp;to_ms=60000</pre><div class="row">${B(ic('copy')+'Copy','','sm',T('Copied'))}<div class="sp"></div><span class="fg2" style="font-size:13px">Need a key? ${L('Create one','scr-40/api-keys')}</span>${L('API docs ↗','')}</div></div></div>`
+};
+R['scr-20']=(st)=>({html:WS(st||'overview')});
+R['scr-22']=(st)=>({html:WS('overview',{sel:+st||21,ctx:+st||21})});
+R['scr-23']=(st)=>{const p=byId(st||11);const s=stat(p);const tm=PL.filter(q=>q.t===p.t);const i=tm.indexOf(p);const prev=tm[(i-1+tm.length)%tm.length],next=tm[(i+1)%tm.length];
+return {html:WS('players',{sel:p.id}),ov:`<div class="drawer"><div class="row" style="padding:14px 16px;border-bottom:1px solid var(--ln)">${B(ic('chevL'),'scr-23/'+prev.id,'sm icon ghost')}${B(ic('chevR'),'scr-23/'+next.id,'sm icon ghost')}<div class="sp"></div><button class="iconbtn" data-go="scr-20/players">${ic('x',18)}</button></div>
+<div style="padding:18px 20px" class="col"><div class="row" style="gap:14px;align-items:flex-start"><div class="crop" style="width:64px">${crop(p)}</div><div style="flex:1"><div class="row"><b style="font-size:19px">#${p.n} ${p.nm}</b><button class="btn sm ghost icon" ${T('Editing name and number inline')}>${ic('edit',14)}</button></div><div class="row fg2" style="gap:8px"><span class="${p.t==='A'?'tdot':'tsq'}" style="background:${TEAMS[p.t].c}"></span>${TEAMS[p.t].name} · ${p.pos} · track ${p.id}</div></div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">${[['Minutes',s.min],['Distance',s.dist+' km'],['Top speed',s.top+' km/h',1],['Sprints',s.spr],['Passes',s.pas+' · '+s.acc+'%'],['Avg speed',(s.dist/s.min*60).toFixed(1)+' km/h']].map(([k,v,pl])=>`<div class="card" style="padding:10px 12px;background:var(--s2)"><div class="metric">${k}<b class="row" style="gap:6px">${v}${pl?`<button class="btn sm ghost icon" style="width:22px;height:22px" ${T('Seeking to 61:20')}>${ic('play',11)}</button>`:''}</b></div></div>`).join('')}</div>
+<div class="card" style="padding:10px;background:var(--s2)"><div style="height:150px">${heat(p.t,p.id)}</div><div class="row" style="margin-top:6px"><span class="muted" style="font-size:12px">Heatmap · full match</span><div class="sp"></div>${L('Open in Heatmaps','scr-20/heatmaps')}</div></div>
+<label class="chk" data-chip style="justify-content:space-between;width:100%;color:var(--fg)">Follow on video${tgl(1)}</label>
+${B(ic('play')+'Jump to first appearance','','',T('Seeking to 00:04'))}${B(ic('skipf')+'Next appearance after a gap','','',T('Seeking to 52:10'))}
+<div class="row">${L('Show passes →','scr-20/passing')}<div class="sp"></div>${L('Fix something…','scr-22/'+p.id)}</div></div></div>`}};
+
+/* ---------- SCR-21 Roster ---------- */
+R['scr-21']=()=>{const rows=PL.filter(p=>p.t!=='R').slice(0,9);
+return {html:TB('lib')+`<div class="page"><a class="back" data-go="scr-20/players">${ic('back')} Back to analysis</a>
+<div class="ph" style="margin:10px 0 16px"><h1>Roster</h1><span class="muted">France vs Switzerland · 31 tracks</span><div class="sp"></div>${B(ic('file')+'Paste lineup','dlg-09','sm')}<div class="rel"><button class="btn sm" data-toggle="m-imp">Import from match ${ic('chev',14)}</button><div class="menu" id="m-imp" style="right:0;top:36px"><div class="mh">Matches with “France”</div><a ${T('9 players matched by jersey number')}>France vs Belgium · Sep 8</a><a ${T('7 players matched by jersey number')}>France vs Spain · Aug 30</a></div></div></div>
+<div class="row" style="margin-bottom:12px">${seg([['All 31',1],['Unassigned 4',0],['Low confidence 2',0]])}</div>
+<div class="card" style="overflow:hidden"><table class="tbl"><thead><tr><th>Track</th><th>Samples</th><th>Team</th><th>Role</th><th>Jersey (OCR)</th><th>Name</th><th>On screen</th><th></th></tr></thead><tbody>
+${rows.map((p,i)=>`<tr${i===2?' style="background:color-mix(in srgb,var(--warn) 6%,transparent)"':''}><td class="mono">${p.id}${i===2?' <span title="modified" class="tdot" style="background:var(--warn);width:7px;height:7px"></span>':''}</td><td><div class="row" style="gap:4px">${[0,1,2].map(()=>`<div class="crop" style="width:22px;border-radius:4px">${crop(p)}</div>`).join('')}</div></td>
+<td><div class="input" style="height:30px;width:130px;font-size:13px"><span class="${p.t==='A'?'tdot':'tsq'}" style="background:${TEAMS[p.t].c}"></span>${TEAMS[p.t].name}<div class="sp"></div>${ic('chev',13)}</div></td><td><div class="input" style="height:30px;width:120px;font-size:13px">${p.gk?'Goalkeeper':'Player'}<div class="sp"></div>${ic('chev',13)}</div></td>
+<td><div class="row"><div class="input mono" style="height:30px;width:52px;font-size:13px">${p.n}</div><span class="muted mono" style="font-size:12px">${(0.8+rnd(p.id)*.19).toFixed(2)}</span></div></td><td><div class="input ${i===2?'focus':''}" style="height:30px;width:180px;font-size:13px">${p.nm}</div></td><td class="mono">${stat(p).min} min</td>
+<td><div class="rel"><button class="btn sm ghost icon" data-toggle="m-r${i}">${ic('more')}</button><div class="menu" id="m-r${i}" style="right:0;top:32px"><a data-go="scr-20/overview" ${T('Seeking to first appearance · 00:04')}>${ic('play')}Jump to first appearance</a><a ${T('Choose the track to merge into')}>${ic('merge')}Merge into…</a><a data-go="scr-22/${p.id}">${ic('scissors')}Split…</a><hr><a ${T('Marked as not a player — Undo')}>${ic('x')}Mark as not a player</a></div></div></td></tr>`).join('')}
+<tr><td class="mono">31</td><td><div class="row" style="gap:4px">${[0,1].map(()=>`<div class="crop" style="width:22px;border-radius:4px">${crop({t:'B',n:''})}</div>`).join('')}</div></td><td><div class="input" style="height:30px;width:130px;font-size:13px"><span class="tsq" style="background:var(--B)"></span>Switzerland<div class="sp"></div>${ic('chev',13)}</div></td><td><div class="input" style="height:30px;width:120px;font-size:13px">Player<div class="sp"></div>${ic('chev',13)}</div></td><td><div class="row"><div class="input mono" style="height:30px;width:52px;font-size:13px;color:var(--fg3)">?</div><span class="muted mono" style="font-size:12px">—</span></div></td><td><div class="input" style="height:30px;width:180px;font-size:13px"><span class="ph">Assign a name</span></div></td><td class="mono">12 min</td><td></td></tr></tbody></table></div>
+<div class="row" style="margin-top:16px"><span class="fg2" style="font-size:13px">1 unsaved change</span><div class="sp"></div>${B('Discard','scr-21','ghost',T('Changes discarded'))}${B('Save changes','scr-21','primary',T('Saved · updating stats… — Undo'))}</div>
+<p class="muted" style="font-size:12.5px">Prototype: ${L('Leave with unsaved changes →','dlg-03')}</p></div>`}};
+
+/* ---------- SCR-24 Report ---------- */
+R['scr-24']=(st)=>{
+const head=`<div class="row" style="margin-bottom:6px"><a class="back" data-go="scr-20/tactics">${ic('back')} Back to analysis</a></div><div class="ph" style="margin:10px 0 18px"><h1>Tactical report</h1><span class="muted">France vs Switzerland</span><div class="sp"></div><div class="input" style="width:150px;height:34px">${ic('globe',14)}English<div class="sp"></div>${ic('chev')}</div>${st?'':B(ic('refresh')+'Regenerate','scr-24/generating','sm')+B(ic('copy')+'Copy','','sm',T('Report copied as Markdown'))+B(ic('download')+'PDF','scr-25/pdf','sm')+B(ic('share')+'Share','scr-27','sm')}</div>`;
+let body;
+if(st==='empty')body=`<div class="empty"><div class="fi" style="width:64px;height:64px;border-radius:18px">${ic('sparkle',30)}</div><h2>Generate a tactical summary</h2><p>Written from this match's data. Every figure links back to its source. Takes about 30 seconds.</p>${B(ic('sparkle')+'Generate report','scr-24/generating','primary lg')}<p class="muted" style="font-size:12.5px;margin-top:14px">Pro feature · ${L('See plans','scr-41/feature')}</p></div>`;
+else if(st==='generating')body=`<div class="card p" style="max-width:760px;margin:0 auto"><div class="row"><span class="badge b-run">◐ Writing report</span><div class="sp"></div>${B('Cancel','scr-24/empty','sm ghost')}</div><div class="col" style="margin-top:18px;gap:12px">${[['Collecting match data',1],['Writing summary',1],['Verifying 23 figures against data',0]].map(([l,d],i)=>`<div class="row">${d?`<span class="badge b-ok" style="padding:3px">${ic('check',12,3)}</span>`:'<span class="badge b-run" style="padding:3px 7px">3</span>'}<span class="${d?'fg2':''}">${l}</span></div>`).join('')}</div><div class="pbar info" style="margin-top:18px"><i style="width:72%"></i></div><p class="muted" style="font-size:12.5px;margin:12px 0 0">Prototype: ${L('Show finished report →','scr-24')}</p></div>`;
+else body=`<div style="display:grid;grid-template-columns:1fr 280px;gap:24px"><article class="card" style="padding:28px 34px;line-height:1.75;font-size:15px;position:relative">
+<div class="banner info" style="margin-bottom:20px;font-size:13px"><span class="bi">${ic('check')}</span>All 23 figures verified against match data.</div>
+<h2 style="font-size:20px;margin-bottom:8px">Summary</h2>
+<p class="fg2" style="margin:0 0 14px">France controlled the ball for most of the match (<b style="color:var(--fg)">58%</b> possession <a class="cite on" data-toggle="pop1">f:3</a>) and pressed high, holding an average defensive line <b style="color:var(--fg)">41.2 m</b> from their own goal <a class="cite" data-toggle="pop1">f:12</a>. Switzerland defended in a compact <b style="color:var(--fg)">5-4-1</b> without the ball <a class="cite" data-toggle="pop1">f:15</a>, conceding space on the right half-space.</p>
+<div class="pop" id="pop1" style="left:300px;top:150px;display:block"><div class="muted" style="font-size:12px;font-weight:600">FACT f:3</div><b style="font-size:16px">Possession · France 58% · Switzerland 42%</b><p class="fg2" style="font-size:13px;margin:6px 0 12px">Time-in-possession, full match, excluding 6.1 min of low pitch quality.</p><div class="row">${B(ic('play',13)+'Show in video','scr-20/overview','sm')}${B(ic('chart',13)+'Show in stats','scr-20/overview','sm ghost')}</div></div>
+<h2 style="font-size:20px;margin:22px 0 8px">Key players</h2>
+<p class="fg2" style="margin:0 0 14px"><a class="lnk" data-go="scr-23/10">#9 O. Petit</a> reached the match's top speed of <b style="color:var(--fg)">33.1 km/h</b> <a class="cite">f:7</a> and was the most frequent target of passes from <a class="lnk" data-go="scr-23/7">#6 P. Roussel</a> (<b style="color:var(--fg)">12</b> <a class="cite">f:19</a>).</p>
+<h2 style="font-size:20px;margin:22px 0 8px">Recommendations</h2>
+<p class="fg2" style="margin:0">Against a 5-4-1 block, France's width came mostly from the full-backs <a class="cite">f:21</a>. Consider …</p></article>
+<div class="col"><div class="card p"><div class="ct">Report</div><div class="col fg2" style="gap:6px;font-size:13px"><span>Model · Claude Sonnet</span><span>Generated · Oct 4, 21:14</span><span>Figures cited · 23</span><span>Words · 512</span></div></div><div class="card p"><div class="ct">Sections</div><div class="col" style="gap:8px"><a class="lnk">Summary</a><a class="lnk">Key players</a><a class="lnk">Phases of play</a><a class="lnk">Recommendations</a></div></div></div></div>`;
+return {html:TB('lib')+`<div class="page">${head}${body}</div>`}};
+
+/* ---------- SCR-25 Export ---------- */
+R['scr-25']=(st)=>{const tab=st||'video';
+const tabs=`<div class="tabs" style="margin:-4px -22px 18px;padding:0 22px">${[['video','Video'],['data','Data'],['pdf','Report PDF'],['map','Tactical map video']].map(([k,l])=>`<a class="${k===tab?'on':''}" data-go="scr-25/${k}">${l}</a>`).join('')}</div>`;
+let body=tabs;
+if(tab==='data')body+=`<div class="field"><label>Format</label>${seg([['JSON',1],['CSV',0]])}</div><div class="field" style="margin-top:14px"><label>Sample rate</label>${seg([['25 Hz · full',1],['5 Hz · smaller',0]])}</div><div class="field" style="margin-top:14px"><label>Range</label>${seg([['Full match',1],['Selection 34:00–34:52',0]])}</div><div class="sumline" style="margin-top:16px">${ic('file')} Estimated size · <b style="color:var(--fg)">180 MB</b></div>`;
+else if(tab==='pdf')body+=`<div class="field"><label>Include</label>${chk(1,'Tactical report (English)')}${chk(1,'Stats tables')}${chk(1,'Heatmaps &amp; passing network')}${chk(0,'Organization logo')}</div>`;
+else body+=`<div class="field"><label>Range</label>${seg([['Full match',0],['Selection 34:00–34:52',1],['Custom…',0]])}</div>
+<div class="field" style="margin-top:14px"><label>Layers</label><div class="row" style="flex-wrap:wrap;gap:6px">${[['Boxes',1],['Labels',1],['Confidence',0],['Ball',1],['Trails',0],['Names',1]].map(([l,on])=>`<button class="chip ${on?'on':''}" data-chip>${l}</button>`).join('')}</div></div>
+<div class="field" style="margin-top:14px"><label>Layout</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="rcard" data-chip>${rad(0)}<b>Video only</b></div><div class="rcard on" data-chip>${rad(1)}<b>Video + map side by side</b></div></div></div>
+<div class="field" style="margin-top:14px"><label>Quality</label>${seg([['720p',1],['1080p ✦',0,'scr-41/quality']])}</div>
+<div class="banner info" style="margin-top:16px"><span class="bi">${ic('info')}</span><span>Free plan exports include a watermark.</span><div class="sp"></div>${L('Upgrade','scr-41/quality')}</div>`;
+return {html:WS('overview',{range:1}),ov:modal('','Export',body,`<div class="sp"></div>${B('Cancel','scr-20/overview','ghost')}${B(ic('download')+'Start export','scr-26','primary',T('Export started — find it in Exports'))}`,'scr-20/overview')}};
+
+/* ---------- SCR-26 Exports ---------- */
+R['scr-26']=()=>({html:TB('exp')+`<div class="page"><div class="ph"><h1>Exports</h1><div class="sp"></div>${seg([['All',1],['Active',0],['Done',0]])}</div>
+<div class="card" style="overflow:hidden"><table class="tbl"><thead><tr><th>File</th><th>Source match</th><th>Status</th><th>Size</th><th>Expires</th><th></th></tr></thead><tbody>
+<tr><td><div class="row">${ic('video')}<b>fra_sui_34m00-34m52.mp4</b></div></td><td>${L('France vs Switzerland','scr-20/overview')}</td><td><span class="badge b-run">◐ 64%</span><div class="pbar info" style="width:120px;margin-top:6px;height:5px"><i style="width:64%"></i></div></td><td class="mono">—</td><td>—</td><td>${B('Cancel','','sm ghost',T('Export cancelled'))}</td></tr>
+<tr><td><div class="row">${ic('video')}<b>fra_sui_full.mp4</b></div></td><td>${L('France vs Switzerland','scr-20/overview')}</td><td><span class="badge b-ok">✓ Ready</span></td><td class="mono">1.1 GB</td><td>6 days</td><td><div class="row">${B(ic('download')+'Download','','sm primary',T('Downloading fra_sui_full.mp4'))}<div class="rel"><button class="btn sm ghost icon" data-toggle="m-e1">${ic('more')}</button><div class="menu" id="m-e1" style="right:0;top:34px"><a ${T('Link copied · sign-in required')}>${ic('link')}Copy link</a><hr><a class="dn" ${T('Export deleted')}>${ic('trash')}Delete</a></div></div></div></td></tr>
+<tr><td><div class="row">${ic('file')}<b>fra_sui_tracks.json</b></div></td><td>${L('France vs Switzerland','scr-20/overview')}</td><td><span class="badge b-ok">✓ Ready</span></td><td class="mono">182 MB</td><td>6 days</td><td>${B(ic('download')+'Download','','sm primary',T('Downloading fra_sui_tracks.json'))}</td></tr>
+<tr><td><div class="row">${ic('video')}<b>lyon_om_clip.mp4</b></div></td><td>${L('Lyon vs Marseille','scr-13/error')}</td><td><span class="badge b-err">✕ Failed</span></td><td>—</td><td>—</td><td>${B(ic('refresh')+'Retry','','sm',T('Export restarted'))}</td></tr>
+</tbody></table></div></div>`});
+
+/* ---------- SCR-27 Share / SCR-28 Shared viewer ---------- */
+R['scr-27']=()=>({html:WS('overview'),ov:modal('sm','Share “France vs Switzerland”',`<div class="sumline" style="margin-bottom:16px">${ic('users')}<span>People in <b style="color:var(--fg)">Riverside FC</b> already have access.</span></div>
+${field('Link access',`<div class="rel"><div class="input" data-toggle="m-acc">${ic('globe',15)}Anyone with the link · view only<div class="sp"></div><span class="badge b-pro">PRO</span>${ic('chev')}</div><div class="menu" id="m-acc" style="left:0;right:0;top:42px"><a>${ic('lock')}Only my organization</a><a data-go="scr-41/feature">${ic('globe')}Anyone with the link <span class="badge b-pro">PRO</span></a></div></div>`)}
+<div class="field" style="margin-top:14px"><label>Include</label><div class="row" style="gap:18px">${chk(1,'Analysis')}${chk(1,'Report')}${chk(0,'Raw data')}</div></div>
+${field('Link expires',`<div class="input">In 30 days<div class="sp"></div>${ic('chev')}</div>`).replace('class="field"','class="field" style="margin-top:14px"')}
+<div class="row" style="margin-top:16px"><div class="input mono" style="font-size:12.5px;color:var(--fg2)">app.pitchvision.ai/s/k3J9xQ2…</div>${B(ic('copy')+'Copy link','','primary',T('Link copied'))}</div>
+<p class="muted" style="font-size:12.5px;margin:10px 0 0">Prototype: ${L('Open as recipient →','scr-28')}</p>`,`<a class="lnk" style="color:var(--dan)" ${T('Link revoked')}>Revoke link</a><div class="sp"></div>${B('Done','scr-20/overview','primary')}`,'scr-20/overview')});
+R['scr-28']=()=>({html:`<header class="tb"><a class="logo" data-go="scr-01"><i></i>PitchVision</a><span class="fg2">France vs Switzerland · shared by <b style="color:var(--fg)">Riverside FC</b></span><span class="badge b-mute">${ic('eye',12)} View only</span><div class="sp"></div>${B('Sign in','scr-02','ghost sm')}${B('Analyze your own match','scr-03','primary sm')}</header>
+<div class="ws"><div class="ws-main" style="margin-top:0"><div class="vid"><div class="vwrap">${frame()}<div class="vhud">FPS 25</div></div><div class="ctrl">${B(ic('play',15),'','sm icon',T('Playing'))}<span class="mono fg2" style="font-size:12.5px">49:36 / 94:12</span><div class="tl"><div class="bar"></div><div class="played" style="width:52.6%"></div><div class="knob" style="left:52.6%"></div></div></div></div>
+<div class="mapp"><b>Tactical map</b><div class="mapbox">${tmap({trail:1})}</div></div></div>
+<div class="tabs" style="margin-top:18px">${['Overview','Players','Heatmaps','Report'].map((l,i)=>`<a class="${i?'':'on'}" data-chip>${l}</a>`).join('')}</div><div class="tabc">${TABC.overview()}</div></div>`});
+
+/* ---------- SCR-30 Live hub ---------- */
+R['scr-30']=(st)=>{const add=st==='add';
+const panel=add?`<div class="drawer" style="width:440px"><div class="row" style="padding:16px 20px;border-bottom:1px solid var(--ln)"><b style="font-size:16px">Add source</b><div class="sp"></div><button class="iconbtn" data-go="scr-30">${ic('x',18)}</button></div>
+<div class="col" style="padding:20px;gap:16px">${field('Name',inp('Training pitch cam',0,'focus'))}
+<div class="field"><label>How does video reach us?</label><div class="rcard on" data-chip>${rad(1)}<div><b>We pull from a URL</b><div class="muted" style="font-size:12.5px">RTSP / RTMP / SRT / HLS</div></div></div><div class="rcard" data-chip>${rad(0)}<div><b>Camera pushes to us</b><div class="muted" style="font-size:12.5px">We give you an RTMP URL and key</div></div></div></div>
+${field('Stream URL',inp('rtsp://203.0.113.24:554/stream1'),'Private addresses (10.x, 192.168.x) can’t be reached from the cloud — use “Camera pushes to us”.')}
+<div class="frm">${field('Username',inp('optional',1))}${field('Password',inp('optional',1))}</div>
+<div class="field"><label>Match format</label>${seg([['11v11',1],['9v9',0],['7v7',0]])}</div>${chk(1,'Record the session')}
+<div class="card" style="padding:12px;background:var(--s2)"><div class="row">${B(ic('signal')+'Test connection','','sm',T('Connected · 1920×1080 · 25 fps'))}<span class="badge b-ok">${ic('check',12,3)} 1920×1080 · 25 fps</span></div><div style="aspect-ratio:16/9;border-radius:8px;overflow:hidden;margin-top:10px">${frame({cam:55,labels:0,boxes:0,kp:0,jit:9})}</div></div></div>
+<div class="mft" style="position:sticky;bottom:0;background:var(--s1)"><div class="sp"></div>${B('Cancel','scr-30','ghost')}${B('Save source','scr-30','',T('Source saved'))}${B(ic('play')+'Save &amp; start','scr-31','primary')}</div></div>`:'';
+return {html:TB('live')+`<div class="page"><div class="ph"><h1>Live</h1><div class="sp"></div>${B(ic('plus')+'Add source','scr-30/add','primary')}</div>
+<div class="card" style="padding:16px 18px;display:flex;align-items:center;gap:16px;border-color:color-mix(in srgb,var(--dan) 35%,var(--ln));margin-bottom:22px"><div style="width:180px;aspect-ratio:16/9;border-radius:8px;overflow:hidden">${frame({cam:60,labels:0,kp:0,jit:4})}</div><div style="flex:1"><div class="row"><span class="lbadge"><span class="pulse" style="background:#fff"></span>LIVE NOW</span><b style="font-size:16px">U17 Training</b></div><div class="fg2 mono" style="margin-top:6px">00:42:10 · Training pitch cam · 3 viewers</div></div>${B('Open','scr-31','primary')}</div>
+<div class="ct">Sources</div><div class="card" style="overflow:hidden;margin-bottom:22px"><table class="tbl"><tbody>
+${[['Training pitch cam','rtsp://203.0.113.24/stream1','In use','b-run'],['Stadium feed','RTMP push · eu.live.pitchvision.ai','Idle','b-mute'],['Away camera','srt://198.51.100.7:9000','Offline','b-err']].map(([n,u,s,c],i)=>`<tr><td style="width:44px"><div class="fi" style="width:34px;height:34px">${ic('video',16)}</div></td><td><b>${n}</b><div class="muted mono" style="font-size:12px">${u}</div></td><td><span class="badge ${c}">${s}</span></td><td style="text-align:right"><div class="row" style="justify-content:flex-end">${i===2?B('Start session','','sm',T('Camera unreachable — run Test connection')):B(ic('play')+'Start session','scr-31','sm')}<div class="rel"><button class="btn sm ghost icon" data-toggle="m-s${i}">${ic('more')}</button><div class="menu" id="m-s${i}" style="right:0;top:34px"><a data-go="scr-30/add">${ic('edit')}Edit</a><hr><a class="dn" data-go="dlg-01">${ic('trash')}Delete</a></div></div></div></td></tr>`).join('')}</tbody></table></div>
+<div class="ct">Past sessions</div><div class="card" style="overflow:hidden"><table class="tbl"><tbody>${[['Oct 3','U17 Training','85 min',12],['Sep 30','U19 vs Lakeside (friendly)','96 min',7]].map(([d,n,m,k])=>`<tr class="click" data-go="scr-32"><td class="mono" style="width:90px">${d}</td><td><b>${n}</b></td><td class="mono">${m}</td><td>${k} markers</td><td><span class="badge b-ok">Recording ✓</span></td><td style="text-align:right">${ic('chevR')}</td></tr>`).join('')}</tbody></table></div></div>`,ov:panel}};
+
+/* ---------- SCR-31 Live viewer ---------- */
+R['scr-31']=(st)=>{const rc=st==='reconnect';
+return {html:`<div class="livebar"><a class="back" data-go="scr-30">${ic('back')} Live</a><span class="lbadge"><span class="pulse" style="background:#fff"></span>LIVE</span><span class="mono" style="font-weight:700;font-size:16px">00:42:10</span><b>U17 Training</b>
+<div class="sp"></div><div class="row" style="gap:22px"><div class="metric">Latency<b>1.8 s</b></div><div class="metric">Speed<b>21 fps</b></div><div class="metric">Quality<b class="row" style="gap:6px">Full <button class="btn sm ghost icon" style="width:22px;height:22px" ${T('Full quality: all modules on. Drops to Reduced 1–4 if speed falls below 15 fps.')}>${ic('info',13)}</button></b></div></div>
+${B(ic('flag')+'Marker <span class="kbd">M</span>','','sm',T('Marker added at 42:10'))}${B(ic('stop')+'End session','dlg-10','sm danger')}</div>
+<div class="lv"><div class="col"><div class="banner info"><span class="bi">${ic('shirt')}</span><span>Team colors learned. Name the teams so labels make sense.</span><div class="sp"></div>${B('Name teams','scr-14','sm primary')}</div>
+<div class="vid" style="position:relative"><div class="vwrap">${frame({cam:60,jit:4})}<div class="vhud">● REC · WebRTC</div></div>
+${rc?`<div style="position:absolute;inset:0;background:rgba(5,9,13,.72);display:grid;place-items:center;text-align:center;color:#fff"><div><div class="fi" style="margin:0 auto 12px;background:rgba(255,182,72,.18);color:var(--warn);width:52px;height:52px">${ic('refresh',24)}</div><b style="font-size:18px">Reconnecting to camera…</b><p style="color:#a3b3c4;margin:6px 0 16px">Attempt 5 of 5 failed. The recording is safe up to 42:08.</p><div class="row" style="justify-content:center">${B(ic('refresh')+'Retry','scr-31','primary')}${B('End session','dlg-10','danger')}</div></div></div>`:''}
+<div class="layers">${[['Boxes',1],['Labels',1],['Confidence',0],['Ball',1]].map(([l,on])=>`<button class="chip ${on?'on':''}" data-chip>${l}</button>`).join('')}<div class="sp"></div><span class="muted" style="font-size:12.5px">Prototype: ${L('Connection lost state','scr-31/reconnect')}</span></div></div></div>
+<div class="col"><div class="mapp" style="height:420px"><b>Tactical map</b><div class="mapbox">${tmap({trail:1})}</div></div>
+<div class="card p"><div class="ct">Live stats</div><div class="statrow" style="grid-template-columns:60px 1fr 1fr 60px"><div class="v">54%</div><div class="k">Possession</div><div class="v r" style="grid-column:4">46%</div><div class="dual"><i style="flex:54"></i><i style="flex:46"></i></div></div><div class="statrow" style="grid-template-columns:60px 1fr 1fr 60px"><div class="v">4.9</div><div class="k">Distance km</div><div class="v r" style="grid-column:4">4.6</div><div class="dual"><i style="flex:51"></i><i style="flex:49"></i></div></div></div>
+<div class="card p"><div class="ct">Markers</div>${[['12:04','Pressing trigger'],['31:40','Goal — Team A'],['38:22','Shape lost on switch']].map(([t,n])=>`<a class="row" style="padding:6px 0" ${T('Edit or delete marker note')}><span class="mono">${t}</span><span class="fg2">${n}</span></a>`).join('')}</div></div></div>`}};
+
+/* ---------- SCR-32 Live summary ---------- */
+R['scr-32']=()=>({html:TB('live')+`<div class="page" style="max-width:1100px"><a class="back" data-go="scr-30">${ic('back')} Live</a><div class="ph" style="margin:10px 0 16px"><h1>U17 Training</h1><span class="muted">Oct 3 · 85 min · Training pitch cam</span><div class="sp"></div><a class="lnk" style="color:var(--dan)" data-go="dlg-01">Delete session</a></div>
+<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px"><div class="card" style="overflow:hidden"><div style="aspect-ratio:16/9">${frame({cam:60,jit:4})}</div><div class="row" style="padding:14px 16px"><span class="badge b-ok">Recording saved</span><span class="badge b-mute">Live-quality data</span><div class="sp"></div>${B(ic('play')+'Open recording','scr-20/overview','')}</div></div>
+<div class="col"><div class="card p"><div class="ct">Session stats</div><div class="row" style="gap:28px"><div class="metric">Possession<b>54–46</b></div><div class="metric">Distance<b>98.2 / 95.1 km</b></div><div class="metric">Markers<b>12</b></div></div></div>
+<div class="banner info" style="align-items:flex-start"><span class="bi" style="margin-top:2px">${ic('zap')}</span><div><b>Get full accuracy</b><p class="fg2" style="margin:4px 0 10px;font-size:13px">Live mode skips some frames and re-identification. Run a complete analysis on the recording — your markers and team names are kept.</p>${B('Run full analysis','scr-12/reanalyze','primary sm')}</div></div>
+<div class="card p"><div class="ct">Markers</div>${[['12:04','Pressing trigger'],['31:40','Goal — Team A'],['38:22','Shape lost on switch'],['57:10','Counter-press success']].map(([t,n])=>`<div class="row" style="padding:6px 0"><span class="mono">${t}</span><span class="fg2">${n}</span><div class="sp"></div>${B(ic('play',13),'scr-20/overview','sm icon')}</div>`).join('')}</div></div></div></div>`});
+
+/* ---------- SCR-40 Settings ---------- */
+const SNAV=[['profile','user','Profile'],['organization','building','Organization'],['members','users','Members'],['billing','card','Billing &amp; usage'],['api-keys','key','API keys'],['preferences','sliders','Preferences'],['privacy','shield','Data &amp; privacy']];
+R['scr-40']=(st='profile')=>{st=st||'profile';let c='';
+if(st==='profile')c=`<h2>Profile</h2><div class="row" style="gap:16px"><div class="avatar" style="width:64px;height:64px;font-size:20px;display:grid;place-items:center">DM</div>${B('Change photo','','sm',T('Opens file picker'))}</div>
+<div class="frm">${field('Full name',inp('Dong M.'))}${field('Email',`<div class="row"><div class="input" style="flex:1">dm@riversidefc.com</div>${B('Change','','sm',T('Enter new email + password; we send a verification link'))}</div>`)}</div>
+${field('Password',`<div class="row"><div class="input" style="flex:1">••••••••••••</div>${B('Change password','','sm',T('Opens change-password popover'))}</div>`)}
+<div class="card p row"><div style="flex:1"><b>Active sessions</b><div class="muted" style="font-size:13px">3 devices · last active 2 min ago</div></div>${B('Sign out of other sessions','','sm danger',T('Signed out of 2 other sessions'))}</div>
+<div class="row"><div class="sp"></div>${B('Save','','primary',T('Profile saved'))}</div>`;
+if(st==='organization')c=`<h2>Organization</h2><div class="frm">${field('Name',inp('Riverside FC Academy'))}${field('Type',`<div class="input">Academy<div class="sp"></div>${ic('chev')}</div>`)}</div>
+${field('Logo',`<div class="row"><div class="fi" style="width:48px;height:48px">${ic('shield',22)}</div>${B('Upload logo','','sm',T('Opens file picker'))}<span class="muted" style="font-size:12.5px">Shown on PDF exports</span></div>`)}
+${field('Data region',`<div class="input" style="background:var(--s2)">${ic('lock',14)} European Union · Frankfurt<div class="sp"></div><a class="lnk" style="font-size:12.5px" ${T("Region is fixed: your data can't be moved between regions.")}>Why can't I change this?</a></div>`)}
+<div class="card" style="overflow:hidden"><div class="row" style="padding:12px 16px"><b>Saved teams</b><span class="muted" style="font-size:12.5px">Suggested when you confirm teams</span></div><table class="tbl"><tbody>${[['France','#4da3ff',4],['Switzerland','#ff6b6b',2],['Riverside FC','#3ddc84',11]].map(([n,c,k])=>`<tr><td><span class="tdot" style="background:${c}"></span> <b>${n}</b></td><td class="muted">${k} matches</td><td style="text-align:right">${B(ic('edit',14),'','sm ghost icon',T('Edit team'))}${B(ic('trash',14),'','sm ghost icon',T('Team removed — Undo'))}</td></tr>`).join('')}</tbody></table></div>
+<div class="row"><div class="sp"></div>${B('Save','','primary',T('Organization saved'))}</div>`;
+if(st==='members')c=`<div class="row"><h2>Members</h2><span class="muted">4 of 5 seats</span><div class="sp"></div>${B(ic('plus')+'Invite members','dlg-06','primary')}</div>
+<div class="card" style="overflow:hidden"><table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Last active</th><th></th></tr></thead><tbody>${[['Dong M.','dm@riversidefc.com','Owner','2 min ago'],['Sam Rivera','sam@riversidefc.com','Admin','1 h ago'],['Alex Chen','alex@riversidefc.com','Editor','1 d ago'],['Priya N.','priya@riversidefc.com','Viewer','5 d ago']].map(([n,e,r,t],i)=>`<tr><td><div class="row"><div class="avatar" style="width:30px;height:30px;display:grid;place-items:center;font-size:11px">${n.split(' ').map(x=>x[0]).join('')}</div><div><b>${n}</b><div class="muted" style="font-size:12px">${e}</div></div></div></td><td>${i?`<div class="input" style="height:30px;width:120px;font-size:13px">${r}<div class="sp"></div>${ic('chev',13)}</div>`:`<span class="badge b-mute">Owner</span>`}</td><td class="muted">${t}</td><td style="text-align:right">${i?B('Remove','','sm ghost',T(n+' removed')):B('Transfer ownership','','sm ghost',T('Confirm with your password'))}</td></tr>`).join('')}
+<tr><td><div class="row"><div class="avatar" style="width:30px;height:30px;display:grid;place-items:center;background:var(--s3);color:var(--fg3)">${ic('mail',14)}</div><div><b class="muted">jordan@riversidefc.com</b><div class="muted" style="font-size:12px">Invited · Editor</div></div></div></td><td><span class="badge b-warn">Pending</span></td><td class="muted">Sent 2 d ago</td><td style="text-align:right"><a class="lnk" ${T('Invite re-sent')}>Resend</a> · <a class="lnk" style="color:var(--dan)" ${T('Invite revoked')}>Revoke</a></td></tr></tbody></table></div>`;
+if(st==='billing')c=`<h2>Billing &amp; usage</h2><div class="card p row" style="gap:18px"><div style="flex:1"><div class="muted" style="font-size:12.5px;font-weight:600">CURRENT PLAN</div><b style="font-size:22px">Free</b><div class="fg2" style="font-size:13px">120 minutes / month · resets Nov 1</div></div>${B('Change plan','scr-41','primary')}</div>
+<div class="card p"><div class="row"><b>Usage this month</b><div class="sp"></div><span class="mono">62 / 120 min</span></div><div class="pbar" style="margin:12px 0 18px"><i style="width:52%"></i></div><div ${T('Oct 4 · 2 jobs · France vs Switzerland, U17 vs Ajax')}>${spark([0,0,12,0,0,6,0,0,0,18,0,0,0,26],{h:90,c:'#3ddc84'})}</div><div class="muted" style="font-size:12px">Click a day to see its jobs</div></div>
+<div class="card" style="overflow:hidden"><div class="row" style="padding:12px 16px"><b>Invoices</b><div class="sp"></div>${B(ic('ext',14)+'Manage payment &amp; invoices','','sm',T('Opens Stripe Customer Portal'))}</div><table class="tbl"><tbody><tr><td class="muted" colspan="3">No invoices on the Free plan.</td></tr></tbody></table></div>`;
+if(st==='api-keys')c=`<div class="row"><h2>API keys</h2><span class="badge b-pro">PRO</span><div class="sp"></div>${B(ic('plus')+'Create API key','dlg-07','primary')}</div><p class="fg2" style="margin:0">Use keys to read tracking data and stats from your own tools. ${L('API docs ↗','')}</p>
+<div class="card" style="overflow:hidden"><table class="tbl"><thead><tr><th>Name</th><th>Key</th><th>Scope</th><th>Last used</th><th></th></tr></thead><tbody><tr><td><b>Analysis notebook</b></td><td class="mono">pv_live_…9f2c</td><td>Read</td><td class="muted">3 h ago</td><td style="text-align:right">${B('Revoke','','sm danger',T('Key revoked'))}</td></tr></tbody></table></div>`;
+if(st==='preferences')c=`<h2>Preferences</h2><div class="frm">${field('Language',`<div class="input">English<div class="sp"></div>${ic('chev')}</div>`)}${field('Time format',`<div class="input">24-hour<div class="sp"></div>${ic('chev')}</div>`)}</div>
+<div class="frm"><div class="field"><label>Units</label>${seg([['Metric',1],['Imperial',0]])}</div><div class="field"><label>Theme</label>${seg([['System',0],['Light',0],['Dark',1]])}</div></div>
+<div class="card p row"><div style="flex:1"><b>Default analysis settings</b><div class="muted" style="font-size:13px">Standard · 11v11 · confidence 0.35 · tracking, jerseys, stats</div></div>${B('Edit','scr-12','sm')}</div>
+<div class="card p"><b>Email notifications</b>${[['Analysis finished',1],['Analysis failed',1],['Export ready',1],['Weekly summary',0]].map(([l,on])=>`<div class="row" style="padding:10px 0;border-bottom:1px solid var(--ln)"><span>${l}</span><div class="sp"></div>${tgl(on)}</div>`).join('')}</div>`;
+if(st==='privacy')c=`<h2>Data &amp; privacy</h2><div class="card p row"><div style="flex:1"><b>Help improve PitchVision</b><div class="muted" style="font-size:13px">Let us use your corrections to train better models. Videos are never shared.</div></div>${tgl(0)}</div>
+<div class="card p row"><div style="flex:1"><b>Export all data</b><div class="muted" style="font-size:13px">We'll email a download link when it's ready.</div></div>${B(ic('download')+'Request export','','sm',T("Export requested — we'll email you"))}</div>
+<div class="card p" style="border-color:color-mix(in srgb,var(--dan) 35%,var(--ln))"><b style="color:var(--dan)">Danger zone</b><div class="row" style="padding:12px 0;border-bottom:1px solid var(--ln)"><div style="flex:1"><b>Delete my account</b><div class="muted" style="font-size:13px">Transfer ownership first if you're the only owner.</div></div>${B('Delete account','dlg-08','sm danger')}</div><div class="row" style="padding-top:12px"><div style="flex:1"><b>Delete organization</b><div class="muted" style="font-size:13px">Removes 8 matches, exports and share links within 24 hours.</div></div>${B('Delete organization','dlg-08','sm danger')}</div></div>
+<div class="row" style="gap:16px">${L('Privacy policy','scr-53')}${L('Data processing agreement','scr-53')}</div>`;
+return {html:TB('lib')+`<div class="page"><div class="ph"><h1>Settings</h1></div><div class="set"><nav class="snav">${SNAV.map(([k,i,l])=>`<a class="${k===st?'on':''}" data-go="scr-40/${k}">${ic(i)}${l}</a>`).join('')}</nav><div class="sec">${c}</div></div></div>`}};
+
+/* ---------- SCR-41 Upgrade ---------- */
+R['scr-41']=(st='quota')=>{const why={quota:"You've used 118 of 120 minutes this month — this video needs 94.",feature:'Tactical analysis, AI reports and public links are on Pro.',quality:'1080p exports without watermark are on Pro.',seats:"You've used all 5 seats on your plan."}[st||'quota'];
+return {html:R['scr-10']().html,ov:modal('lg','Upgrade your plan',`<div class="banner info" style="margin-bottom:18px"><span class="bi">${ic('zap')}</span><span>${why}</span><div class="sp"></div>${seg([['Monthly',1],['Annual · save 20%',0]])}</div>
+<div class="plans"><div class="card plan"><b>Free</b><div class="pr">$0</div><ul><li>${ic('check')}120 min / month</li><li>${ic('check')}720p · watermark</li></ul><div class="sp"></div><span class="badge b-mute" style="justify-content:center;padding:8px">Current plan</span></div>
+<div class="card plan hl"><b>Pro</b><div class="pr">$49<small> /mo</small></div><ul><li>${ic('check')}900 min / month</li><li>${ic('check')}Stats, tactics &amp; AI reports</li><li>${ic('check')}1080p · no watermark</li><li>${ic('check')}API &amp; public links</li></ul><div class="sp"></div>${B('Choose Pro','scr-10','primary',T('Stripe Checkout → back here, upload resumes'))}</div>
+<div class="card plan"><b>Team</b><div class="pr">Custom</div><ul><li>${ic('check')}Unlimited seats</li><li>${ic('check')}Self-hosted GPU</li><li>${ic('check')}SSO · DPA</li></ul><div class="sp"></div>${B('Contact sales','','',T('Opens sales contact form'))}</div></div>`,`<a class="lnk" style="color:var(--fg2)" data-go="scr-01">Compare all features ↗</a><div class="sp"></div>${B('Maybe later','scr-10','ghost')}`,'scr-10')}};
+
+/* ---------- SCR-50 Errors ---------- */
+R['scr-50']=(st='404')=>{const E={'404':['404',"We couldn't find that page.",'It may have been moved or deleted.',B('Go to library','scr-10','primary')],
+'403':['403',"You don't have access to this match.",'It belongs to an organization you are not a member of.',B('Request access','','primary',T('Access requested — the owner was notified'))+B('Switch organization','','',T('Choose an organization'))+B('Go to library','scr-10','ghost')],
+'410':['410','This shared link has expired.','Ask the person who shared it for a new link.',B('Go to PitchVision','scr-01','primary')],
+'500':['500','Something went wrong on our side.',"We've been notified. Please try again.",B(ic('refresh')+'Try again','scr-50/500','primary')+B('Status page','','',T('Opens status.pitchvision.ai'))],
+'region':['EU','This match is stored in another region.','You are in the US workspace.',B('Open in EU workspace','scr-20/overview','primary')]}[st]||[];
+return {html:`<div class="center"><div style="text-align:center;max-width:520px"><a class="logo" data-go="scr-01" style="justify-content:center;margin-bottom:40px"><i></i>PitchVision</a><div class="mono" style="font-size:96px;font-weight:800;letter-spacing:-.05em;line-height:1;background:linear-gradient(180deg,var(--fg),var(--fg3));-webkit-background-clip:text;color:transparent">${E[0]}</div><h1 style="font-size:24px;margin:18px 0 6px">${E[1]}</h1><p class="fg2" style="margin:0 0 26px">${E[2]}</p><div class="row" style="justify-content:center">${E[3]}</div></div></div>`}};
+R['scr-51']=()=>{const r=R['scr-10']();return {html:r.html.replace('class="menu " id="m-notif"','class="menu open" id="m-notif"')}};
+R['scr-52']=()=>({html:`<div class="center"><div class="card" style="width:460px;padding:32px;text-align:center"><a class="logo" data-go="scr-01" style="justify-content:center"><i></i>PitchVision</a><div class="avatar" style="width:56px;height:56px;margin:28px auto 14px;display:grid;place-items:center;font-size:18px">SR</div><h1 style="font-size:22px">Sam invited you to join<br>Riverside FC Academy</h1><p class="fg2">as an <b style="color:var(--fg)">Editor</b> · data stored in the EU</p>${B('Accept invitation','scr-03','primary lg','style="width:100%;justify-content:center;margin-top:10px"')}<p class="fg2" style="margin:16px 0 0;font-size:13px">Not jordan@riversidefc.com? ${L('Sign in with another account','scr-02')}</p></div></div>`});
+R['scr-53']=()=>({html:`<header class="lp-h"><a class="logo" data-go="scr-01"><i></i>PitchVision</a><div class="sp"></div>${B('Sign in','scr-02','ghost')}</header><div class="page" style="display:grid;grid-template-columns:220px 1fr;gap:40px;max-width:1100px"><nav class="snav"><a class="on">Terms of Service</a><a>Privacy Policy</a><a>Data Processing Agreement</a><a>Cookie Policy</a></nav><article style="max-width:70ch"><h1 style="font-size:30px;margin-bottom:6px">Terms of Service</h1><p class="muted">Last updated Oct 1, 2026 · placeholder text</p>${['Using PitchVision','Your content','Rights to analyze video','Data location','Acceptable use','Termination'].map((h,i)=>`<h3 style="margin:26px 0 8px">${i+1}. ${h}</h3><p class="fg2">Placeholder legal copy for the prototype. The final text will be provided by counsel and describes how this section applies to clubs, academies and individual analysts.</p>`).join('')}</article></div>`});
+
+/* ---------- Dialogs ---------- */
+const DLG=(base,title,body,btns,close)=>({html:base,ov:modal('sm',title,body,btns,close)});
+R['dlg-01']=()=>DLG(R['scr-10']().html,'Delete “France vs Switzerland”?',`<p class="fg2" style="margin:0">The video, analysis, exports and share links will be removed. You can undo for 10 seconds.</p>`,`<div class="sp"></div>${B('Cancel','scr-10','ghost')}${B(ic('trash')+'Delete','scr-10','danger solid',T('Deleted — Undo'))}`,'scr-10');
+R['dlg-02']=()=>DLG(R['scr-13']().html,'Stop analyzing?',`<p class="fg2" style="margin:0">Minutes used so far (41 of 94) are not refunded. You can re-analyze later.</p>`,`<div class="sp"></div>${B('Keep analyzing','scr-13','ghost')}${B('Stop','scr-10','danger solid',T('Analysis cancelled'))}`,'scr-13');
+R['dlg-03']=()=>DLG(R['scr-21']().html,'You have unsaved changes',`<p class="fg2" style="margin:0">1 roster change hasn't been saved.</p>`,`${B('Stay','scr-21','ghost')}<div class="sp"></div>${B('Discard &amp; leave','scr-20/players','danger')}${B('Save &amp; leave','scr-20/players','primary',T('Saved · updating stats…'))}`,'scr-21');
+R['dlg-04']=()=>DLG(R['scr-10']().html,'Rename',field('Title',inp('France vs Switzerland',0,'focus')),`<div class="sp"></div>${B('Cancel','scr-10','ghost')}${B('Save','scr-10','primary',T('Renamed'))}`,'scr-10');
+R['dlg-05']=()=>({html:WS('overview'),ov:modal('','Keyboard shortcuts',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 28px">${[['?','Show shortcuts'],['N','New analysis'],['G then L','Go to Library'],['/','Search'],['Space / K','Play · pause'],[', .','Previous · next frame'],['J / Shift+L','Back · forward 5 s'],['1 – 6','Switch tab'],['L','Layers menu'],['F','Fullscreen video'],['M','Add marker (live)'],['[ ]','Previous · next player'],['⌘ Z','Undo correction'],['Esc','Close · cancel']].map(([k,l])=>`<div class="row" style="padding:7px 0;border-bottom:1px solid var(--ln)"><span class="fg2">${l}</span><div class="sp"></div><span class="kbd">${k}</span></div>`).join('')}</div>`,`<div class="sp"></div>${B('Close','scr-20/overview','')}`,'scr-20/overview')});
+R['dlg-06']=()=>DLG(R['scr-40']('members').html,'Invite members',`${field('Emails',`<div class="input focus" style="height:auto;min-height:70px;align-items:flex-start;padding:8px 10px;flex-wrap:wrap;gap:6px"><span class="badge b-mute">jordan@riversidefc.com ×</span><span class="badge b-mute">coach2@riversidefc.com ×</span></div>`,'Separate with commas')}<div style="margin-top:14px">${field('Role',`<div class="input">Editor — can analyze, edit and share<div class="sp"></div>${ic('chev')}</div>`)}</div>`,`<span class="muted" style="font-size:12.5px">1 seat left</span><div class="sp"></div>${B('Cancel','scr-40/members','ghost')}${B('Send invites','scr-40/members','primary',T('2 invites sent'))}`,'scr-40/members');
+R['dlg-07']=()=>DLG(R['scr-40']('api-keys').html,'API key created',`<div class="banner warn" style="margin-bottom:14px"><span class="bi">${ic('alert')}</span><span>Copy this key now — you won't see it again.</span></div><div class="row"><div class="input mono" style="font-size:12.5px">pv_live_7Hq2…xA91kD3f9f2c</div>${B(ic('copy')+'Copy','','',T('Copied'))}</div>`,`<div class="sp"></div>${B("I've saved it",'scr-40/api-keys','primary')}`,'scr-40/api-keys');
+R['dlg-08']=()=>DLG(R['scr-40']('privacy').html,'Delete Riverside FC Academy?',`<p class="fg2" style="margin:0 0 14px">This permanently deletes <b style="color:var(--fg)">8 matches</b>, all exports, reports and share links within 24 hours. Members lose access immediately.</p>${field('Type the organization name to confirm',inp('Riverside FC Academy',0,'focus'))}`,`<div class="sp"></div>${B('Cancel','scr-40/privacy','ghost')}${B('Delete permanently','scr-01','danger solid',T('Organization scheduled for deletion'))}`,'scr-40/privacy');
+R['dlg-09']=()=>DLG(R['scr-21']().html,'Paste lineup',`${field('Team',`<div class="input"><span class="tdot" style="background:var(--A)"></span>France<div class="sp"></div>${ic('chev')}</div>`)}<div style="margin-top:14px">${field('One player per line',`<div class="input mono focus" style="height:auto;flex-direction:column;align-items:flex-start;padding:10px 12px;font-size:12.5px;line-height:1.7">1 T. Morel<br>2 L. Duval<br>4 R. Kessler<br>9 O. Petit<br>10 K. Martin</div>`,'Matched by jersey number: <b style="color:var(--ac)">5 of 5</b>')}</div>`,`<div class="sp"></div>${B('Cancel','scr-21','ghost')}${B('Apply','scr-21','primary',T('5 players matched — review and save'))}`,'scr-21');
+R['dlg-10']=()=>DLG(R['scr-31']().html,'End live session?',`<p class="fg2" style="margin:0">The session ends for all 3 viewers. The recording (42 min) is saved.</p>`,`<div class="sp"></div>${B('Keep live','scr-31','ghost')}${B(ic('stop')+'End session','scr-32','danger solid')}`,'scr-31');
+
+/* ================= screen index ================= */
+const GROUPS=[
+['A · Public & Auth',[['scr-01','SCR-01 Landing'],['scr-02','SCR-02 Sign in'],['scr-03','SCR-03 Sign up'],['scr-04','SCR-04 Forgot password'],['scr-04/sent','SCR-04 · link sent'],['scr-05','SCR-05 Reset password'],['scr-05/expired','SCR-05 · expired'],['scr-06','SCR-06 Verify email'],['scr-07/1','SCR-07 Onboarding · 1 Org'],['scr-07/2','SCR-07 Onboarding · 2 Region'],['scr-07/3','SCR-07 Onboarding · 3 Prefs'],['scr-52','SCR-52 Accept invite'],['scr-53','SCR-53 Legal']]],
+['B · Library & New analysis',[['scr-10','SCR-10 Library'],['scr-10/empty','SCR-10 · empty'],['scr-11','SCR-11 New · Upload'],['scr-11/uploading','SCR-11 · Uploading'],['scr-11/youtube','SCR-11 · YouTube'],['scr-11/live','SCR-11 · Live'],['scr-11/import','SCR-11 · Import'],['scr-12','SCR-12 Advanced settings'],['scr-12/reanalyze','SCR-12 · Re-analyze']]],
+['C · Processing',[['scr-13','SCR-13 Processing'],['scr-13/error','SCR-13 · Error'],['scr-14','SCR-14 Confirm teams'],['scr-14/manual','SCR-14 · Manual pick'],['scr-15','SCR-15 Calibrate pitch']]],
+['D · Workspace',[['scr-20/overview','SCR-20a Overview'],['scr-20/overview:replay','SCR-20 · During replay'],['scr-20/players','SCR-20b Players'],['scr-20/heatmaps','SCR-20c Heatmaps'],['scr-20/passing','SCR-20d Passing'],['scr-20/tactics','SCR-20e Tactics'],['scr-20/data','SCR-20f Data'],['scr-21','SCR-21 Roster'],['scr-22/21','SCR-22 Correction menu'],['scr-23/11','SCR-23 Player drawer']]],
+['E · Report, Export, Share',[['scr-24','SCR-24 AI report'],['scr-24/empty','SCR-24 · not generated'],['scr-24/generating','SCR-24 · generating'],['scr-25','SCR-25 Export · video'],['scr-25/data','SCR-25 · data'],['scr-25/pdf','SCR-25 · PDF'],['scr-26','SCR-26 Exports'],['scr-27','SCR-27 Share'],['scr-28','SCR-28 Shared viewer']]],
+['F · Live — Phase C (hoãn)',[['scr-30','SCR-30 Live hub'],['scr-30/add','SCR-30 · Add source'],['scr-31','SCR-31 Live viewer'],['scr-31/reconnect','SCR-31 · Reconnecting'],['scr-32','SCR-32 Live summary']]],
+['G · Settings',[['scr-40/profile','SCR-40 Profile'],['scr-40/organization','SCR-40 Organization'],['scr-40/members','SCR-40 Members'],['scr-40/billing','SCR-40 Billing'],['scr-40/api-keys','SCR-40 API keys'],['scr-40/preferences','SCR-40 Preferences'],['scr-40/privacy','SCR-40 Data & privacy'],['scr-41','SCR-41 Upgrade']]],
+['H · System & Dialogs',[['scr-50/404','SCR-50 · 404'],['scr-50/403','SCR-50 · 403'],['scr-50/410','SCR-50 · 410'],['scr-50/500','SCR-50 · 500'],['scr-50/region','SCR-50 · Wrong region'],['scr-51','SCR-51 Notifications'],['dlg-01','DLG-01 Delete'],['dlg-02','DLG-02 Cancel analysis'],['dlg-03','DLG-03 Unsaved changes'],['dlg-04','DLG-04 Rename'],['dlg-05','DLG-05 Shortcuts'],['dlg-06','DLG-06 Invite'],['dlg-07','DLG-07 API key'],['dlg-08','DLG-08 Delete org'],['dlg-09','DLG-09 Paste lineup'],['dlg-10','DLG-10 End live']]]];
+const FLAT=GROUPS.flatMap(g=>g[1]);
+const SPEC=(h)=>{const [id,st]=h.split('/');if(id==='scr-20'){const m={overview:'a',players:'b',heatmaps:'c',passing:'d',tactics:'e',data:'f'};return '#scr-20'+(m[(st||'overview').split(':')[0]]||'')}return '#'+id};
+
+/* ================= router & interactions ================= */
+const app=document.getElementById('app'),ov=document.getElementById('ov'),toastEl=document.getElementById('toast');
+const pSel=document.getElementById('pSel');
+pSel.innerHTML=GROUPS.map(([g,items])=>`<optgroup label="${g}">${items.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</optgroup>`).join('');
+let lastBase='';
+function render(){
+  const h=decodeURIComponent(location.hash.slice(1))||'scr-01';
+  const [id,...rest]=h.split('/');const st=rest.join('/');
+  const f=R[id];let out;
+  try{out=f?f(st):R['scr-50']('404')}catch(e){console.error(e);out={html:`<pre style="padding:40px;color:#ff6b6b">${e.stack}</pre>`}}
+  app.innerHTML=out.html||'';ov.innerHTML=out.ov||'';
+  const baseKey=id+(out.ov?'':'/'+st);
+  if(!out.ov&&baseKey!==lastBase)window.scrollTo(0,0);
+  lastBase=out.ov?lastBase:baseKey;
+  document.getElementById('pId').textContent=h;
+  const opt=FLAT.find(x=>x[0]===h)||FLAT.find(x=>x[0].split('/')[0]===id);
+  if(opt)pSel.value=opt[0];
+  document.getElementById('pSpec').href='../UIUX.html'+SPEC(h);
+  document.title='PitchVision · '+(opt?opt[1]:h);
+}
+function go(r){if(location.hash.slice(1)===r)render();else location.hash=r}
+let tt;function toast(t){toastEl.innerHTML=`<div class="t">${t.replace(/ — Undo$/,'')}${/— Undo$/.test(t)?`<a class="lnk" style="display:flex;gap:6px;align-items:center">${ic('undo',14)}Undo</a>`:''}</div>`;toastEl.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>toastEl.classList.remove('show'),3200)}
+document.addEventListener('click',e=>{
+  const tg=e.target.closest('[data-toggle]');
+  document.querySelectorAll('.menu.open').forEach(m=>{if(!tg||m.id!==tg.dataset.toggle)if(!m.contains(e.target))m.classList.remove('open')});
+  document.querySelectorAll('.pop').forEach(p=>{if(!e.target.closest('.pop')&&!(tg&&tg.dataset.toggle===p.id))p.style.display='none'});
+  if(tg){const m=document.getElementById(tg.dataset.toggle);if(m){if(m.classList.contains('pop'))m.style.display=m.style.display==='none'?'block':'none';else m.classList.toggle('open')}e.stopPropagation();return}
+  const th=e.target.closest('[data-theme-toggle]');if(th){toggleTheme();return}
+  const sc=e.target.closest('[data-scroll]');if(sc){document.getElementById(sc.dataset.scroll)?.scrollIntoView({behavior:'smooth'});return}
+  const bg=e.target.closest('.mbg');if(bg&&!e.target.closest('[data-stop]')){go(bg.dataset.go);return}
+  const ch=e.target.closest('[data-chip]');
+  const t=e.target.closest('[data-toast]');if(t)toast(t.dataset.toast);
+  const g=e.target.closest('[data-go]');
+  if(g&&g.dataset.go&&!(bg&&g===bg)){go(g.dataset.go);return}
+  if(ch&&!t){if(ch.classList.contains('chk')){const b=ch.querySelector('.box');b.classList.toggle('on');b.innerHTML=b.classList.contains('on')?ic('check',12,3):''}
+    else if(ch.classList.contains('rcard')){ch.parentElement.querySelectorAll('.rcard').forEach(r=>{r.classList.remove('on');r.querySelector('.rad')?.classList.remove('on')});ch.classList.add('on');ch.querySelector('.rad')?.classList.add('on')}
+    else if(ch.parentElement.classList.contains('seg')){ch.parentElement.querySelectorAll('a').forEach(a=>a.classList.remove('on'));ch.classList.add('on')}
+    else if(ch.parentElement.classList.contains('sw')){ch.parentElement.querySelectorAll('i').forEach(a=>a.classList.remove('on'));ch.classList.add('on')}
+    else if(ch.classList.contains('tgl'))ch.classList.toggle('on');
+    else if(ch.tagName==='LABEL'&&ch.querySelector('.tgl'))ch.querySelector('.tgl').classList.toggle('on');
+    else ch.classList.toggle('on')}
+});
+document.addEventListener('contextmenu',e=>{const t=e.target.closest('[data-ctx]');if(t&&t.dataset.ctx){e.preventDefault();go(t.dataset.ctx)}});
+document.addEventListener('keydown',e=>{if(e.target.tagName==='SELECT')return;
+  if(e.key==='Escape'){const c=ov.querySelector('.mbg');if(c)go(c.dataset.go);else if(location.hash.startsWith('#scr-23')||location.hash.startsWith('#scr-22'))go('scr-20/overview')}
+  if(e.key==='?'&&!e.metaKey)go('dlg-05');
+  if(location.hash.startsWith('#scr-20')&&/^[1-6]$/.test(e.key))go('scr-20/'+TABS[+e.key-1][0]);
+  if(e.key==='ArrowRight'&&e.altKey)step(1);if(e.key==='ArrowLeft'&&e.altKey)step(-1)});
+function step(d){const h=location.hash.slice(1)||'scr-01';let i=FLAT.findIndex(x=>x[0]===h);if(i<0)i=FLAT.findIndex(x=>x[0].split('/')[0]===h.split('/')[0]);go(FLAT[(i+d+FLAT.length)%FLAT.length][0])}
+function toggleTheme(){const r=document.documentElement;const n=r.getAttribute('data-theme')==='light'?'dark':'light';r.setAttribute('data-theme',n);try{localStorage.setItem('pvp-theme',n)}catch(e){}}
+try{const t=localStorage.getItem('pvp-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}
+pSel.onchange=()=>go(pSel.value);
+document.getElementById('pPrev').onclick=()=>step(-1);
+document.getElementById('pNext').onclick=()=>step(1);
+document.getElementById('pBack').onclick=()=>history.back();
+document.getElementById('pHot').onclick=e=>{document.body.classList.toggle('hot');e.currentTarget.classList.toggle('on')};
+document.getElementById('pTheme').onclick=toggleTheme;
+window.addEventListener('hashchange',render);
+render();
+</script>
+</body>
+</html>

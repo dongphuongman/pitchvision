@@ -1,0 +1,86 @@
+{
+ "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+ "missedCallbacksDuringPlay": 205,
+ "seekTargetShown": "40/40",
+ "stats": {
+  "idle": {
+   "rvfc_mediaTime": {
+    "n": 1,
+    "exact": 1,
+    "within1": 1,
+    "maxAbs": 0,
+    "hist": {
+     "0": 1
+    }
+   }
+  },
+  "play_1x": {
+   "raf_currentTime": {
+    "n": 886,
+    "exact": 348,
+    "within1": 884,
+    "maxAbs": 4,
+    "hist": {
+     "0": 348,
+     "1": 2,
+     "3": 1,
+     "4": 1,
+     "-1": 534
+    }
+   },
+   "rvfc_mediaTime": {
+    "n": 369,
+    "exact": 369,
+    "within1": 369,
+    "maxAbs": 0,
+    "hist": {
+     "0": 369
+    }
+   }
+  },
+  "play_2x": {
+   "rvfc_mediaTime": {
+    "n": 301,
+    "exact": 291,
+    "within1": 301,
+    "maxAbs": 1,
+    "hist": {
+     "0": 291,
+     "-1": 10
+    }
+   },
+   "raf_currentTime": {
+    "n": 600,
+    "exact": 91,
+    "within1": 541,
+    "maxAbs": 2,
+    "hist": {
+     "0": 91,
+     "1": 2,
+     "-1": 448,
+     "-2": 59
+    }
+   }
+  },
+  "seek_paused": {
+   "rvfc_mediaTime": {
+    "n": 41,
+    "exact": 41,
+    "within1": 41,
+    "maxAbs": 0,
+    "hist": {
+     "0": 41
+    }
+   },
+   "seek_currentTime": {
+    "n": 40,
+    "exact": 40,
+    "within1": 40,
+    "maxAbs": 0,
+    "hist": {
+     "0": 40
+    }
+   }
+  }
+ }
+}
