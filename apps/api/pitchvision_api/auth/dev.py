@@ -1,39 +1,33 @@
 """!!! DEV STUB — NOT AUTHENTICATION !!!
 
-Trusts the `X-Dev-Org` header as the caller's org, and ONLY when PV_ENV=local. In every other env it
-rejects all requests with 401, so a mis-deployed build fails closed instead of letting anyone pick an org.
-Replaced by JWT verification in M1-BE-05; keep `current_principal`'s signature so routers don't change.
+Trusts `X-Dev-Org` (+ optional `X-Dev-User`, `X-Dev-Role`) ONLY when PV_ENV=local AND PV_DEV_AUTH=1
+(Settings refuses PV_DEV_AUTH outside local). Everything else goes through identity-svc JWT verification.
 """
 import uuid
-from dataclasses import dataclass
 
 from fastapi import Request
-from pitchvision_schemas import ErrorCode
 
-from pitchvision_api.errors import ApiError
+from pitchvision_api.auth.jwt import unauthenticated
+from pitchvision_api.auth.principal import Principal, Role
 from pitchvision_api.settings import Settings
 
 DEV_ORG_HEADER = "X-Dev-Org"
+DEV_USER_HEADER = "X-Dev-User"
+DEV_ROLE_HEADER = "X-Dev-Role"
+DEV_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
 
-@dataclass(frozen=True)
-class Principal:
-    org_id: uuid.UUID
-    user_id: uuid.UUID | None = None
-
-
-def _unauthenticated(detail: str) -> ApiError:
-    return ApiError(ErrorCode.UNAUTHENTICATED, 401, "Authentication required", detail)
-
-
-async def current_principal(request: Request) -> Principal:
-    settings: Settings = request.app.state.settings
-    if settings.env != "local":
-        raise _unauthenticated("JWT authentication is not implemented yet (M1-BE-05).")
-    raw = request.headers.get(DEV_ORG_HEADER)
-    if not raw:
-        raise _unauthenticated(f"PV_ENV=local: send the org id in the {DEV_ORG_HEADER} header.")
+def dev_principal(request: Request, settings: Settings) -> Principal | None:
+    """Principal from the dev headers, or None when the stub is off or no X-Dev-Org header was sent."""
+    if not (settings.env == "local" and settings.dev_auth):
+        return None
+    raw_org = request.headers.get(DEV_ORG_HEADER)
+    if not raw_org:
+        return None
     try:
-        return Principal(org_id=uuid.UUID(raw))
+        org_id = uuid.UUID(raw_org)
+        user_id = uuid.UUID(request.headers.get(DEV_USER_HEADER) or str(DEV_USER_ID))
+        role = Role(request.headers.get(DEV_ROLE_HEADER) or Role.OWNER)
     except ValueError:
-        raise _unauthenticated(f"{DEV_ORG_HEADER} must be a UUID.") from None
+        raise unauthenticated(f"{DEV_ORG_HEADER}/{DEV_USER_HEADER} must be UUIDs, {DEV_ROLE_HEADER} a role.") from None
+    return Principal(user_id=user_id, org_id=org_id, role=role, region=settings.region)

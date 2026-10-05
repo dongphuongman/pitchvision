@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
 from pitchvision_api import __version__
-from pitchvision_api.auth import DEV_ORG_HEADER
+from pitchvision_api.auth import DEV_ORG_HEADER, DEV_ROLE_HEADER, DEV_USER_HEADER, JwksClient
 from pitchvision_api.db import make_engine, make_sessionmaker
 from pitchvision_api.errors import PROBLEM_JSON, ProblemDetails, install_error_handlers
 from pitchvision_api.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
@@ -47,15 +47,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.sessionmaker = make_sessionmaker(engine)
+    app.state.jwks = JwksClient(settings.jwks_url, timeout_s=settings.jwks_timeout_s, ttl_s=settings.jwks_cache_ttl_s)
 
     install_error_handlers(app)
     install_idempotency(app)
+    dev_headers = [DEV_ORG_HEADER, DEV_USER_HEADER, DEV_ROLE_HEADER] if settings.dev_auth else []
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
-        allow_headers=["Authorization", "Content-Type", IDEMPOTENCY_HEADER, REQUEST_ID_HEADER, DEV_ORG_HEADER],
+        allow_headers=["Authorization", "Content-Type", IDEMPOTENCY_HEADER, REQUEST_ID_HEADER, *dev_headers],
         expose_headers=[REQUEST_ID_HEADER, IDEMPOTENCY_HEADER, REPLAYED_HEADER],
     )
     app.add_middleware(RequestIdMiddleware)  # outermost of ours: CORS preflights get an id too

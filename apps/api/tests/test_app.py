@@ -124,15 +124,18 @@ async def test_cors_from_settings() -> None:
         assert "access-control-allow-origin" not in r.headers
 
 
-async def test_dev_auth_only_in_local() -> None:
+async def test_dev_auth_needs_local_and_flag() -> None:
     org = str(uuid.uuid4())
-    async for c in client_for(build(env="local")):
+    async for c in client_for(build(env="local", dev_auth=True)):
         assert (await c.get("/api/v1/_probe/whoami", headers={"X-Dev-Org": org})).json() == {"org_id": org}
         assert_problem(await c.get("/api/v1/_probe/whoami"), 401, "UNAUTHENTICATED")
         assert_problem(await c.get("/api/v1/_probe/whoami", headers={"X-Dev-Org": "x"}), 401, "UNAUTHENTICATED")
-    async for c in client_for(build(env="production")):
+    async for c in client_for(build(env="local")):  # default path is JWT, the header is ignored
         r = await c.get("/api/v1/_probe/whoami", headers={"X-Dev-Org": org})
         assert_problem(r, 401, "UNAUTHENTICATED")
+        assert r.headers["www-authenticate"] == "Bearer"
+    with pytest.raises(ValueError, match="PV_DEV_AUTH"):
+        Settings(env="production", dev_auth=True)
 
 
 def test_committed_openapi_is_current() -> None:
