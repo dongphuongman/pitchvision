@@ -8,12 +8,13 @@ requires-python = ">=3.12,<3.13"
 package = false
 
 [tool.uv.workspace]
-members = ["packages/schemas", "packages/cv-core", "apps/api", "workers"]
+members = ["packages/schemas", "packages/cv-core", "apps/api", "apps/identity", "workers"]
 
 [tool.uv.sources]
 pitchvision-schemas = { workspace = true }
 cv-core = { workspace = true }
 pitchvision-api = { workspace = true }
+pitchvision-identity = { workspace = true }
 pitchvision-worker = { workspace = true }
 
 [dependency-groups]
@@ -21,6 +22,7 @@ dev = [
   "pitchvision-schemas",
   "cv-core",
   "pitchvision-api",
+  "pitchvision-identity",
   "pitchvision-worker",
   "pytest>=8.3",
   "pytest-asyncio>=0.24",
@@ -47,11 +49,11 @@ exclude = ["spikes/", "data/"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["packages/schemas/tests", "packages/cv-core/tests", "apps/api/tests", "workers/tests", "eval/tests"]
+testpaths = ["packages/schemas/tests", "packages/cv-core/tests", "apps/api/tests", "apps/identity/tests", "workers/tests", "eval/tests"]
 
 # AD §5 dependency boundaries — enforced in CI (M1-BE-01)
 [tool.importlinter]
-root_packages = ["pitchvision_schemas", "cv_core", "pitchvision_api", "pitchvision_worker"]
+root_packages = ["pitchvision_schemas", "cv_core", "pitchvision_api", "pitchvision_identity", "pitchvision_worker"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -71,3 +73,9 @@ name = "api never imports cv-core or workers (keeps CUDA out of the API image)"
 type = "forbidden"
 source_modules = ["pitchvision_api"]
 forbidden_modules = ["cv_core", "pitchvision_worker"]
+
+[[tool.importlinter.contracts]]
+name = "identity is a separate service: no api, cv-core or worker imports"
+type = "forbidden"
+source_modules = ["pitchvision_identity"]
+forbidden_modules = ["pitchvision_api", "cv_core", "pitchvision_worker"]
