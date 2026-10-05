@@ -1,0 +1,173 @@
+"""Email + password identity: register, login, verify, forgot/reset, unverified delete (M1-BE-05)."""
+
+import uuid
+from datetime import timedelta
+
+from pitchvision_schemas import ErrorCode
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from pitchvision_identity import mail, schemas
+from pitchvision_identity.context import Ctx
+from pitchvision_identity.db.models import EmailToken, User
+from pitchvision_identity.errors import ApiError
+from pitchvision_identity.ratelimit import FORGOT, LOGIN_FAILURES, RESEND, enforce
+from pitchvision_identity.security import hash_token, new_token, normalize_email, utcnow
+from pitchvision_identity.services.sessions import (
+    Issued,
+    membership_out,
+    memberships_of,
+    open_session,
+    revoke_all_for_user,
+    revoke_raw,
+    unauthenticated,
+)
+
+VERIFY_TTL = timedelta(hours=24)
+RESET_TTL = timedelta(minutes=30)
+VERIFY, RESET = "verify_email", "reset_password"
+
+
+def token_expired() -> ApiError:
+    return ApiError(ErrorCode.TOKEN_EXPIRED, 410, "Link expired or already used", "Request a new link.")
+
+
+async def _new_email_token(s: AsyncSession, user_id: uuid.UUID, purpose: str, ttl: timedelta) -> str:
+    """Issue a single-use email token; older unused tokens of the same purpose stop working."""
+    now = utcnow()
+    await s.execute(
+        update(EmailToken)
+        .where(EmailToken.user_id == user_id, EmailToken.purpose == purpose, EmailToken.used_at.is_(None))
+        .values(used_at=now)
+    )
+    raw = new_token()
+    s.add(EmailToken(user_id=user_id, purpose=purpose, token_hash=hash_token(raw), expires_at=now + ttl))
+    return raw
+
+
+async def _consume_email_token(s: AsyncSession, raw: str, purpose: str) -> EmailToken:
+    row = await s.scalar(
+        select(EmailToken)
+        .where(EmailToken.token_hash == hash_token(raw), EmailToken.purpose == purpose)
+        .with_for_update()
+    )
+    if row is None or row.used_at is not None or row.expires_at <= utcnow():
+        raise token_expired()
+    row.used_at = utcnow()
+    return row
+
+
+async def register(ctx: Ctx, body: schemas.RegisterIn, user_agent: str | None) -> Issued:
+    email = normalize_email(body.email)
+    password_hash = await ctx.hasher.hash(body.password)
+    async with ctx.sm() as s, s.begin():
+        if await s.scalar(select(User.id).where(User.email == email)):
+            raise _email_taken()
+        user = User(name=body.name, email=email, password_hash=password_hash, signup_plan=body.plan)
+        s.add(user)
+        try:
+            await s.flush()
+        except IntegrityError:
+            raise _email_taken() from None
+        verify_raw = await _new_email_token(s, user.id, VERIFY, VERIFY_TTL)
+        issued = await open_session(s, ctx, user, user_agent=user_agent)
+    await mail.send_quietly(ctx.mailer, mail.verify_email(ctx.settings.web_url, email, user.name, verify_raw))
+    return issued
+
+
+def _email_taken() -> ApiError:
+    return ApiError(ErrorCode.EMAIL_TAKEN, 409, "Email already registered", "Sign in instead.")
+
+
+async def login(ctx: Ctx, body: schemas.LoginIn, ip: str, current_raw: str | None, user_agent: str | None) -> Issued:
+    email = normalize_email(body.email)
+    key = f"{ip}|{email}"
+    await enforce(ctx.limiter, LOGIN_FAILURES, key, count=False)
+    async with ctx.sm() as s, s.begin():
+        user = await s.scalar(select(User).where(User.email == email))
+        if not await ctx.hasher.verify(user.password_hash if user else None, body.password) or user is None:
+            await ctx.limiter.hit(LOGIN_FAILURES, key)
+            raise ApiError(ErrorCode.INVALID_CREDENTIALS, 401, "Invalid email or password")
+        await ctx.limiter.reset(LOGIN_FAILURES, key)
+        if user.password_hash and ctx.hasher.needs_rehash(user.password_hash):
+            user.password_hash = await ctx.hasher.hash(body.password)
+        await revoke_raw(s, current_raw, user.id)  # signing in again replaces this browser's old session
+        return await open_session(s, ctx, user, user_agent=user_agent)
+
+
+async def verify_email(ctx: Ctx, token: str, current_raw: str | None, user_agent: str | None) -> Issued:
+    async with ctx.sm() as s, s.begin():
+        row = await _consume_email_token(s, token, VERIFY)
+        user = await s.get(User, row.user_id)
+        if user is None:
+            raise token_expired()
+        if user.email_verified_at is None:
+            user.email_verified_at = utcnow()
+        await revoke_raw(s, current_raw, user.id)
+        return await open_session(s, ctx, user, user_agent=user_agent)
+
+
+async def resend_verification(ctx: Ctx, user_id: uuid.UUID, ip: str) -> None:
+    async with ctx.sm() as s, s.begin():
+        user = await s.get(User, user_id)
+        if user is None or user.email_verified:
+            return
+        await enforce(ctx.limiter, RESEND, f"{ip}|{user.email}")
+        raw = await _new_email_token(s, user.id, VERIFY, VERIFY_TTL)
+    await mail.send_quietly(ctx.mailer, mail.verify_email(ctx.settings.web_url, user.email, user.name, raw))
+
+
+async def forgot_password(ctx: Ctx, body: schemas.ForgotIn, ip: str) -> None:
+    """Always 202: the response never says whether the account exists."""
+    email = normalize_email(body.email)
+    await enforce(ctx.limiter, FORGOT, f"{ip}|{email}")
+    async with ctx.sm() as s, s.begin():
+        user = await s.scalar(select(User).where(User.email == email))
+        if user is None:
+            return
+        raw = await _new_email_token(s, user.id, RESET, RESET_TTL)
+    await mail.send_quietly(ctx.mailer, mail.reset_email(ctx.settings.web_url, user.email, user.name, raw))
+
+
+async def reset_password(ctx: Ctx, body: schemas.ResetIn) -> None:
+    password_hash = await ctx.hasher.hash(body.password)
+    async with ctx.sm() as s, s.begin():
+        row = await _consume_email_token(s, body.token, RESET)
+        user = await s.get(User, row.user_id)
+        if user is None:
+            raise token_expired()
+        user.password_hash = password_hash
+        user.updated_at = utcnow()
+        if user.email_verified_at is None:  # the reset link proved the address
+            user.email_verified_at = utcnow()
+        await revoke_all_for_user(s, user.id)  # UIUX SCR-05: sign out every session
+
+
+async def delete_unverified(ctx: Ctx, user_id: uuid.UUID) -> None:
+    """SCR-06 "Change it": drop an account that never verified its email (cascade: tokens, memberships)."""
+    async with ctx.sm() as s, s.begin():
+        user = await s.get(User, user_id, with_for_update=True)
+        if user is None:
+            return
+        if user.email_verified:
+            raise ApiError(
+                ErrorCode.CONFLICT, 409, "Email already verified", "Only unverified accounts can be deleted here."
+            )
+        await s.delete(user)
+
+
+async def me(ctx: Ctx, user_id: uuid.UUID) -> schemas.Me:
+    async with ctx.sm() as s:
+        user = await s.get(User, user_id)
+        if user is None:
+            raise unauthenticated()
+        ms = await memberships_of(s, user.id)
+    return schemas.Me(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        email_verified=user.email_verified,
+        created_at=user.created_at,
+        memberships=[membership_out(m, o) for m, o in ms],
+    )
