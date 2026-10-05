@@ -1,9 +1,12 @@
 #!/bin/sh
 # Entrypoint for the pitchvision-api image.
 #   api       uvicorn $PV_API_APP (default pitchvision_api.main:app) on $PORT
-#   identity  uvicorn $PV_IDENTITY_APP — identity-svc (AD §4). TODO(M1-BE): set the default
-#             module once identity-svc lands; in self-host the api serves it for now.
+#   identity  uvicorn $PV_IDENTITY_APP (default pitchvision_identity.main:app) — identity-svc (AD §4)
 #   migrate   alembic upgrade ${2:-head} using apps/api/alembic.ini
+#   migrate-identity
+#             create the identity database if missing (PV_IDENTITY_MIGRATE_DATABASE_URL must be able to
+#             CREATE DATABASE, e.g. the compose superuser), then alembic upgrade ${2:-head} with
+#             apps/identity/alembic.ini
 #   *         exec the given command (e.g. `bash`, `alembic current`)
 set -eu
 
@@ -18,11 +21,7 @@ case "$cmd" in
       --forwarded-allow-ips "${FORWARDED_ALLOW_IPS:-127.0.0.1}" "$@"
     ;;
   identity)
-    if [ -z "${PV_IDENTITY_APP:-}" ]; then
-      echo "pv-api: PV_IDENTITY_APP is not set (identity-svc not implemented yet)" >&2
-      exit 2
-    fi
-    exec uvicorn "$PV_IDENTITY_APP" \
+    exec uvicorn "${PV_IDENTITY_APP:-pitchvision_identity.main:app}" \
       --host 0.0.0.0 --port "${PORT:-8000}" \
       --workers "${UVICORN_WORKERS:-1}" \
       --forwarded-allow-ips "${FORWARDED_ALLOW_IPS:-127.0.0.1}" "$@"
@@ -44,6 +43,26 @@ with psycopg.connect(dsn, autocommit=True) as conn:
 print("pv-api: pv_app login enabled")
 PY
     fi
+    ;;
+  migrate-identity)
+    python - <<'PY'
+import os
+import psycopg
+from psycopg import sql
+from psycopg.conninfo import conninfo_to_dict, make_conninfo
+
+dsn = os.environ.get("PV_IDENTITY_MIGRATE_DATABASE_URL") or os.environ["PV_IDENTITY_DATABASE_URL"]
+dsn = dsn.replace("+psycopg", "").replace("+asyncpg", "")
+dbname = conninfo_to_dict(dsn)["dbname"]
+with psycopg.connect(make_conninfo(dsn, dbname="postgres"), autocommit=True) as conn:
+    if conn.execute("SELECT 1 FROM pg_database WHERE datname = %s", (dbname,)).fetchone():
+        print(f"pv-api: database {dbname} exists")
+    else:
+        conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(dbname)))
+        print(f"pv-api: database {dbname} created")
+PY
+    cd /app/apps/identity
+    alembic -c alembic.ini upgrade "${1:-head}"
     ;;
   *)
     exec "$cmd" "$@"

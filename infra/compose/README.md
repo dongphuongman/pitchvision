@@ -4,7 +4,7 @@ Implements AD §13.1. One compose file, two modes:
 
 | Command | What runs |
 |---|---|
-| `docker compose up -d` | CPU-only dev: postgres, redis, storage (+init), migrate, api, web, orchestrator, cpu-worker |
+| `docker compose up -d` | CPU-only dev: postgres, redis, storage (+init), migrate, api, migrate-identity, identity, mailpit, web, orchestrator, cpu-worker |
 | `docker compose --profile gpu-local up -d` | everything above + `gpu-worker` on the NVIDIA GPU(s) (RTX 4090 box) |
 | `docker compose --profile live up -d` | + `mediamtx` (RTSP/WebRTC ingest, M2) |
 
@@ -56,6 +56,8 @@ All workers share one image tag (AD D1), so after switching `PV_WORKER_BASE` reb
 |---|---|---|
 | web (nginx, SPA + `/api/` proxy) | http://localhost:3000 | `PV_WEB_PORT` |
 | api (FastAPI, `GET /healthz`) | http://localhost:8000 | `PV_API_PORT` |
+| identity (FastAPI, `GET /healthz`) | http://localhost:8001 | `PV_IDENTITY_PORT` |
+| mailpit (local inbox UI / SMTP) | http://localhost:8025 · smtp localhost:1025 | `PV_MAILPIT_UI_PORT` / `PV_MAILPIT_SMTP_PORT` |
 | storage (S3 API) | http://localhost:8333 | `PV_STORAGE_PORT` |
 | postgres (TimescaleDB, pg16) | localhost:5432 | `PV_POSTGRES_PORT` |
 | redis | localhost:6379 | `PV_REDIS_PORT` |
@@ -75,7 +77,17 @@ If a port is already taken on your machine, change it in `.env`.
 - **orchestrator / cpu-worker / gpu-worker** — the same `pitchvision-worker` image with
   `WORKER_ROLE` = `orchestrator` / `cpu` / `gpu`, consuming queues `orchestrate` / `cpu` / `gpu`.
   Health = Celery ping to the container's own node.
-- **identity** — not started yet (TODO M1-BE); same api image with `command: identity`.
+- **identity** — identity-svc (`docs/contracts/identity-api.md`): same api image with
+  `command: identity`, its own database `PV_IDENTITY_DB` (default `pitchvision_identity`) on the
+  same Postgres server. **migrate-identity** (one-shot) creates that database if missing and runs
+  `apps/identity/alembic.ini`; re-run with `docker compose run --rm migrate-identity`.
+  The web nginx routes `/api/v1/auth/*`, `/api/v1/me`, `/api/v1/orgs*`, `/api/v1/invites/*` and
+  `/.well-known/jwks.json` to identity; the rest of `/api/` goes to the api.
+  Without `PV_JWT_PRIVATE_KEY_PEM` it signs with an ephemeral key (local only), so restarting
+  identity signs everyone out.
+- **mailpit** — catches every email identity sends (verification, reset, invites) at
+  http://localhost:8025. Set `PV_EMAIL_BACKEND=console` to get the links in
+  `docker compose logs identity` instead.
 
 ### Object storage choice (pending PO decision)
 
@@ -107,4 +119,4 @@ docker compose --profile gpu-local --profile live down -v    # stop everything A
 docker compose rm -sf postgres && docker volume rm pitchvision_pg-data   # reset only the database
 ```
 
-After a reset, `docker compose up -d` recreates the schema (migrate) and the bucket (storage-init).
+After a reset, `docker compose up -d` recreates the schemas (migrate, migrate-identity) and the bucket (storage-init).
