@@ -1,0 +1,33 @@
+# D-FINE-M fine-tune for PitchVision (M1-CV-04). Recipe: training/dfine/README.md.
+# Paths are relative to the working directory; override any key with --set key=value.
+
+base: ustc-community/dfine-medium-obj2coco   # Apache-2.0 weights; obj2coco = Objects365 → COCO (licence check open, G-LEGAL)
+classes: [player, goalkeeper, referee, ball]  # AD §6.5 ids 0..3
+
+data:
+  train: data/det/train.json                  # COCO from coco_convert.py (merge + split by video)
+  val: data/det/val.json
+  images_root: data/det/images
+  imgsz: 640                                  # == PipelineConfig.detector_imgsz and the ONNX export
+  hflip: 0.5
+  zoom_in: 0.3                                # p(random crop of 50–100 % of the frame): more small-player scale variety
+  color_jitter: 0.2
+
+train:
+  epochs: 36                                  # D-FINE fine-tune schedules are short; ~12k images × 36 ≈ 6 h on a 4090
+  batch_size: 16                              # 4090 24 GB at 640 px, bf16
+  grad_accum: 1
+  lr: 2.0e-4                                  # heads / encoder / decoder
+  backbone_lr_mult: 0.1                       # HGNetV2 backbone at 2e-5
+  weight_decay: 1.0e-4                        # not applied to norms / biases
+  warmup_steps: 500
+  clip_grad: 0.1
+  ema_decay: 0.9999                           # 0 = off; EMA weights are what gets saved / exported
+  amp: bf16                                   # bf16 | fp16 | none (MPS/CPU: forced none)
+  num_workers: 8
+  seed: 0
+  max_steps: 0                                # >0: stop early (smoke test)
+  device: auto                                # auto = cuda > mps > cpu
+  eval_every_epochs: 1
+
+out_dir: runs/dfine-m-pv
