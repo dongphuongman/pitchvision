@@ -148,7 +148,7 @@ services:
       AWS_EC2_METADATA_DISABLED: "true"
       S3_ENDPOINT: http://storage:8333
       BUCKET: ${PV_STORAGE_BUCKET:?set in .env}
-      CORS_ORIGINS: ${PV_STORAGE_CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      CORS_ORIGINS: ${PV_STORAGE_CORS_ORIGINS:-${PV_WEB_URL:-http://localhost:3000},http://localhost:5173}
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |

@@ -20,7 +20,6 @@ permissions:
 env:
   UV_VERSION: "0.9.28"
   NODE_VERSION: "22"
-  PNPM_VERSION: "10"
 
 jobs:
   # ---------------------------------------------------------------- python
@@ -105,9 +104,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+      - uses: pnpm/action-setup@v4  # version comes from package.json "packageManager"
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}

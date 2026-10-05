@@ -48,6 +48,8 @@ ARG APP_UID=10001
 RUN groupadd --system --gid ${APP_UID} app \
  && useradd --system --uid ${APP_UID} --gid app --home-dir /app --shell /usr/sbin/nologin app
 WORKDIR /app
+# Mount point for the self-host JWT signing key; a fresh named volume inherits this owner/mode.
+RUN install -d -o app -g app -m 0700 /keys
 
 COPY --from=builder /app/.venv /app/.venv
 # Alembic config + migration scripts are read from disk by `migrate`.
