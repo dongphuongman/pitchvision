@@ -29,6 +29,19 @@ export default tseslint.config(
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       '@typescript-eslint/no-confusing-void-expression': 'off',
       '@typescript-eslint/consistent-type-imports': 'error',
+      // TanStack Router control flow: `throw redirect()` / `throw notFound()`.
+      '@typescript-eslint/only-throw-error': [
+        'error',
+        {
+          allow: [
+            {
+              from: 'package',
+              package: '@tanstack/router-core',
+              name: ['Redirect', 'NotFoundError'],
+            },
+          ],
+        },
+      ],
     },
   },
   {

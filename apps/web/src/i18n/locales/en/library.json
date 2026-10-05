@@ -1,0 +1,32 @@
+{
+  "title": "Library",
+  "count_one": "{{count}} match",
+  "count_other": "{{count}} matches",
+  "empty": {
+    "title": "Analyze your first match",
+    "body": "Paste a YouTube link to a broadcast match, or upload the recording.",
+    "youtube": "Paste a YouTube link",
+    "upload": "Upload a file"
+  },
+  "newAnalysis": {
+    "title": "New analysis",
+    "description": "Analyze a broadcast match from YouTube or a file.",
+    "tabs": {
+      "label": "Source",
+      "youtube": "YouTube",
+      "upload": "Upload",
+      "import": "Import"
+    },
+    "youtube": {
+      "label": "YouTube URL",
+      "placeholder": "https://www.youtube.com/watch?v=…",
+      "help": "Full-match broadcasts work best. We only analyze videos you have the rights to."
+    },
+    "upload": {
+      "drop": "Drop a video file here or browse",
+      "formats": "MP4, MOV or MKV · up to {{size}}"
+    },
+    "rights": "I have the rights to analyze this video",
+    "submit": "Analyze"
+  }
+}

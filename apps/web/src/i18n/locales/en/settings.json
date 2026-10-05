@@ -1,0 +1,29 @@
+{
+  "title": "Settings",
+  "nav": "Settings sections",
+  "sections": {
+    "profile": "Profile",
+    "organization": "Organization",
+    "members": "Members",
+    "billing": "Billing",
+    "api-keys": "API keys",
+    "preferences": "Preferences",
+    "privacy": "Data & privacy",
+    "about": "About"
+  },
+  "placeholder": "This section is not built yet.",
+  "preferences": {
+    "theme": "Theme",
+    "language": "Language",
+    "units": "Units",
+    "unitsHelp": "Distances and speeds, e.g. {{example}}."
+  },
+  "about": {
+    "web": "Web app",
+    "api": "API version",
+    "schema": "Contract schema version",
+    "apiUrl": "API endpoint",
+    "sameOrigin": "same origin",
+    "unavailable": "API unreachable"
+  }
+}

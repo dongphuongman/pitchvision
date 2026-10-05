@@ -6,7 +6,8 @@
   "sideEffects": [
     "*.css",
     "./src/main.tsx",
-    "./src/test/setup.ts"
+    "./src/test/setup.ts",
+    "./src/i18n/index.ts"
   ],
   "scripts": {
     "dev": "vite",
@@ -16,17 +17,26 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b --noEmit",
-    "test": "vitest"
+    "test": "vitest",
+    "gen": "node scripts/gen.mjs all",
+    "gen:api": "node scripts/gen.mjs openapi",
+    "gen:schemas": "node scripts/gen.mjs schemas",
+    "gen:check": "node scripts/gen.mjs all --check"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-router": "^1.170.41",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "i18next": "^26.4.2",
     "lucide-react": "^1.52.0",
+    "openapi-fetch": "^0.17.0",
     "radix-ui": "^1.6.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.15",
     "tailwind-merge": "^3.7.0",
     "zustand": "^5.0.15"
   },
@@ -47,6 +57,8 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
     "jsdom": "^30.1.2",
+    "json-schema-to-typescript": "^16.0.0",
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.3",

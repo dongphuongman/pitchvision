@@ -1,31 +1,15 @@
-import { lazy, Suspense } from 'react';
-import { useResolvedTheme, useSystemThemeListener, useThemeStore } from '@/lib/theme';
-import { Button, Toaster, TooltipProvider } from '@/ui';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { RouterProvider } from '@tanstack/react-router';
+import { useState } from 'react';
+import { createQueryClient } from '@/api/queryClient';
+import { createAppRouter } from '@/router';
 
-// Dev-only: the gallery chunk is dropped from production builds.
-const UiGallery = import.meta.env.DEV ? lazy(() => import('@/dev/UiGallery')) : null;
-
-/** Temporary root (M1-FE-01/02). Replaced by the router + app shell in M1-FE-03. */
-export function App() {
-  useSystemThemeListener();
-  const theme = useResolvedTheme();
-  const toggle = useThemeStore((s) => s.toggle);
-  const showGallery = UiGallery !== null && window.location.pathname === '/__ui';
-
+export function App({ queryClient: injected }: { queryClient?: QueryClient } = {}) {
+  const [queryClient] = useState(() => injected ?? createQueryClient());
+  const [router] = useState(() => createAppRouter({ queryClient }));
   return (
-    <TooltipProvider delayDuration={400}>
-      {showGallery ? (
-        <Suspense>
-          <UiGallery />
-        </Suspense>
-      ) : (
-        <main className="mx-auto flex max-w-[1400px] items-center gap-3.5 px-8 pt-[26px]">
-          <h1>PitchVision</h1>
-          <div className="flex-1" />
-          <Button onClick={toggle}>{theme}</Button>
-        </main>
-      )}
-      <Toaster />
-    </TooltipProvider>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   );
 }

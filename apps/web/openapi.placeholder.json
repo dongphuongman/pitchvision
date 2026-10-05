@@ -1,0 +1,78 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PitchVision API (placeholder)",
+    "version": "0.0.0",
+    "description": "Minimal stand-in used only while apps/api/openapi.json does not exist yet. scripts/gen.mjs prefers the real spec as soon as it is present."
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "healthz",
+        "responses": {
+          "200": {
+            "description": "Liveness",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "status": { "type": "string" } },
+                  "required": ["status"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meta": {
+      "get": {
+        "operationId": "getMeta",
+        "summary": "API build and contract version",
+        "responses": {
+          "200": {
+            "description": "Meta",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Meta" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/Problem" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Meta": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" },
+          "schema_version": { "type": "integer" }
+        },
+        "required": ["version", "schema_version"]
+      },
+      "Problem": {
+        "type": "object",
+        "description": "RFC 9457 problem details with PitchVision `code` extension.",
+        "properties": {
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "code": { "type": "string" },
+          "detail": { "type": "string" },
+          "instance": { "type": "string" }
+        },
+        "required": ["type", "title", "status", "code"]
+      }
+    }
+  }
+}
