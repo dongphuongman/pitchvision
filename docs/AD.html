@@ -501,7 +501,8 @@ team          int8        # 0 · 1 · -1 (không thuộc đội)
 x1,y1,x2,y2   int16       # pixel trên video chuẩn hoá
 conf          float16
 px, py        float32     # mét trên sân; NaN nếu homography không đạt
-h_quality     float16     # 0..1 — tỷ lệ inlier RANSAC đã làm mượt
+h_quality     float16     # 0..1 — độ khớp vạch sân: chiếu template lên ảnh, so với pixel vạch trắng (cv_core.pitch.lines);
+                            #        KHÔNG dùng sai số fit keypoint (SP-03: metric tự kiểm tra gây hiểu nhầm). Ngưỡng chốt theo nhãn thật (M1-CV-17)
 interpolated  bool        # true nếu điểm được nội suy (frame stride / mất dấu)
 # ước tính: ~40 MB / trận 90' sau nén ZSTD</code></pre>
 </section>

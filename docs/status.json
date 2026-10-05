@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-05",
+  "updated": "2026-10-06",
   "items": [
     {
       "id": "SP-01",
@@ -72,6 +72,12 @@
       "title": "10 PR đầu tiên (nền móng M1)",
       "state": "done",
       "note": "Monorepo git (uv workspace + pnpm), import-linter 3 hợp đồng (schemas lá; cv-core không web/queue; api không import cv-core). <strong>schemas</strong>: PipelineConfig (detector dfine-m), GpuTask, máy trạng thái job, lỗi RFC 9457, shot timeline + coverage, tile 10 s, manifest, WS; xuất JSON Schema cho web. <strong>DB</strong>: Alembic, toàn bộ bảng AD 9.3 + <code>shots</code> + <code>idempotency_keys</code>, org_id + RLS (FORCE) trên 12 bảng, FK kép (video_id, org_id) chống liên kết chéo tổ chức; role <code>pv_app</code> không bypass RLS. Ngoại lệ: <code>positions</code> là hypertable nén nên Timescale không cho RLS → đọc qua view lọc theo org. <strong>API</strong>: FastAPI, problem+json, Request-ID, Idempotency-Key (chạy đồng thời chỉ 1 lần), openapi.json. <strong>cv-core</strong>: Runtime TensorRT → ONNX CUDA → ONNX CPU (nhánh TRT chưa chạy trên NVIDIA), VideoReader giải mã tuần tự, chỉ số khung chính xác, 60→25 fps (~358 fps phần mềm trên M4). <strong>eval</strong>: golden.json 19 trận phân tầng, mAP/phân đội/cảnh/homography; baseline cảnh chỉ tỷ lệ cỏ 84,6% (SP-09 GBM 99,1% — dùng cho M1-CV-06). <strong>web</strong>: Vite + React 18 + Tailwind, token từ prototype, 20 component Radix, router (modal qua query string), Query, client OpenAPI, i18n EN. <strong>ops</strong>: Compose (SeaweedFS tạm thay MinIO), Dockerfile api/worker CUDA 12.4 + TensorRT (8,1 GB)/web, GitHub Actions CI. Kiểm tra: Python 122 test, web 30 test, ruff/mypy/tsc/eslint sạch; <strong>stack Compose chạy thật trên Mac</strong>: 9 dịch vụ healthy, web → proxy → API, API kết nối bằng pv_app. Chưa chạy: CI trên GitHub (chưa có remote), image CUDA trên GPU thật."
+    },
+    {
+      "id": "M1-W2",
+      "title": "M1 tuần 2 (auth, upload, ingest, CV)",
+      "state": "partial",
+      "note": "<strong>Xong:</strong> identity-svc (đăng ký/đăng nhập/xác minh/đặt lại MK, refresh xoay vòng + phát hiện dùng lại, Google OIDC + PKCE, tổ chức + 4 vai trò + lời mời, JWKS RS256) — M1-BE-05/06; API kiểm tra JWT + region; upload multipart presigned (thử thật trên R2) — M1-BE-07; YouTube ingest S1 qua queue <code>ingest</code> riêng + đếm tỷ lệ thành công — M1-BE-08/OPS-06; S2 chuẩn hoá 25 fps (12,6× realtime trên M4) — M1-CV-07; shot classifier <strong>97,9%</strong> timeline (mục tiêu ≥ 95%; 2 trận yếu 91–93%) — M1-CV-06; D-FINE ONNX (khớp torch, 24 fps CoreML) + script fine-tune — M1-CV-04 phần Mac; keypoint: template sân 32 điểm, homography + <code>h_quality</code> mới theo độ khớp vạch (tách được fit đúng/sai; model spike roboflow chỉ 2,8% khung ≥ 0,5 → cần nhãn golden) + script fine-tune YOLOv11-pose — M1-CV-05 phần Mac; web SCR-02…07, 52, 53, top bar theo vai trò — M1-FE-04/05/06; Terraform R2 (EU jurisdiction, lifecycle, token theo vai trò, validate) — M1-OPS-04. Key object store đổi sang lớp-lưu-trữ-trước (<code>source/…</code>, <code>segments/…</code>) để lifecycle R2 khớp (AD 9.2 v1.3). <strong>Kiểm tra:</strong> Python 353 test, web 101 test; Compose 13 dịch vụ healthy, chạy E2E: đăng ký → email Mailpit → xác minh → tổ chức → upload 3 part → RLS chặn tổ chức khác → token US bị API EU từ chối (409) → token còn hiệu lực sau restart identity → YouTube preview thật. <strong>Còn lại:</strong> fine-tune D-FINE + YOLOv11-pose cần GPU; gán nhãn 300 khung golden (keypoint) là đường găng vì SoccerNet chỉ cho nghiên cứu; M1-OPS-05 (email/DNS/staging) cần domain + tài khoản Resend."
     }
   ],
   "log": [
@@ -134,6 +140,10 @@
     {
       "date": "2026-10-05",
       "text": "<strong>PO chốt G-LEGAL keypoint:</strong> M1-CV-05 dùng YOLOv11-pose với giấy phép Ultralytics Enterprise (ký trước public beta). Detector vẫn là D-FINE; YOLO detector là dự phòng không tốn thêm phí giấy phép."
+    },
+    {
+      "date": "2026-10-06",
+      "text": "M1 W2 phần làm được trên Mac đã merge: identity + tổ chức, JWT ở API, upload R2 multipart, YouTube ingest, S2 chuẩn hoá, shot classifier 97,9%, D-FINE ONNX, keypoint + homography + h_quality mới, màn hình auth/onboarding, Terraform R2. E2E trên Compose đạt. Repo đã push lên GitHub (private), CI chạy được."
     }
   ]
 }

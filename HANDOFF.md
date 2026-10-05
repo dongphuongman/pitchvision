@@ -1,7 +1,7 @@
 ---
 status: in-progress
-branch: main (git repo, no remote yet)
-timestamp: 2026-10-05T20:30:00+07:00
+branch: main → origin https://github.com/dongphuongman/pitchvision (private)
+timestamp: 2026-10-06T00:30:00+07:00
 files_modified:
   - docs/PRD.html
   - docs/AD.html
@@ -14,7 +14,7 @@ files_modified:
   - spikes/ (sp11_detectors.py, sp08_prepare.py, sp08_run.py, sp08_overlay/, sp07_run.py, sp07_upload/, sp02_bench.py, sp03_homography.py, sp04_teams.py, sp05_tracking.py, sp09_sample.py, sp09_classify.py, botsort_gmc.yaml, results/)
 ---
 
-## Working on: PitchVision AI — M1 W1 foundation done, next M1 W2
+## Working on: PitchVision AI — M1 W2 (Mac-doable part) done
 
 ### Summary
 
@@ -50,7 +50,9 @@ PitchVision AI = web SaaS that analyses football broadcast video (detection, tea
 2. Still open: SP-08 on Safari/Firefox, SP-02/SP-06 on NVIDIA when PO is ready.
 3. DONE (05/10, ahead of 12/10): M1 W1 — 10 PRs merged on main. Checks: `uv run pytest -q` (122), `uv run ruff check packages apps workers eval`, `uv run mypy …`, `uv run lint-imports`, `pnpm -C apps/web lint|typecheck|test --run|build|gen:check`. Compose stack verified healthy (infra/compose/.env is local; host ports moved to 28000/23000/25432/26379 because other projects use the defaults).
    Notes: `positions` hypertable has no RLS (Timescale compression forbids it) → read via `positions_org` view; api must sign presigned URLs with PV_STORAGE_PUBLIC_ENDPOINT (M1-BE-07); worker CUDA image 8.1 GB (AD estimated 6); no GitHub remote yet so CI never ran.
-3b. Next: M1 W2 (19/10) — M1-CV-04 D-FINE fine-tune (needs GPU), M1-CV-05 keypoints (licence decision pending), M1-CV-06 shot classifier (start from SP-09 GBM), M1-CV-07 S2 normalise; M1-BE-05..08 (auth, org, storage R2 multipart, YouTube ingest); M1-FE-04..06; M1-OPS-04..06.
+3b. DONE (06/10): M1 W2 Mac-doable part — see docs/status.json M1-W2. Contract: docs/contracts/identity-api.md. Object keys: pitchvision_schemas.keys (storage class first). E2E script idea: register→Mailpit→verify→org→upload→RLS→region 409→identity restart→YouTube preview (all passed).
+   Remaining W2: GPU fine-tunes (D-FINE, YOLOv11-pose), label 300 golden frames for keypoints (SoccerNet research-only), M1-OPS-05 needs domain + Resend.
+3c. Was: M1 W2 (19/10) — M1-CV-04 D-FINE fine-tune (needs GPU), M1-CV-05 keypoints (licence decision pending), M1-CV-06 shot classifier (start from SP-09 GBM), M1-CV-07 S2 normalise; M1-BE-05..08 (auth, org, storage R2 multipart, YouTube ingest); M1-FE-04..06; M1-OPS-04..06.
 4. M1 W7–W8 calibration tasks M1-CV-18…22 (+ M1-FE-17, M1-BE-23); M2 extra week M2-CV-08/09.
 5. PO: spot-check SP-09 labels (spikes/results/sp09/grids, labels_nonwide.json).
 
