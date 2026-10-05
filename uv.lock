@@ -389,6 +389,7 @@ dependencies = [
     { name = "opencv-python-headless" },
     { name = "pitchvision-schemas" },
     { name = "pyarrow" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -399,6 +400,7 @@ requires-dist = [
     { name = "opencv-python-headless", specifier = ">=4.10" },
     { name = "pitchvision-schemas", editable = "packages/schemas" },
     { name = "pyarrow", specifier = ">=17" },
+    { name = "pyyaml", specifier = ">=6" },
 ]
 
 [[package]]

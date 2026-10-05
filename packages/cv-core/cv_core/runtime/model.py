@@ -108,7 +108,13 @@ class OrtModel(InferenceModel):
         so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         if intra_op_threads:
             so.intra_op_num_threads = intra_op_threads
-        eps = [ORT_EP[provider]] if provider is Provider.ort_cpu else [ORT_EP[provider], ORT_EP[Provider.ort_cpu]]
+        eps: list[Any] = [ORT_EP[provider]]
+        if provider is not Provider.ort_cpu:
+            eps.append(ORT_EP[Provider.ort_cpu])
+        if provider is Provider.ort_coreml:
+            # MLProgram: the legacy NeuralNetwork format fails on DETR-style graphs (D-FINE, SP/M1-CV-06);
+            # MLProgram runs D-FINE-M@640 (static batch 1) ~3× faster than the CPU EP on an M4.
+            eps[0] = (ORT_EP[provider], {"ModelFormat": "MLProgram", "MLComputeUnits": "ALL"})
         self._sess = ort.InferenceSession(str(path), sess_options=so, providers=eps)
         active = self._sess.get_providers()
         # ORT silently drops an EP it cannot initialise; report what actually runs.

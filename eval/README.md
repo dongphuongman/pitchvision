@@ -7,7 +7,8 @@ Plain scripts (not a workspace member), run from the repo root with `uv run pyth
 |---|---|
 | `golden.json` | 19 golden matches + strata (category, region, fps_class, lighting, source_quality, split). Regenerate with `build_golden.py` |
 | `build_golden.py` | `data/golden/manifest.json` → `golden.json` (curated region / lighting / hard-case tags live in `pveval/golden.py`) |
-| `run_shots.py` | Shot classification vs SP-09 labels; green-ratio baseline or `--pred` file |
+| `run_shots.py` | Shot classification vs SP-09 labels; green-ratio baseline, `--pred` file, or `--timeline-models DIR` (full S2b `cv_core.shots.segment_video` per video with its leave-out model) |
+| `results/` | Committed eval summaries (JSON, no frames): `shots_m1cv06_*.json` = M1-CV-06 shot classifier |
 | `run_detection.py` | AP@0.5 per class + mAP@50 from COCO GT + COCO results |
 | `run_teams.py` | Team accuracy (0/1 permutation-invariant per match) |
 

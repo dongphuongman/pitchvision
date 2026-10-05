@@ -8,6 +8,7 @@ dependencies = [
   "onnxruntime>=1.19",
   "opencv-python-headless>=4.10",
   "pyarrow>=17",
+  "pyyaml>=6",
   "pitchvision-schemas",
 ]
 
