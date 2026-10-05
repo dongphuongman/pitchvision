@@ -1,0 +1,214 @@
+# PitchVision self-host / local dev stack (AD §13.1).
+#
+#   docker compose -f infra/compose/docker-compose.yml up -d                       # CPU-only dev
+#   docker compose -f infra/compose/docker-compose.yml --profile gpu-local up -d   # + gpu-worker (RTX 4090 box)
+#   docker compose -f infra/compose/docker-compose.yml --profile live up -d        # + mediamtx (M2)
+#
+# Needs infra/compose/.env (copy .env.example, chmod 600). See infra/compose/README.md.
+
+name: ${COMPOSE_PROJECT_NAME:-pitchvision}
+
+x-pv-env: &pv-env
+  PV_ENV: ${PV_ENV:-local}
+  PV_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?set in .env}:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/${POSTGRES_DB:?set in .env}
+  PV_REDIS_URL: redis://redis:6379/0
+  # Only this URL changes when the object store is swapped (SeaweedFS -> Garage -> R2).
+  PV_STORAGE_ENDPOINT: http://storage:8333
+  PV_STORAGE_PUBLIC_ENDPOINT: ${PV_STORAGE_PUBLIC_ENDPOINT:-http://localhost:8333}
+  PV_STORAGE_BUCKET: ${PV_STORAGE_BUCKET:?set in .env}
+  PV_STORAGE_REGION: ${PV_STORAGE_REGION:-us-east-1}
+  PV_STORAGE_ACCESS_KEY: ${PV_STORAGE_ACCESS_KEY:?set in .env}
+  PV_STORAGE_SECRET_KEY: ${PV_STORAGE_SECRET_KEY:?set in .env}
+  # boto3 default credential chain reads these.
+  AWS_ACCESS_KEY_ID: ${PV_STORAGE_ACCESS_KEY}
+  AWS_SECRET_ACCESS_KEY: ${PV_STORAGE_SECRET_KEY}
+  AWS_DEFAULT_REGION: ${PV_STORAGE_REGION:-us-east-1}
+
+x-api-image: &api-image
+  image: pitchvision-api:${TAG:-dev}
+  build:
+    context: ../..
+    dockerfile: infra/docker/Dockerfile.api
+
+x-worker: &worker
+  image: pitchvision-worker:${TAG:-dev}
+  build:
+    context: ../..
+    dockerfile: infra/docker/Dockerfile.worker
+    args:
+      BASE: ${PV_WORKER_BASE:-nvidia/cuda:12.4.1-runtime-ubuntu22.04}
+  restart: unless-stopped
+  depends_on:
+    redis: { condition: service_healthy }
+    postgres: { condition: service_healthy }
+    storage-init: { condition: service_completed_successfully }
+
+services:
+  # ------------------------------------------------------------------ data
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set in .env}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${PV_POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:${PV_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ------------------------------------------------------------------ object storage
+  # TODO(PO decision, SP-07): MinIO images are no longer publicly pullable. SeaweedFS
+  # (Apache-2.0) is a stand-in until the PO picks SeaweedFS vs Garage; swapping it only
+  # changes this service, storage-init and PV_STORAGE_ENDPOINT — app code speaks plain S3.
+  storage:
+    image: chrislusf/seaweedfs:4.48
+    restart: unless-stopped
+    command: ["server", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json", "-dir=/data"]
+    configs:
+      - source: seaweedfs-s3-identities
+        target: /etc/seaweedfs/s3.json
+    volumes:
+      - storage-data:/data
+    ports:
+      - "127.0.0.1:${PV_STORAGE_PORT:-8333}:8333"
+    healthcheck:
+      # Unauthenticated request -> S3 XML error response means the gateway is serving.
+      test: ["CMD-SHELL", "wget -q -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/' "]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # One-shot: create the bucket and the CORS rule browsers need for direct multipart PUTs
+  # (ExposeHeaders ETag is mandatory, SP-07). Idempotent; re-run with `up storage-init`.
+  storage-init:
+    image: amazon/aws-cli:2.31.18
+    depends_on:
+      storage: { condition: service_healthy }
+    environment:
+      AWS_ACCESS_KEY_ID: ${PV_STORAGE_ACCESS_KEY:?set in .env}
+      AWS_SECRET_ACCESS_KEY: ${PV_STORAGE_SECRET_KEY:?set in .env}
+      AWS_DEFAULT_REGION: ${PV_STORAGE_REGION:-us-east-1}
+      AWS_EC2_METADATA_DISABLED: "true"
+      S3_ENDPOINT: http://storage:8333
+      BUCKET: ${PV_STORAGE_BUCKET:?set in .env}
+      CORS_ORIGINS: ${PV_STORAGE_CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        s3() { aws --endpoint-url "$$S3_ENDPOINT" s3api "$$@"; }
+        if s3 head-bucket --bucket "$$BUCKET" >/dev/null 2>&1; then
+          echo "bucket $$BUCKET exists"
+        else
+          s3 create-bucket --bucket "$$BUCKET" >/dev/null
+          echo "bucket $$BUCKET created"
+        fi
+        origins=$$(printf '%s' "$$CORS_ORIGINS" | sed 's/[[:space:]]//g; s/,/","/g')
+        s3 put-bucket-cors --bucket "$$BUCKET" --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[\"$$origins\"],\"AllowedMethods\":[\"PUT\",\"GET\",\"HEAD\"],\"AllowedHeaders\":[\"*\"],\"ExposeHeaders\":[\"ETag\"],\"MaxAgeSeconds\":3600}]}"
+        s3 get-bucket-cors --bucket "$$BUCKET"
+    restart: "no"
+
+  # ------------------------------------------------------------------ api
+  # One-shot: alembic upgrade head before api/workers start.
+  migrate:
+    <<: *api-image
+    command: ["migrate"]
+    environment: *pv-env
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    <<: *api-image
+    command: ["api"]
+    restart: unless-stopped
+    environment: *pv-env
+    ports:
+      - "127.0.0.1:${PV_API_PORT:-8000}:8000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      storage-init: { condition: service_completed_successfully }
+
+  # TODO(M1-BE): identity-svc runs from the same image (`command: identity`, AD §13.1)
+  # once it exists; until then the api serves auth in self-host single-region mode.
+
+  web:
+    image: pitchvision-web:${TAG:-dev}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      PV_API_UPSTREAM: api:8000
+    ports:
+      - "127.0.0.1:${PV_WEB_PORT:-3000}:8080"
+
+  # ------------------------------------------------------------------ workers (one image)
+  orchestrator:
+    <<: *worker
+    environment:
+      <<: *pv-env
+      WORKER_ROLE: orchestrator
+
+  cpu-worker:
+    <<: *worker
+    environment:
+      <<: *pv-env
+      WORKER_ROLE: cpu
+
+  gpu-worker:
+    <<: *worker
+    profiles: [gpu-local]
+    environment:
+      <<: *pv-env
+      WORKER_ROLE: gpu
+    shm_size: 2gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ------------------------------------------------------------------ live (M2)
+  # TODO(M2): live-worker (WORKER_ROLE=live) joins this profile when implemented.
+  mediamtx:
+    image: bluenviron/mediamtx:1.15.3
+    profiles: [live]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8554:8554"      # RTSP
+      - "127.0.0.1:8889:8889"      # WebRTC (WHEP) for the browser
+      - "8189:8189/udp"            # WebRTC ICE
+
+configs:
+  seaweedfs-s3-identities:
+    content: |
+      {"identities":[{"name":"pitchvision","credentials":[{"accessKey":"${PV_STORAGE_ACCESS_KEY:?set in .env}","secretKey":"${PV_STORAGE_SECRET_KEY:?set in .env}"}],"actions":["Admin","Read","Write","List","Tagging"]}]}
+
+volumes:
+  pg-data:
+  redis-data:
+  storage-data:
