@@ -11,31 +11,31 @@ export type F = number;
  */
 export type Hq = number | null;
 export type Objs = [
-  unknown,
-  unknown,
-  unknown,
-  unknown,
-  unknown,
-  unknown,
-  unknown,
-  unknown,
-  unknown,
-  unknown,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number | null,
+  number | null,
 ][];
 export type Frames = TileFrame[];
-/**
- * [f0, f1_exclusive, type] runs covering this tile
- */
-export type Shots = [unknown, unknown, unknown][];
-export type T0Ms = number;
-export type T1Ms = number;
-export type TileNo = number;
-export type V = number;
 /**
  * This interface was referenced by `Tile`'s JSON-Schema
  * via the `definition` "ShotType".
  */
 export type ShotType = 'main_wide' | 'close_up' | 'replay' | 'other';
+/**
+ * [f0, f1_exclusive, type] runs covering this tile
+ */
+export type Shots = [number, number, ShotType][];
+export type T0Ms = number;
+export type T1Ms = number;
+export type TileNo = number;
+export type V = number;
 
 export interface Tile {
   fps: Fps;

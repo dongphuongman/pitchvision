@@ -22,7 +22,7 @@ _CODE_BY_STATUS = {
     401: ErrorCode.UNAUTHENTICATED,
     403: ErrorCode.FORBIDDEN,
     404: ErrorCode.NOT_FOUND,
-    405: ErrorCode.NOT_FOUND,  # no METHOD_NOT_ALLOWED in the shared ErrorCode set
+    405: ErrorCode.METHOD_NOT_ALLOWED,
     409: ErrorCode.CONFLICT,
     422: ErrorCode.VALIDATION_FAILED,
     429: ErrorCode.RATE_LIMITED,

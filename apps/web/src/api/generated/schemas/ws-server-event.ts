@@ -19,6 +19,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
+  | 'METHOD_NOT_ALLOWED'
   | 'CONFLICT'
   | 'IDEMPOTENCY_KEY_REQUIRED'
   | 'IDEMPOTENCY_KEY_REUSED'
@@ -37,7 +38,7 @@ export type Type2 = 'failed';
 export interface ProgressEvent {
   data: ProgressData;
   topic: Topic;
-  type?: Type;
+  type: Type;
 }
 export interface ProgressData {
   eta_s?: EtaS;
@@ -54,7 +55,7 @@ export interface SegmentCounts {
 export interface CompletedEvent {
   data: CompletedData;
   topic: Topic1;
-  type?: Type1;
+  type: Type1;
 }
 export interface CompletedData {
   video_id: VideoId;
@@ -62,7 +63,7 @@ export interface CompletedData {
 export interface FailedEvent {
   data: FailedData;
   topic: Topic2;
-  type?: Type2;
+  type: Type2;
 }
 export interface FailedData {
   code: ErrorCode;

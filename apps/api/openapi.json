@@ -108,6 +108,7 @@
           "NOT_FOUND",
           "UNAUTHENTICATED",
           "FORBIDDEN",
+          "METHOD_NOT_ALLOWED",
           "CONFLICT",
           "IDEMPOTENCY_KEY_REQUIRED",
           "IDEMPOTENCY_KEY_REUSED",

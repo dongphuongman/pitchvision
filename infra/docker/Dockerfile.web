@@ -4,7 +4,7 @@
 #
 #   docker build -f infra/docker/Dockerfile.web -t pitchvision-web:dev .
 #
-# Assumes apps/web is a standalone pnpm package (its own package.json + pnpm-lock.yaml).
+# apps/web is a member of the root pnpm workspace (lockfile at the repo root).
 # packages/schemas/jsonschema is copied in because the web codegen reads it.
 
 ARG NODE_IMAGE=node:22-alpine
@@ -20,9 +20,10 @@ RUN corepack enable
 WORKDIR /src
 
 COPY packages/schemas/jsonschema packages/schemas/jsonschema
-COPY apps/web/package.json apps/web/pnpm-lock.yaml apps/web/
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/web/package.json apps/web/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm -C apps/web install --frozen-lockfile --store-dir /pnpm/store
+    pnpm install --frozen-lockfile --filter @pitchvision/web --store-dir /pnpm/store
 
 COPY apps/web apps/web
 RUN pnpm -C apps/web build

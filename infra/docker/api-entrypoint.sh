@@ -29,7 +29,21 @@ case "$cmd" in
     ;;
   migrate)
     cd /app/apps/api
-    exec alembic -c alembic.ini upgrade "${1:-head}"
+    alembic -c alembic.ini upgrade "${1:-head}"
+    # The migration creates pv_app NOLOGIN; grant LOGIN here so the password stays out of git.
+    if [ -n "${PV_APP_DB_PASSWORD:-}" ]; then
+      python - <<'PY'
+import os
+import psycopg
+from psycopg import sql
+
+dsn = os.environ.get("PV_MIGRATE_DATABASE_URL") or os.environ["PV_DATABASE_URL"]
+dsn = dsn.replace("+psycopg", "").replace("+asyncpg", "")
+with psycopg.connect(dsn, autocommit=True) as conn:
+    conn.execute(sql.SQL("ALTER ROLE pv_app LOGIN PASSWORD {}").format(sql.Literal(os.environ["PV_APP_DB_PASSWORD"])))
+print("pv-api: pv_app login enabled")
+PY
+    fi
     ;;
   *)
     exec "$cmd" "$@"

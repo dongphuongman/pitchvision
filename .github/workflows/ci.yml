@@ -47,7 +47,8 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
       PV_ENV: test
-      PV_DATABASE_URL: postgresql+asyncpg://pitchvision:pitchvision@localhost:5432/pitchvision_test
+      # superuser DSN: the test fixture migrates it and grants LOGIN to pv_app (RLS role) itself
+      PV_TEST_DATABASE_URL: postgresql://pitchvision:pitchvision@localhost:5432/pitchvision_test
       PV_REDIS_URL: redis://localhost:6379/0
       PV_STORAGE_ENDPOINT: http://localhost:8333
       PV_STORAGE_BUCKET: pitchvision-test
@@ -63,8 +64,8 @@ jobs:
       - name: uv sync --frozen
         run: uv sync --frozen
       - name: ruff
-        # Product code only (docs/ and spikes/ hold throwaway scripts). Add eval/ when it lands.
-        run: uv run ruff check --output-format=github packages apps workers
+        # Product code only (docs/ and spikes/ hold throwaway scripts).
+        run: uv run ruff check --output-format=github packages apps workers eval
       - name: mypy
         run: >-
           uv run mypy
@@ -74,14 +75,6 @@ jobs:
           workers/pitchvision_worker
       - name: import-linter (AD §5 dependency boundaries)
         run: uv run lint-imports
-      - name: Migrations apply on TimescaleDB (alembic upgrade head)
-        working-directory: apps/api
-        env:
-          PV_DATABASE_URL: postgresql+asyncpg://pitchvision:pitchvision@localhost:5432/pitchvision_migrations
-        run: |
-          PGPASSWORD=pitchvision psql -h localhost -U pitchvision -d pitchvision_test \
-            -c "CREATE DATABASE pitchvision_migrations"
-          uv run alembic -c alembic.ini upgrade head
       - name: pytest
         run: uv run pytest -q
       - name: Minimize uv cache
@@ -118,15 +111,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: apps/web/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - name: pnpm install --frozen-lockfile
-        run: pnpm -C apps/web install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: lint
         run: pnpm -C apps/web lint
       - name: typecheck
         run: pnpm -C apps/web typecheck
       - name: test
-        run: pnpm -C apps/web test
+        run: pnpm -C apps/web test --run
       - name: Generated types match packages/schemas (gen:check)
         run: pnpm -C apps/web gen:check
       - name: build

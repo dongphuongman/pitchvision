@@ -10,7 +10,10 @@ name: ${COMPOSE_PROJECT_NAME:-pitchvision}
 
 x-pv-env: &pv-env
   PV_ENV: ${PV_ENV:-local}
-  PV_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?set in .env}:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/${POSTGRES_DB:?set in .env}
+  # api connects as pv_app (no BYPASSRLS) so Postgres RLS applies; migrations run as the schema owner
+  PV_DATABASE_URL: postgresql+asyncpg://pv_app:${PV_APP_DB_PASSWORD:?set in .env}@postgres:5432/${POSTGRES_DB:?set in .env}
+  PV_MIGRATE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?set in .env}:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/${POSTGRES_DB:?set in .env}
+  PV_APP_DB_PASSWORD: ${PV_APP_DB_PASSWORD:?set in .env}
   PV_REDIS_URL: redis://redis:6379/0
   # Only this URL changes when the object store is swapped (SeaweedFS -> Garage -> R2).
   PV_STORAGE_ENDPOINT: http://storage:8333
