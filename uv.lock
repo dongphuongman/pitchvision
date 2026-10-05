@@ -844,6 +844,7 @@ dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "boto3" },
+    { name = "celery", extra = ["redis"] },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "pitchvision-schemas" },
@@ -860,6 +861,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.14" },
     { name = "asyncpg", specifier = ">=0.30" },
     { name = "boto3", specifier = ">=1.35" },
+    { name = "celery", extras = ["redis"], specifier = ">=5.4" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "pitchvision-schemas", editable = "packages/schemas" },
@@ -926,6 +928,9 @@ dependencies = [
     { name = "celery", extra = ["redis"] },
     { name = "cv-core" },
     { name = "pitchvision-schemas" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "redis" },
+    { name = "sqlalchemy" },
     { name = "yt-dlp" },
 ]
 
@@ -935,6 +940,9 @@ requires-dist = [
     { name = "celery", extras = ["redis"], specifier = ">=5.4" },
     { name = "cv-core", editable = "packages/cv-core" },
     { name = "pitchvision-schemas", editable = "packages/schemas" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "redis", specifier = ">=5.2" },
+    { name = "sqlalchemy", specifier = ">=2.0.36" },
     { name = "yt-dlp", specifier = "==2026.8.19" },
 ]
 

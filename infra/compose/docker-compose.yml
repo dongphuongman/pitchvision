@@ -15,6 +15,14 @@ x-pv-env: &pv-env
   PV_MIGRATE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?set in .env}:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/${POSTGRES_DB:?set in .env}
   PV_APP_DB_PASSWORD: ${PV_APP_DB_PASSWORD:?set in .env}
   PV_REDIS_URL: redis://redis:6379/0
+  # Regional API JWT check (docs/contracts/identity-api.md). identity-svc publishes the JWKS.
+  PV_REGION: ${PV_REGION:-eu}
+  PV_JWKS_URL: ${PV_JWKS_URL:-http://identity:8000/.well-known/jwks.json}
+  PV_JWT_ISSUER: ${PV_JWT_ISSUER:-http://localhost:3000}
+  # LOCAL ONLY: 1 = trust X-Dev-Org/X-Dev-User/X-Dev-Role headers instead of JWTs (refused unless PV_ENV=local)
+  PV_DEV_AUTH: ${PV_DEV_AUTH:-0}
+  # Workers write video status through the same RLS-bound role as the api (they SET app.org_id per tx).
+  PV_WORKER_DATABASE_URL: postgresql+psycopg://pv_app:${PV_APP_DB_PASSWORD:?set in .env}@postgres:5432/${POSTGRES_DB:?set in .env}
   # Only this URL changes when the object store is swapped (SeaweedFS -> Garage -> R2).
   PV_STORAGE_ENDPOINT: http://storage:8333
   PV_STORAGE_PUBLIC_ENDPOINT: ${PV_STORAGE_PUBLIC_ENDPOINT:-http://localhost:8333}
@@ -179,6 +187,16 @@ services:
     environment:
       <<: *pv-env
       WORKER_ROLE: cpu
+
+  # YouTube ingest (S1, M1-BE-08). Own queue `ingest` so it can move to a host with a different egress IP
+  # (M1-OPS-06; SP-10: residential IP worked, datacenter IPs untested against YouTube bot-checks).
+  # Success rate: `redis-cli HGETALL pv:metrics:ingest_total` (until Prometheus, OPS-08).
+  ingest-worker:
+    <<: *worker
+    environment:
+      <<: *pv-env
+      WORKER_ROLE: ingest
+      WORKER_CONCURRENCY: ${PV_INGEST_CONCURRENCY:-4}
 
   gpu-worker:
     <<: *worker

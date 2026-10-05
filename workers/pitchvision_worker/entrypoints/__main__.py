@@ -1,9 +1,9 @@
 """Worker container entrypoint: one image, role picked by ``WORKER_ROLE`` (AD §5.1).
 
-    WORKER_ROLE=orchestrator|cpu|gpu|live|runpod python -m pitchvision_worker.entrypoints
+    WORKER_ROLE=orchestrator|cpu|gpu|ingest|live|runpod python -m pitchvision_worker.entrypoints
     WORKER_ROLE=cpu python -m pitchvision_worker.entrypoints --healthcheck
 
-Celery roles (orchestrator, cpu, gpu) start a worker bound to exactly one queue.
+Celery roles (orchestrator, cpu, gpu, ingest) start a worker bound to exactly one queue.
 ``live`` (MediaMTX consumer, M2) and ``runpod`` (serverless handler) are reserved
 roles: they are accepted names but not implemented yet and exit non-zero.
 
@@ -32,6 +32,7 @@ class Role(StrEnum):
     ORCHESTRATOR = "orchestrator"
     CPU = "cpu"
     GPU = "gpu"
+    INGEST = "ingest"
     LIVE = "live"
     RUNPOD = "runpod"
 
@@ -41,9 +42,11 @@ CELERY_ROLE_QUEUES: dict[Role, str] = {
     Role.ORCHESTRATOR: "orchestrate",
     Role.CPU: "cpu",
     Role.GPU: "gpu",
+    Role.INGEST: "ingest",
 }
 # One process per GPU: segment inference owns the device (TensorRT context).
-DEFAULT_CONCURRENCY: dict[Role, int] = {Role.GPU: 1}
+# Ingest: downloads are network-bound and long; 4 slots keep a probe (≤ 20 s budget) from queueing behind them.
+DEFAULT_CONCURRENCY: dict[Role, int] = {Role.GPU: 1, Role.INGEST: 4}
 
 
 class UnknownRoleError(ValueError):

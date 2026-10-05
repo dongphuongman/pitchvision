@@ -8,6 +8,10 @@ dependencies = [
   "celery[redis]>=5.4",
   "boto3>=1.35",
   "yt-dlp==2026.8.19",
+  # ingest worker writes video status itself (RLS-bound role, see pitchvision_worker/repository.py)
+  "sqlalchemy>=2.0.36",
+  "psycopg[binary]>=3.2",
+  "redis>=5.2",
 ]
 
 [tool.uv.sources]

@@ -98,6 +98,120 @@
         }
       }
     },
+    "/api/v1/videos/from-url/preview": {
+      "post": {
+        "tags": [
+          "videos"
+        ],
+        "summary": "Preview Url",
+        "description": "Read title/duration/resolution of a YouTube video (≤ 20 s) and check it can be ingested.\n\n422 `reason`: invalid_url, too_long, unknown_duration, live, private, members_only, needs_auth,\nage_restricted, unavailable. 502/503/504 INGEST_FAILED `reason`: blocked, probe_failed, queue_unavailable, timeout.",
+        "operationId": "preview_url_api_v1_videos_from_url_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UrlIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UrlPreview"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/videos/from-url": {
+      "post": {
+        "tags": [
+          "videos"
+        ],
+        "summary": "Create From Url",
+        "description": "Create a `youtube` video in status `ingesting` and queue the download (best stream ≤ 1080p).\n\nPoll GET /videos/{id}: `ready` when the source is stored, `failed` with `error.reason` otherwise.",
+        "operationId": "create_from_url_api_v1_videos_from_url_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FromUrlIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/videos": {
       "get": {
         "tags": [
@@ -634,6 +748,39 @@
         ],
         "title": "FieldError"
       },
+      "FromUrlIn": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "rights_confirmed": {
+            "type": "boolean",
+            "title": "Rights Confirmed",
+            "description": "Caller confirms they hold the rights to analyse this video"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "rights_confirmed"
+        ],
+        "title": "FromUrlIn"
+      },
       "HealthStatus": {
         "properties": {
           "status": {
@@ -734,6 +881,17 @@
               }
             ],
             "title": "Errors"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           }
         },
         "type": "object",
@@ -744,7 +902,7 @@
           "code"
         ],
         "title": "ProblemDetails",
-        "description": "OpenAPI shape of every 4xx/5xx body: Problem + optional `errors` extension (422 only)."
+        "description": "OpenAPI shape of every 4xx/5xx body: Problem + optional extensions."
       },
       "SignParts": {
         "properties": {
@@ -953,6 +1111,129 @@
           "parts"
         ],
         "title": "UploadState"
+      },
+      "UrlIn": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "UrlIn"
+      },
+      "UrlPreview": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "Canonical https://www.youtube.com/watch?v=… URL that will be ingested"
+          },
+          "video_id": {
+            "type": "string",
+            "title": "Video Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fps"
+          },
+          "is_live": {
+            "type": "boolean",
+            "title": "Is Live"
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Availability"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "video_id",
+          "title",
+          "duration_s",
+          "width",
+          "height",
+          "fps",
+          "is_live",
+          "availability",
+          "thumbnail_url"
+        ],
+        "title": "UrlPreview"
       },
       "VideoError": {
         "properties": {

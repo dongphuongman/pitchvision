@@ -36,19 +36,27 @@ class FieldError(BaseModel):
 
 
 class ProblemDetails(Problem):
-    """OpenAPI shape of every 4xx/5xx body: Problem + optional `errors` extension (422 only)."""
+    """OpenAPI shape of every 4xx/5xx body: Problem + optional extensions."""
 
-    errors: list[FieldError] | None = None
+    errors: list[FieldError] | None = None  # request validation (422) only
+    reason: str | None = None  # machine-readable sub-reason, e.g. YouTube ingest: too_long, live, private, …
 
 
 class ApiError(Exception):
     """Raise from any layer; rendered as problem+json with a stable ErrorCode."""
 
     def __init__(
-        self, code: ErrorCode, status: int, title: str, detail: str | None = None, headers: dict[str, str] | None = None
+        self,
+        code: ErrorCode,
+        status: int,
+        title: str,
+        detail: str | None = None,
+        headers: dict[str, str] | None = None,
+        extensions: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(title)
         self.code, self.status, self.title, self.detail, self.headers = code, status, title, detail, headers
+        self.extensions = extensions
 
 
 def problem_response(
@@ -66,7 +74,7 @@ def problem_response(
 
 async def _api_error(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, ApiError)
-    return problem_response(request, exc.code, exc.status, exc.title, exc.detail, headers=exc.headers)
+    return problem_response(request, exc.code, exc.status, exc.title, exc.detail, exc.extensions, exc.headers)
 
 
 async def _http_error(request: Request, exc: Exception) -> JSONResponse:
