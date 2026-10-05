@@ -32,3 +32,5 @@ coverage/
 *.tsbuildinfo
 # --- os ---
 .DS_Store
+# --- local agent worktrees ---
+.claude/
