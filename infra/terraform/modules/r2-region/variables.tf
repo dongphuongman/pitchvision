@@ -110,10 +110,9 @@ variable "ia_transition_days" {
 
 variable "ia_transition_prefixes" {
   description = <<-EOT
-    Key prefixes moved to Infrequent Access. R2 lifecycle filters match KEY PREFIXES ONLY.
-    The AD 9.2 layout nests source/ and segments/ under orgs/{org_id}/videos/{video_id}/...,
-    so the AD literal values below match nothing until the key layout puts the storage class
-    first (see infra/terraform/README.md "Gaps").
+    Key prefixes moved to Infrequent Access. R2 lifecycle filters match KEY PREFIXES ONLY, so
+    object keys put the storage class first (pitchvision_schemas.keys, AD 9.2 revised 05/10/2026):
+    source/orgs/{org}/videos/{video}/original.mp4, segments/orgs/{org}/videos/{video}/jobs/...
   EOT
   type        = list(string)
   default     = ["source/", "segments/"]

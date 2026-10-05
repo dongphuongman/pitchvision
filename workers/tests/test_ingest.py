@@ -266,7 +266,7 @@ def test_download_success_marks_ready(store: FakeStore, tmp_path: Path) -> None:
     _, vid, org, outcome = run(deps(FakeYdl(), tmp_path))
     assert outcome == tasks.Outcome("done")
     [ready] = store.ready
-    assert ready["object_key"] == f"orgs/{org}/videos/{vid}/source/original.mp4"
+    assert ready["object_key"] == f"source/orgs/{org}/videos/{vid}/original.mp4"
     assert ready | {"object_key": None} == {
         "object_key": None, "size_bytes": 1024, "duration_ms": 5_400_000, "fps": 25.0, "width": 1920,
         "height": 1080, "title": "Cup final", "thumbnail_url": INFO["thumbnail"],
@@ -304,7 +304,7 @@ def test_deleted_during_download_removes_object(store: FakeStore, tmp_path: Path
     store.accept_update = False
     s3 = FakeS3()
     _, vid, org, outcome = run(deps(FakeYdl(), tmp_path, s3))
-    assert outcome.kind == "skipped" and s3.deleted == [f"orgs/{org}/videos/{vid}/source/original.mp4"]
+    assert outcome.kind == "skipped" and s3.deleted == [f"source/orgs/{org}/videos/{vid}/original.mp4"]
 
 
 def test_storage_error_is_retryable(store: FakeStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

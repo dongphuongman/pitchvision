@@ -655,17 +655,17 @@ compute:
 
   <h3>9.2 Bố cục object storage</h3>
 <pre><code>r2://pv-{region}-data/                 # bucket EU tạo với jurisdiction=eu
-  orgs/{org_id}/videos/{video_id}/
-    source/original.mp4
-    source/normalized.mp4
-    manifest.json
-    jobs/{job_id}/
-      models/team_model.pkl
-      segments/{i}/detections.parquet · homography.parquet · embeddings.npy · _SUCCESS
-      tracks/tracks.parquet · jerseys.json
-      tiles/r{revision}/{tile_no:06d}.json.gz
-      stats/heatmaps.npz
-    exports/{export_id}.{mp4|csv|json|pdf}
+# v1.3 (05/10/2026): lớp lưu trữ đứng ĐẦU key vì lifecycle rule của R2 chỉ lọc theo tiền tố.
+# Nguồn sự thật: packages/schemas/pitchvision_schemas/keys.py
+  source/orgs/{org_id}/videos/{video_id}/original.mp4                  # → IA sau 30 ngày
+  media/orgs/{org_id}/videos/{video_id}/normalized.mp4 · manifest.json
+  segments/orgs/{org_id}/videos/{video_id}/jobs/{job_id}/{i:03d}/      # → IA 30 ngày, xoá 180 ngày
+      detections.parquet · homography.parquet · embeddings.npy · _SUCCESS
+  results/orgs/{org_id}/videos/{video_id}/jobs/{job_id}/
+      models/team_model.pkl · tracks/tracks.parquet · jerseys.json · stats/heatmaps.npz
+  tiles/orgs/{org_id}/videos/{video_id}/jobs/{job_id}/r{revision}/{tile_no:06d}.json.gz
+  exports/orgs/{org_id}/videos/{video_id}/{export_id}.{mp4|csv|json|pdf}
+# Xoá theo yêu cầu (AD §14): xoá mọi tiền tố của keys.video_prefixes(org, video).
 r2://pv-{region}-models/
   {model_name}/{version}/weights.onnx · model_card.md
   engines/{model_sha}-{gpu_arch}-{trt_ver}.engine</code></pre>

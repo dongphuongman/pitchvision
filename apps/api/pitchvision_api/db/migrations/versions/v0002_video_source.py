@@ -4,7 +4,7 @@ Revision ID: 0002
 Revises: 0001
 Create Date: 2026-10-05
 
-- object_key    key of the source object in the region bucket (orgs/{org}/videos/{id}/source/original.{ext})
+- object_key    key of the source object in the region bucket (pitchvision_schemas.keys.source_key)
 - upload_id     S3 multipart UploadId while status = 'uploading' (NULL once completed/aborted)
 - size_bytes    declared size for uploads, real size once the object exists
 - thumbnail_url poster frame for YouTube sources (from yt-dlp metadata)

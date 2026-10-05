@@ -62,7 +62,7 @@ def test_tile_roundtrip_and_keys():
                         {"f": 751, "hq": None, "objs": [[7, 0, 0, 10, 20, 30, 80, 0.9, None, None]]}])
     assert Tile.model_validate_json(tile.model_dump_json()) == tile
     assert tile_no_for(39_999) == 3
-    assert tile_key("o", "v", "j", 2, 3).endswith("/tiles/r2/000003.json.gz")
+    assert tile_key("o", "v", "j", 2, 3) == "tiles/orgs/o/videos/v/jobs/j/r2/000003.json.gz"
 
 
 def test_ws_events_discriminate():
@@ -86,3 +86,19 @@ def test_exported_json_schema_is_current():
         assert export.main() == 0
     finally:
         sys.argv = argv
+
+
+def test_key_layout_puts_storage_class_first():
+    from pitchvision_schemas import keys
+
+    assert keys.source_key("o", "v", ".MP4") == "source/orgs/o/videos/v/original.mp4"
+    assert keys.segment_prefix("o", "v", "j", 7) == "segments/orgs/o/videos/v/jobs/j/007/"
+    # every key a video owns sits under one of video_prefixes (erasure deletes all of them)
+    owned = [keys.source_key("o", "v", "mp4"), keys.normalized_key("o", "v"), keys.manifest_key("o", "v"),
+             keys.segment_prefix("o", "v", "j", 0), keys.job_results_prefix("o", "v", "j"),
+             keys.tile_key("o", "v", "j", 0, 0), keys.export_key("o", "v", "e", "mp4")]
+    prefixes = keys.video_prefixes("o", "v")
+    assert all(any(k.startswith(p) for p in prefixes) for k in owned)
+    # the lifecycle rules in infra/terraform target exactly these classes
+    assert keys.source_key("o", "v", "mp4").startswith("source/")
+    assert keys.segment_prefix("o", "v", "j", 0).startswith("segments/")

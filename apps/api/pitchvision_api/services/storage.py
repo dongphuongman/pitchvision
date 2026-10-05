@@ -16,7 +16,7 @@ from typing import Any
 import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
-from pitchvision_schemas import ErrorCode
+from pitchvision_schemas import ErrorCode, keys
 
 from pitchvision_api.errors import ApiError
 from pitchvision_api.settings import Settings
@@ -35,8 +35,8 @@ class StoredPart:
 
 
 def source_key(org_id: object, video_id: object, ext: str) -> str:
-    """AD §9.2 layout: everything for a video lives under orgs/{org_id}/videos/{video_id}/."""
-    return f"orgs/{org_id}/videos/{video_id}/source/original.{ext}"
+    """AD §9.2 layout (storage class first, for R2 lifecycle rules) — see pitchvision_schemas.keys."""
+    return keys.source_key(str(org_id), str(video_id), ext)
 
 
 def part_count(size: int, part_size: int = PART_SIZE) -> int:

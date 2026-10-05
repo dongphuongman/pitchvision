@@ -1,4 +1,4 @@
-"""Playback tile format (stage S7): tiles/r{revision}/{tile_no:06d}.json.gz, one per 10 s.
+"""Playback tile format (stage S7): one gzip JSON per 10 s, key from `keys.tile_key`.
 
 Objects are positional arrays to keep tiles small:
     [track_id, cls, team, x1, y1, x2, y2, conf, px, py]
@@ -49,5 +49,3 @@ def tile_no_for(ts_ms: int) -> int:
     return ts_ms // TILE_MS
 
 
-def tile_key(org_id: str, video_id: str, job_id: str, revision: int, tile_no: int) -> str:
-    return f"orgs/{org_id}/videos/{video_id}/jobs/{job_id}/tiles/r{revision}/{tile_no:06d}.json.gz"

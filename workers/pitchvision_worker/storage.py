@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from pitchvision_schemas import keys
+
 from pitchvision_worker.config import WorkerConfig
 
 PART_SIZE = 16 * 1024 * 1024  # equal-sized parts: R2 rejects multipart uploads with mixed part sizes
@@ -12,7 +14,7 @@ PART_SIZE = 16 * 1024 * 1024  # equal-sized parts: R2 rejects multipart uploads 
 
 def source_key(org_id: object, video_id: object, ext: str = "mp4") -> str:
     """AD §9.2 — must match pitchvision_api.services.storage.source_key."""
-    return f"orgs/{org_id}/videos/{video_id}/source/original.{ext}"
+    return keys.source_key(str(org_id), str(video_id), ext)
 
 
 def s3_client(cfg: WorkerConfig) -> Any:

@@ -152,7 +152,7 @@ async def test_abort_marks_deleted(client: httpx.AsyncClient, s3: S3) -> None:
     assert (await client.delete(f"/api/v1/videos/{vid}/uploads", headers=who(org))).status_code == 204
     assert_problem(await client.get(f"/api/v1/videos/{vid}", headers=who(org)), 404, "NOT_FOUND")
     assert (await client.get("/api/v1/videos", headers=who(org))).json()["items"] == []
-    uploads = s3_client(s3.endpoint).list_multipart_uploads(Bucket=s3.bucket, Prefix=f"orgs/{org}/")
+    uploads = s3_client(s3.endpoint).list_multipart_uploads(Bucket=s3.bucket, Prefix=f"source/orgs/{org}/")
     assert not uploads.get("Uploads")
 
 
