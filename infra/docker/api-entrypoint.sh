@@ -45,6 +45,23 @@ PY
     fi
     ;;
   migrate-identity)
+    key="${PV_JWT_PRIVATE_KEY_FILE:-}"
+    if [ -z "${PV_JWT_PRIVATE_KEY_PEM:-}" ] && [ -n "$key" ] && [ ! -s "$key" ]; then
+      # Self-host convenience: create the RS256 signing key once (volume-backed, mode 600).
+      python - "$key" <<'PY'
+import os, sys
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+
+path = sys.argv[1]
+pem = rsa.generate_private_key(public_exponent=65537, key_size=3072).private_bytes(
+    serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, "wb") as f:
+    f.write(pem)
+print(f"pv-api: generated JWT signing key at {path}")
+PY
+    fi
     python - <<'PY'
 import os
 import psycopg

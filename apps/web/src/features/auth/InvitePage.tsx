@@ -102,7 +102,9 @@ export function InvitePage() {
         </h1>
         <p className="m-0 text-fg-2">
           {expired
-            ? t('invite.expiredBody', { inviter: preview.data?.inviter_name ?? '' })
+            ? preview.data?.inviter_name
+              ? t('invite.expiredBody', { inviter: preview.data.inviter_name })
+              : t('invite.expiredBodyNoInviter')
             : state === 'error'
               ? tc('error.body')
               : t('invite.invalidBody')}
@@ -190,10 +192,12 @@ export function InvitePage() {
         aria-hidden="true"
         className="mx-auto mt-4 grid size-14 place-items-center rounded-full bg-[linear-gradient(135deg,#4da3ff,#7c5cff)] text-lg font-bold text-white"
       >
-        {initials(invite.inviter_name)}
+        {initials(invite.inviter_name ?? invite.org_name)}
       </div>
       <h1 ref={headingRef} tabIndex={-1} className="text-[22px] outline-none">
-        {t('invite.title', { inviter: invite.inviter_name, org: invite.org_name })}
+        {invite.inviter_name
+          ? t('invite.title', { inviter: invite.inviter_name, org: invite.org_name })
+          : t('invite.titleNoInviter', { org: invite.org_name })}
       </h1>
       <p className="-mt-2 text-fg-2">
         <Trans

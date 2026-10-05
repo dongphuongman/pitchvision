@@ -19,6 +19,172 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/videos': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Videos */
+    get: operations['list_videos_api_v1_videos_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/videos/{video_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Video */
+    get: operations['get_video_api_v1_videos__video_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/videos/{video_id}/uploads': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Upload
+     * @description Parts already stored (ListParts) — resume uploads only the missing ones.
+     */
+    get: operations['get_upload_api_v1_videos__video_id__uploads_get'];
+    put?: never;
+    post?: never;
+    /**
+     * Abort Upload
+     * @description Abort the multipart upload and mark the video deleted.
+     */
+    delete: operations['abort_upload_api_v1_videos__video_id__uploads_delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/videos/{video_id}/uploads/complete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Complete Upload
+     * @description Verify every part (count, 16 MiB sizes, ETags), complete the upload, check the object size → `ready`.
+     */
+    post: operations['complete_upload_api_v1_videos__video_id__uploads_complete_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/videos/{video_id}/uploads/sign': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Sign Parts
+     * @description Presign more part URLs (≤ 100 per call), e.g. for the next batch or when resuming.
+     */
+    post: operations['sign_parts_api_v1_videos__video_id__uploads_sign_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/videos/from-url': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create From Url
+     * @description Create a `youtube` video in status `ingesting` and queue the download (best stream ≤ 1080p).
+     *
+     *     Poll GET /videos/{id}: `ready` when the source is stored, `failed` with `error.reason` otherwise.
+     */
+    post: operations['create_from_url_api_v1_videos_from_url_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/videos/from-url/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Preview Url
+     * @description Read title/duration/resolution of a YouTube video (≤ 20 s) and check it can be ingested.
+     *
+     *     422 `reason`: invalid_url, too_long, unknown_duration, live, private, members_only, needs_auth,
+     *     age_restricted, unavailable. 502/503/504 INGEST_FAILED `reason`: blocked, probe_failed, queue_unavailable, timeout.
+     */
+    post: operations['preview_url_api_v1_videos_from_url_preview_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/videos/uploads': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Upload
+     * @description Create the video + multipart upload; returns presigned PUT URLs for the first parts.
+     *
+     *     PUT each 16 MiB slice (the last may be shorter) to its URL, keep the `ETag` response header,
+     *     then POST /videos/{id}/uploads/complete. Do not change the part size when resuming.
+     */
+    post: operations['create_upload_api_v1_videos_uploads_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/healthz': {
     parameters: {
       query?: never;
@@ -57,6 +223,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** CompletedPart */
+    CompletedPart: {
+      /** Etag */
+      etag: string;
+      /** Part Number */
+      part_number: number;
+    };
     /**
      * ErrorCode
      * @enum {string}
@@ -94,6 +267,18 @@ export interface components {
       /** Type */
       type: string;
     };
+    /** FromUrlIn */
+    FromUrlIn: {
+      /**
+       * Rights Confirmed
+       * @description Caller confirms they hold the rights to analyse this video
+       */
+      rights_confirmed: boolean;
+      /** Title */
+      title?: string | null;
+      /** Url */
+      url: string;
+    };
     /** HealthStatus */
     HealthStatus: {
       /**
@@ -110,9 +295,16 @@ export interface components {
       /** Version */
       version: string;
     };
+    /** PartUrl */
+    PartUrl: {
+      /** Part Number */
+      part_number: number;
+      /** Url */
+      url: string;
+    };
     /**
      * ProblemDetails
-     * @description OpenAPI shape of every 4xx/5xx body: Problem + optional `errors` extension (422 only).
+     * @description OpenAPI shape of every 4xx/5xx body: Problem + optional extensions.
      */
     ProblemDetails: {
       code: components['schemas']['ErrorCode'];
@@ -122,12 +314,197 @@ export interface components {
       errors?: components['schemas']['FieldError'][] | null;
       /** Instance */
       instance?: string | null;
+      /** Reason */
+      reason?: string | null;
       /** Status */
       status: number;
       /** Title */
       title: string;
       /** Type */
       type: string;
+    };
+    /** SignedParts */
+    SignedParts: {
+      /** Parts */
+      parts: components['schemas']['PartUrl'][];
+      /** Url Expires In */
+      url_expires_in: number;
+    };
+    /** SignParts */
+    SignParts: {
+      /** Part Numbers */
+      part_numbers: number[];
+    };
+    /** StoredPartOut */
+    StoredPartOut: {
+      /** Etag */
+      etag: string;
+      /** Part Number */
+      part_number: number;
+      /** Size */
+      size: number;
+    };
+    /** UploadComplete */
+    UploadComplete: {
+      /** Parts */
+      parts: components['schemas']['CompletedPart'][];
+    };
+    /** UploadCreate */
+    UploadCreate: {
+      /** Filename */
+      filename: string;
+      /**
+       * Mime
+       * @description Browser-reported type; may be empty
+       * @default
+       */
+      mime: string;
+      /**
+       * Size
+       * @description File size in bytes
+       */
+      size: number;
+      /** Title */
+      title?: string | null;
+    };
+    /** UploadCreated */
+    UploadCreated: {
+      /** Part Count */
+      part_count: number;
+      /**
+       * Part Size
+       * @description Fixed 16 MiB; every part but the last must be exactly this size
+       */
+      part_size: number;
+      /**
+       * Parts
+       * @description Presigned PUT URLs for the first batch; sign more via /uploads/sign
+       */
+      parts: components['schemas']['PartUrl'][];
+      /** Upload Id */
+      upload_id: string;
+      /**
+       * Url Expires In
+       * @description Seconds until the presigned URLs expire
+       */
+      url_expires_in: number;
+      video: components['schemas']['VideoOut'];
+      /**
+       * Video Id
+       * Format: uuid
+       */
+      video_id: string;
+    };
+    /** UploadState */
+    UploadState: {
+      /** Part Count */
+      part_count: number;
+      /** Part Size */
+      part_size: number;
+      /**
+       * Parts
+       * @description Parts already stored (resume: upload only the others)
+       */
+      parts: components['schemas']['StoredPartOut'][];
+      /** Upload Id */
+      upload_id: string;
+      /**
+       * Video Id
+       * Format: uuid
+       */
+      video_id: string;
+    };
+    /** UrlIn */
+    UrlIn: {
+      /** Url */
+      url: string;
+    };
+    /** UrlPreview */
+    UrlPreview: {
+      /** Availability */
+      availability: string | null;
+      /** Duration S */
+      duration_s: number | null;
+      /** Fps */
+      fps: number | null;
+      /** Height */
+      height: number | null;
+      /** Is Live */
+      is_live: boolean;
+      /** Thumbnail Url */
+      thumbnail_url: string | null;
+      /** Title */
+      title: string | null;
+      /**
+       * Url
+       * @description Canonical https://www.youtube.com/watch?v=… URL that will be ingested
+       */
+      url: string;
+      /** Video Id */
+      video_id: string;
+      /** Width */
+      width: number | null;
+    };
+    /** VideoError */
+    VideoError: {
+      /** Code */
+      code: string;
+      /** Detail */
+      detail?: string | null;
+      /** Reason */
+      reason?: string | null;
+    };
+    /** VideoOut */
+    VideoOut: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Duration Ms */
+      duration_ms: number | null;
+      error: components['schemas']['VideoError'] | null;
+      /** Fps */
+      fps: number | null;
+      /** Height */
+      height: number | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Rights Confirmed At */
+      rights_confirmed_at: string | null;
+      /** Size Bytes */
+      size_bytes: number | null;
+      /** Source Type */
+      source_type: ('upload' | 'youtube' | 'rtsp' | 'import') | null;
+      /**
+       * Source Url
+       * @description Original URL for YouTube sources
+       */
+      source_url?: string | null;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'uploading' | 'ingesting' | 'ready' | 'processing' | 'done' | 'failed' | 'deleted';
+      /** Thumbnail Url */
+      thumbnail_url: string | null;
+      /** Title */
+      title: string | null;
+      /** Width */
+      width: number | null;
+    };
+    /** VideoPage */
+    VideoPage: {
+      /** Items */
+      items: components['schemas']['VideoOut'][];
+      /**
+       * Next Cursor
+       * @description Pass as ?cursor= for the next page; null = last page
+       */
+      next_cursor?: string | null;
     };
   };
   responses: never;
@@ -172,6 +549,388 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Meta'];
+        };
+      };
+    };
+  };
+  list_videos_api_v1_videos_get: {
+    parameters: {
+      query?: {
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['VideoPage'];
+        };
+      };
+    };
+  };
+  get_video_api_v1_videos__video_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['VideoOut'];
+        };
+      };
+    };
+  };
+  get_upload_api_v1_videos__video_id__uploads_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UploadState'];
+        };
+      };
+    };
+  };
+  abort_upload_api_v1_videos__video_id__uploads_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  complete_upload_api_v1_videos__video_id__uploads_complete_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UploadComplete'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['VideoOut'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  sign_parts_api_v1_videos__video_id__uploads_sign_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SignParts'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SignedParts'];
+        };
+      };
+    };
+  };
+  create_from_url_api_v1_videos_from_url_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FromUrlIn'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['VideoOut'];
+        };
+      };
+    };
+  };
+  preview_url_api_v1_videos_from_url_preview_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UrlIn'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UrlPreview'];
+        };
+      };
+    };
+  };
+  create_upload_api_v1_videos_uploads_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UploadCreate'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UploadCreated'];
         };
       };
     };

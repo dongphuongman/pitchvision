@@ -178,18 +178,20 @@ export interface components {
     Invite: {
       id: string;
       email: string;
-      role: S['Role'];
+      role: Exclude<S['Role'], 'owner'>;
       /** Format: date-time */
       expires_at: string;
       /** Format: date-time */
       created_at: string;
-      invited_by: string;
+      /** null when the inviter's account was deleted */
+      invited_by: string | null;
     };
     InvitePreview: {
       org_name: string;
-      inviter_name: string;
+      /** null when the inviter's account was deleted */
+      inviter_name: string | null;
       email: string;
-      role: S['Role'];
+      role: Exclude<S['Role'], 'owner'>;
       /** Added by the identity service (clarification during W2): where the org's data lives. */
       region: S['Region'];
       expired: boolean;

@@ -18,7 +18,7 @@ x-pv-env: &pv-env
   # Regional API JWT check (docs/contracts/identity-api.md). identity-svc publishes the JWKS.
   PV_REGION: ${PV_REGION:-eu}
   PV_JWKS_URL: ${PV_JWKS_URL:-http://identity:8000/.well-known/jwks.json}
-  PV_JWT_ISSUER: ${PV_JWT_ISSUER:-http://localhost:3000}
+  PV_JWT_ISSUER: ${PV_WEB_URL:-http://localhost:3000}  # must equal identity's iss
   # LOCAL ONLY: 1 = trust X-Dev-Org/X-Dev-User/X-Dev-Role headers instead of JWTs (refused unless PV_ENV=local)
   PV_DEV_AUTH: ${PV_DEV_AUTH:-0}
   # Workers write video status through the same RLS-bound role as the api (they SET app.org_id per tx).
@@ -34,9 +34,6 @@ x-pv-env: &pv-env
   AWS_ACCESS_KEY_ID: ${PV_STORAGE_ACCESS_KEY}
   AWS_SECRET_ACCESS_KEY: ${PV_STORAGE_SECRET_KEY}
   AWS_DEFAULT_REGION: ${PV_STORAGE_REGION:-us-east-1}
-  # access tokens come from identity-svc (docs/contracts/identity-api.md); the api verifies them via JWKS
-  PV_JWKS_URL: http://identity:8000/.well-known/jwks.json
-  PV_JWT_ISSUER: ${PV_WEB_URL:-http://localhost:3000}
 
 # identity-svc: global control plane. Self-host = its own database on the same Postgres server.
 x-identity-env: &identity-env
@@ -46,8 +43,10 @@ x-identity-env: &identity-env
   # Browser-facing origin: email links, OIDC redirect, and the JWT `iss`.
   PV_WEB_URL: ${PV_WEB_URL:-http://localhost:3000}
   PV_JWT_ISSUER: ${PV_WEB_URL:-http://localhost:3000}
-  # Empty = ephemeral key (local/test only; sessions die when identity restarts).
+  # Local: migrate-identity generates a signing key once into the identity-keys volume so sessions survive
+  # restarts. Production: set PV_JWT_PRIVATE_KEY_PEM from the secret store instead.
   PV_JWT_PRIVATE_KEY_PEM: ${PV_JWT_PRIVATE_KEY_PEM:-}
+  PV_JWT_PRIVATE_KEY_FILE: /keys/jwt-signing.pem
   PV_JWT_KID: ${PV_JWT_KID:-}
   PV_COOKIE_SECURE: ${PV_COOKIE_SECURE:-true}
   PV_CORS_ORIGINS: ${PV_CORS_ORIGINS:-http://localhost:5173}
@@ -193,6 +192,7 @@ services:
     <<: *api-image
     command: ["migrate-identity"]
     environment: *identity-env
+    volumes: [identity-keys:/keys]
     depends_on:
       postgres: { condition: service_healthy }
     restart: "no"
@@ -202,6 +202,7 @@ services:
     command: ["identity"]
     restart: unless-stopped
     environment: *identity-env
+    volumes: [identity-keys:/keys:ro]
     ports:
       - "127.0.0.1:${PV_IDENTITY_PORT:-8001}:8000"
     depends_on:
@@ -289,5 +290,6 @@ configs:
 
 volumes:
   pg-data:
+  identity-keys:
   redis-data:
   storage-data:
