@@ -1,0 +1,56 @@
+# PitchVision model registry (AD §5 models/, §13.3: a new model = a PR changing this file, merged only if golden eval passes).
+# Weights are NOT in git: they live in PITCHVISION_MODEL_DIR (default ~/.cache/pitchvision/models; R2 in deployment)
+# and cv_core.registry.ModelRegistry.resolve(name) refuses a file whose sha256 differs from the entry below.
+# Model cards: models/<name>.md. How to (re)build each file: the `build` command.
+schema_version: 1
+
+models:
+  - name: dfine-m-obj2coco-640
+    version: "2026.10.05"
+    kind: detector
+    file: dfine-m-obj2coco-640.onnx
+    sha256: 2be1e59a3883b4f4c63fdcc8d87024229d4975f47e86e2518b6a955483446f17
+    bytes: 78581067
+    source: https://huggingface.co/ustc-community/dfine-medium-obj2coco
+    licence: Apache-2.0 (code + weights); Objects365 pre-training data licence open in G-LEGAL
+    build: uv run --project training python training/export_dfine_onnx.py   # torch 2.14.1, transformers 5.18.0, opset 17
+    card: models/dfine-m-obj2coco-640.md
+    input:
+      pixel_values: {dtype: float32, shape: [1, 3, 640, 640], layout: NCHW, colour: RGB, scale: "1/255",
+                     resize: "stretch to 640x640 (no letterbox)", normalize: none}
+    output:
+      logits: {dtype: float32, shape: [1, 300, 80], activation: sigmoid}
+      pred_boxes: {dtype: float32, shape: [1, 300, 4], format: "cxcywh normalised 0..1"}
+    postprocess: cv_core.detect.dfine.postprocess   # sigmoid → top-300 over queries×classes → xyxy px → conf
+    classes: coco80                                  # person = 0, sports ball = 32
+    providers: {ort_cpu: "10 fps (M4, batch 1)", ort_coreml: "24 fps (M4, MLProgram, static batch 1)"}
+
+  - name: shots-gbm-det
+    version: "1"
+    kind: shot-classifier
+    file: shots-gbm-det-v1.json
+    sha256: b3a8df4288d14c470c6817d8325aa384351c4290327df5ee9d531ff3b3bc6207
+    bytes: 119253
+    source: training/train_shots.py on SP-09 labels (19 golden matches, 855 frames)
+    licence: proprietary (PitchVision); training labels internal
+    build: uv run --project training python training/train_shots.py --export-folds
+    card: models/shots-gbm.md
+    format: pv-gbm/v1                                 # cv_core.shots.gbm (pure numpy, no sklearn at runtime)
+    classes: [main_wide, non_wide]                   # non_wide → ShotType.other
+    requires: [dfine-m-obj2coco-640]
+    eval: eval/results/shots_m1cv06_samples_det.json  # leave-one-video-out, 98.1 % accuracy
+
+  - name: shots-gbm-colour
+    version: "1"
+    kind: shot-classifier
+    file: shots-gbm-colour-v1.json
+    sha256: 43dca81b549afa6a4103d81ef70a3d18af0c868c67fa658ea92a125aed7686b2
+    bytes: 116597
+    source: training/train_shots.py --no-detector on SP-09 labels
+    licence: proprietary (PitchVision)
+    build: uv run --project training python training/train_shots.py --no-detector
+    card: models/shots-gbm.md
+    format: pv-gbm/v1
+    classes: [main_wide, non_wide]
+    requires: []
+    eval: eval/results/shots_m1cv06_samples_colour.json  # 87.5 % — below the 95 % exit criterion: fallback only
