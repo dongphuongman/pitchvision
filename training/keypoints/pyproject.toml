@@ -1,0 +1,27 @@
+[project]
+name = "pitchvision-keypoints-training"
+version = "0.1.0"
+description = "YOLOv11-pose pitch keypoint fine-tune + ONNX export (M1-CV-05). Own uv project: Ultralytics (AGPL-3.0; used under the Ultralytics Enterprise licence, PO 05/10/2026) never enters cv-core, the shared training env or the worker image."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "ultralytics==8.4.173",     # pinned: export graph layout + training defaults are version-sensitive
+  "torch>=2.5",
+  "torchvision>=0.20",
+  "onnx>=1.17",
+  "onnxslim>=0.1.50",
+  "onnxruntime>=1.19",
+  "opencv-python-headless>=4.10",
+  "numpy>=1.26,<3",
+  "pyyaml>=6",
+  "cv-core",
+  "pitchvision-schemas",
+]
+
+[tool.uv]
+package = false
+# Ultralytics pulls opencv-python (GUI build); it would overwrite cv2 from the headless wheel cv-core uses.
+override-dependencies = ["opencv-python; sys_platform == 'never'"]
+
+[tool.uv.sources]
+cv-core = { path = "../../packages/cv-core", editable = true }
+pitchvision-schemas = { path = "../../packages/schemas", editable = true }
