@@ -1,0 +1,21 @@
+{
+  "processing": {
+    "title": "Processing",
+    "body": "Analysis runs in the background — you can leave this page and we'll notify you when it's ready.",
+    "progress": "Analysis progress"
+  },
+  "workspace": {
+    "crumb": "Library",
+    "breadcrumb": "Breadcrumb",
+    "tabs": {
+      "label": "Analysis sections",
+      "overview": "Overview"
+    },
+    "placeholder": "Video, tactical map and timeline arrive with the sync engine (M1-FE-08 – M1-FE-12).",
+    "position": "Position {{time}}"
+  },
+  "exports": {
+    "title": "Exports",
+    "empty": "No exports yet. Export a clip or data from an analyzed match."
+  }
+}

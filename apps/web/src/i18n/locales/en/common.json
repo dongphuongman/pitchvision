@@ -1,0 +1,82 @@
+{
+  "appName": "PitchVision",
+  "actions": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "retry": "Try again",
+    "save": "Save changes",
+    "back": "Back",
+    "continue": "Continue"
+  },
+  "nav": {
+    "primary": "Main navigation",
+    "home": "PitchVision home",
+    "library": "Library",
+    "exports": "Exports",
+    "newAnalysis": "New analysis",
+    "notifications": "Notifications",
+    "noNotifications": "You're all caught up.",
+    "account": "Account menu",
+    "profile": "Profile",
+    "organization": "Organization",
+    "billing": "Billing & usage",
+    "preferences": "Preferences",
+    "shortcuts": "Keyboard shortcuts",
+    "theme": "Theme",
+    "signOut": "Sign out"
+  },
+  "theme": {
+    "system": "System",
+    "dark": "Dark",
+    "light": "Light"
+  },
+  "units": {
+    "metric": "Metres",
+    "imperial": "Yards"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "openShortcuts": "Show keyboard shortcuts",
+    "newAnalysis": "New analysis",
+    "closeDialog": "Close dialog or drawer"
+  },
+  "status": {
+    "job": {
+      "queued": "Queued",
+      "ingesting": "Preparing",
+      "calibrating": "Calibrating",
+      "inferring": "Analyzing",
+      "postprocessing": "Finishing",
+      "done": "Done",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "video": {
+      "uploading": "Uploading",
+      "queued": "Queued",
+      "analyzing": "Analyzing",
+      "needs_team_confirmation": "Confirm teams",
+      "needs_calibration": "Calibrate pitch",
+      "ready": "Ready",
+      "ready_degraded": "Ready · Low pitch quality",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "shot": {
+      "main_wide": "Wide",
+      "close_up": "Close-up",
+      "replay": "Replay",
+      "other": "Other"
+    }
+  },
+  "soon": "Soon",
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you're looking for doesn't exist or was moved.",
+    "cta": "Go to library"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "body": "Something went wrong on our side. Please try again."
+  }
+}
