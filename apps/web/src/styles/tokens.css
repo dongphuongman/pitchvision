@@ -1,0 +1,98 @@
+/*
+ * PitchVision design tokens — extracted 1:1 from docs/prototype/index.html (visual source of truth).
+ * Short names mirror the prototype so the two can be diffed easily:
+ *   bg / s1..s3 = app background and surfaces 1..3, ln / ln2 = hairline / strong line,
+ *   fg / fg2 / fg3 = text primary / secondary / tertiary, ac = accent, dan = danger.
+ *
+ * Theme resolution (dark is the product default, as in the prototype):
+ *   1. :root                                   → dark
+ *   2. prefers-color-scheme: light (no override) → light
+ *   3. [data-theme="light"|"dark"] on <html>   → explicit user choice wins
+ */
+:root {
+  color-scheme: dark;
+  --bg: #0a0f14;
+  --s1: #10171f;
+  --s2: #151e28;
+  --s3: #1c2733;
+  --ln: #202d3a;
+  --ln2: #2b3a4a;
+  --fg: #e8eef5;
+  --fg2: #a3b3c4;
+  --fg3: #6f8296;
+  --ac: #3ddc84;
+  --ac-ink: #052412;
+  --info: #4da3ff;
+  --info-ink: #04121f;
+  --warn: #ffb648;
+  --dan: #ff6b6b;
+  --pro: #c49bff;
+
+  /* Pitch entities — fixed across themes (team colours are user-picked at SCR-14; these are defaults). */
+  --team-a: #4da3ff;
+  --team-b: #ff6b6b;
+  --referee: #f2c94c;
+  --ball: #ff8a3d;
+  --pitch: #1d4f28;
+
+  /* Toasts are always dark in the prototype, regardless of theme. */
+  --toast-bg: #1d2834;
+  --toast-fg: #e8eef5;
+  --toast-ln: #2b3a4a;
+
+  --overlay: rgba(3, 7, 11, 0.62);
+  --sh: 0 24px 64px rgba(0, 0, 0, 0.45);
+  --sh-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+
+  --font:
+    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --bg: #f3f5f8;
+    --s1: #ffffff;
+    --s2: #f7f9fb;
+    --s3: #edf1f5;
+    --ln: #e1e7ed;
+    --ln2: #cfd8e1;
+    --fg: #111c27;
+    --fg2: #4a5c6e;
+    --fg3: #7a8a9b;
+    --ac: #0f9d58;
+    --ac-ink: #ffffff;
+    --info: #1a73e8;
+    --info-ink: #ffffff;
+    --warn: #b26a00;
+    --dan: #d33b3b;
+    --pro: #7c4dd6;
+    --overlay: rgba(20, 30, 45, 0.38);
+    --sh: 0 24px 64px rgba(20, 30, 45, 0.18);
+    --sh-sm: 0 1px 3px rgba(20, 30, 45, 0.12);
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f3f5f8;
+  --s1: #ffffff;
+  --s2: #f7f9fb;
+  --s3: #edf1f5;
+  --ln: #e1e7ed;
+  --ln2: #cfd8e1;
+  --fg: #111c27;
+  --fg2: #4a5c6e;
+  --fg3: #7a8a9b;
+  --ac: #0f9d58;
+  --ac-ink: #ffffff;
+  --info: #1a73e8;
+  --info-ink: #ffffff;
+  --warn: #b26a00;
+  --dan: #d33b3b;
+  --pro: #7c4dd6;
+  --overlay: rgba(20, 30, 45, 0.38);
+  --sh: 0 24px 64px rgba(20, 30, 45, 0.18);
+  --sh-sm: 0 1px 3px rgba(20, 30, 45, 0.12);
+}
