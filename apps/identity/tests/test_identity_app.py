@@ -57,7 +57,12 @@ def test_openapi_covers_the_contract() -> None:
         ("post", "/api/v1/auth/verify-email/resend"), ("post", "/api/v1/auth/password/forgot"),
         ("post", "/api/v1/auth/password/reset"), ("get", "/api/v1/auth/oidc/google/start"),
         ("get", "/api/v1/auth/oidc/google/callback"), ("get", "/api/v1/me"), ("delete", "/api/v1/me/unverified"),
-        ("get", "/.well-known/jwks.json"),
+        ("post", "/api/v1/orgs"), ("get", "/api/v1/orgs/{org_id}"), ("patch", "/api/v1/orgs/{org_id}"),
+        ("get", "/api/v1/orgs/{org_id}/members"), ("patch", "/api/v1/orgs/{org_id}/members/{member_id}"),
+        ("delete", "/api/v1/orgs/{org_id}/members/{member_id}"), ("post", "/api/v1/orgs/{org_id}/invites"),
+        ("get", "/api/v1/orgs/{org_id}/invites"), ("post", "/api/v1/orgs/{org_id}/invites/{invite_id}/resend"),
+        ("delete", "/api/v1/orgs/{org_id}/invites/{invite_id}"), ("get", "/api/v1/invites/{token}"),
+        ("post", "/api/v1/invites/{token}/accept"), ("get", "/.well-known/jwks.json"),
     }  # fmt: skip
     actual = {(m, p) for p, ops in paths.items() for m in ops}
     assert expected <= actual, expected - actual

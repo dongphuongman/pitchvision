@@ -20,7 +20,7 @@ from pitchvision_identity.errors import PROBLEM_JSON, ProblemDetails, install_er
 from pitchvision_identity.mail import EmailSender, make_sender
 from pitchvision_identity.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
 from pitchvision_identity.ratelimit import MemoryRateLimiter, RateLimiter
-from pitchvision_identity.routers import auth, health, me, wellknown
+from pitchvision_identity.routers import auth, health, invites, me, orgs, wellknown
 from pitchvision_identity.security import KeyRing, PasswordHasher
 from pitchvision_identity.services.oidc import GoogleOidc
 from pitchvision_identity.settings import Settings
@@ -31,7 +31,7 @@ ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {"4XX": {"model": ProblemDeta
 
 def api_router() -> APIRouter:
     router = APIRouter(prefix=API_PREFIX, responses=ERROR_RESPONSES)
-    for r in (auth.router, me.router):
+    for r in (auth.router, me.router, orgs.router, invites.router):
         router.include_router(r)
     return router
 

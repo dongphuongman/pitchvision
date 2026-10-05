@@ -14,6 +14,7 @@ from pitchvision_identity.db.models import EmailToken, User
 from pitchvision_identity.errors import ApiError
 from pitchvision_identity.ratelimit import FORGOT, LOGIN_FAILURES, RESEND, enforce
 from pitchvision_identity.security import hash_token, new_token, normalize_email, utcnow
+from pitchvision_identity.services import invites as invite_svc
 from pitchvision_identity.services.sessions import (
     Issued,
     membership_out,
@@ -61,18 +62,34 @@ async def _consume_email_token(s: AsyncSession, raw: str, purpose: str) -> Email
 async def register(ctx: Ctx, body: schemas.RegisterIn, user_agent: str | None) -> Issued:
     email = normalize_email(body.email)
     password_hash = await ctx.hasher.hash(body.password)
+    verify_raw: str | None = None
     async with ctx.sm() as s, s.begin():
         if await s.scalar(select(User.id).where(User.email == email)):
             raise _email_taken()
-        user = User(name=body.name, email=email, password_hash=password_hash, signup_plan=body.plan)
+        invite = None
+        if body.invite_token:
+            invite = await invite_svc.load_acceptable(s, body.invite_token)
+            if invite.email != email:
+                raise invite_svc.email_mismatch()
+        user = User(
+            name=body.name,
+            email=email,
+            password_hash=password_hash,
+            signup_plan=body.plan,
+            email_verified_at=utcnow() if invite else None,  # the invite link proved the address
+        )
         s.add(user)
         try:
             await s.flush()
         except IntegrityError:
             raise _email_taken() from None
-        verify_raw = await _new_email_token(s, user.id, VERIFY, VERIFY_TTL)
-        issued = await open_session(s, ctx, user, user_agent=user_agent)
-    await mail.send_quietly(ctx.mailer, mail.verify_email(ctx.settings.web_url, email, user.name, verify_raw))
+        if invite is not None:
+            await invite_svc.accept_rows(s, invite, user)
+        else:
+            verify_raw = await _new_email_token(s, user.id, VERIFY, VERIFY_TTL)
+        issued = await open_session(s, ctx, user, [invite.org_id if invite else None], user_agent=user_agent)
+    if verify_raw:
+        await mail.send_quietly(ctx.mailer, mail.verify_email(ctx.settings.web_url, email, user.name, verify_raw))
     return issued
 
 

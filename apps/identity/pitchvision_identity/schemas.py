@@ -31,6 +31,7 @@ class RegisterIn(_In):
     name: Name
     email: EmailStr
     password: Password
+    invite_token: Token | None = None
     plan: Annotated[str, Field(max_length=32)] | None = None
 
 
