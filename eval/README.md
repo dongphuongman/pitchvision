@@ -11,6 +11,7 @@ Plain scripts (not a workspace member), run from the repo root with `uv run pyth
 | `results/` | Committed eval summaries (JSON, no frames): `shots_m1cv06_*.json` = M1-CV-06 shot classifier |
 | `run_detection.py` | AP@0.5 per class + mAP@50 from COCO GT + COCO results |
 | `run_teams.py` | Team accuracy (0/1 permutation-invariant per match) |
+| `run_homography.py` | Pitch calibration (M1-CV-05/18): line-alignment `h_quality` on golden frames + (with GT) keypoint / field error in metres; `--model` (cv_core pipeline) or `--pred`; `--sp09` main_wide frames; `--render-dir` overlays (refuses paths inside the repo) |
 
 Every script prints per match, per stratum (pooled, not mean of means) and overall, and writes JSON.
 Raw videos are **not** in the repo: set `PITCHVISION_GOLDEN_DIR` (default `<repo>/data/golden`);
@@ -45,5 +46,29 @@ with the GT's ids. Matching is COCO-style greedy at IoU ≥ 0.5, 101-point AP, n
 `obj` identifies the GT box (CVAT annotation id or track id); `team` is 0/1, or -1 for referees /
 not a team player (skipped). The predictor reports a team per GT box; a missing prediction counts as wrong.
 
-**Homography** — `pveval.metrics.reprojection_errors(H, src_px, dst_m)` + `homography_report(per_frame_mean_errors, threshold_m)`;
-the label file (pitch keypoints per frame, CVAT points) is defined with M1-CV-05.
+**Homography** — GT pitch keypoints (CVAT / Label Studio exports convert with `training/keypoints/convert.py`):
+
+```json
+{"format": "pv-pitch-keypoints/v1", "template": "fifa-105x68",
+ "pitch_size": {"BukNW8GRI5A": [105, 68]},
+ "frames": [{"video": "BukNW8GRI5A", "t_ms": 65000, "width": 1280, "height": 720, "image": "BukNW8GRI5A_0065000.jpg",
+             "keypoints": [[13, 731.2, 252.0], [14, 728.4, 323.5, 1]]}]}
+```
+
+`keypoints` = `[idx, x, y, v?]`: `idx` is the `cv_core.pitch.template` index (32 points, roboflow order, table in
+`cv_core/pitch/template.py`), x/y pixels of a `width × height` frame on the normalised timeline (`t_ms`, or
+`frame_idx` at 25 fps), `v` 2 visible / 1 occluded (default 2). Only in-frame points are listed. `pitch_size`
+(optional, per video) when the venue is not 105 × 68 m. Labelling rules: `training/keypoints/README.md`.
+
+Predictions `{"format": "pv-homographies/v1", "frames": [{"video", "t_ms", "width", "height", "H", "h_quality"?,
+"reason"?}]}` with `H` the 3×3 **image → pitch metres** matrix (null = no homography); written by
+`run_homography.py --write-pred`.
+
+Metrics (`pveval.metrics`): `h_quality` = line alignment (`cv_core.pitch.lines`: projected template vs detected white
+lines, F0.5 of per-marking precision and recall; frames without H = 0) — never the fit residual on the keypoints,
+which SP-03 showed to be meaningless; `reprojection_errors` at GT keypoints (m); `field_errors` = metre error vs the
+GT homography (fit to ≥ 4 well-spread GT points) over a pixel grid of the visible pitch, i.e. the error a player's
+foot gets; `homography_report(..., 1.0)` → share of frames < 1 m (M1-CV-18 gate ≥ 85 %, no-H frames fail);
+`quality_report` → h_quality histogram / shares.
+
+Baseline (internal, spike roboflow model, no frames): `results/homography_m1cv05_baseline_rf_spike.json`.

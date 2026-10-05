@@ -246,6 +246,49 @@ def homography_report(frame_errors: Sequence[float | None], threshold: float = 1
     )
 
 
+def field_errors(H_pred: np.ndarray, H_gt: np.ndarray, size: tuple[int, int], *, step_px: int = 32,
+                 pitch: tuple[float, float] = (105.0, 68.0), margin_m: float = 2.0) -> np.ndarray:
+    """Pitch-metre error of ``H_pred`` vs ``H_gt`` (both image→pitch) over a pixel grid of the frame, keeping the
+    grid points the GT puts on the pitch (± ``margin_m``): the error a player's foot anywhere on the visible
+    pitch would get (M1-CV-18). Empty array if no grid point is on the pitch."""
+    w, h = size
+    gx, gy = np.meshgrid(np.arange(step_px / 2, w, step_px), np.arange(step_px / 2, h, step_px))
+    img = np.c_[gx.ravel(), gy.ravel()]
+    hom = np.c_[img, np.ones(len(img))] @ np.asarray(H_gt, float).T
+    with np.errstate(divide="ignore", invalid="ignore"):
+        gt = hom[:, :2] / hom[:, 2:3]
+    front = np.sign(hom[:, 2]) == np.sign(np.median(hom[:, 2]))
+    on = front & (gt[:, 0] >= -margin_m) & (gt[:, 0] <= pitch[0] + margin_m) \
+        & (gt[:, 1] >= -margin_m) & (gt[:, 1] <= pitch[1] + margin_m)
+    if not on.any():
+        return np.zeros(0)
+    return np.linalg.norm(project(H_pred, img[on]) - gt[on], axis=1)
+
+
+@dataclass(frozen=True)
+class QualityReport:
+    """Distribution of ``h_quality`` over evaluated frames (frames without H count as 0)."""
+
+    n: int
+    n_with_h: int
+    mean: float
+    median: float
+    share_at_least: dict[float, float]   # threshold → share of ALL frames with quality ≥ threshold
+    histogram: list[int]                 # counts per 0.1 bin, [0, 0.1) … [0.9, 1.0]
+
+
+def quality_report(qualities: Sequence[float | None], thresholds: Sequence[float] = (0.5, 0.7, 0.85)) -> QualityReport:
+    q = np.array([0.0 if v is None else v for v in qualities], float)
+    n = len(q)
+    hist = np.histogram(np.clip(q, 0, 0.9999), bins=10, range=(0, 1))[0].tolist() if n else [0] * 10
+    return QualityReport(
+        n=n, n_with_h=sum(v is not None for v in qualities),
+        mean=float(q.mean()) if n else float("nan"), median=float(np.median(q)) if n else float("nan"),
+        share_at_least={t: float((q >= t).mean()) if n else float("nan") for t in thresholds},
+        histogram=[int(c) for c in hist],
+    )
+
+
 # --- strata ---------------------------------------------------------------------------------------
 
 

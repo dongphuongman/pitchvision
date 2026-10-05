@@ -1,0 +1,45 @@
+# YOLOv11-pose pitch keypoints for PitchVision (M1-CV-05 / M1-CV-19). Recipe: training/keypoints/README.md.
+# Everything under `train:` is passed to ultralytics `YOLO(base).train(**train)`; override with --set key=value.
+# Ultralytics is AGPL-3.0: used under the Ultralytics Enterprise licence (PO 05/10/2026, sign before public beta).
+
+base: yolo11m-pose.pt          # COCO-pose pretrained (17 kpts); the head is rebuilt for kpt_shape [32, 3]
+data: data/kp/yolo/data.yaml   # from convert.py yolo (flip_idx = cv_core.pitch.FLIP_INDEX)
+
+train:
+  imgsz: 960                   # 1280×720 frames letterboxed to 960: ~2.4 px/m at the far touchline vs 1.6 at 640
+  epochs: 150
+  patience: 40
+  batch: 16                    # 4090 24 GB @960, AMP
+  optimizer: AdamW
+  lr0: 0.001
+  lrf: 0.05
+  cos_lr: true
+  warmup_epochs: 3
+  weight_decay: 0.0005
+  pose: 18.0                   # keypoint location loss gain (default 12): localisation is what H needs
+  kobj: 2.0                    # keypoint objectness gain (default 1): out-of-frame / unlabelled (v=0) → conf 0
+  # augmentation — the pitch is one rigid instance: no mosaic/mixup (they cut the geometry into pieces)
+  mosaic: 0.0
+  close_mosaic: 0
+  mixup: 0.0
+  copy_paste: 0.0
+  fliplr: 0.5                  # left/right mirror with flip_idx (corner_tl ↔ corner_tr …)
+  flipud: 0.0
+  degrees: 3.0                 # small roll
+  translate: 0.15              # pans: points leave the frame → v=0 handled by Ultralytics
+  scale: 0.4                   # zoom range of the main camera
+  shear: 0.0
+  perspective: 0.0003
+  hsv_h: 0.02                  # grass hue / floodlights / shadows
+  hsv_s: 0.6
+  hsv_v: 0.4
+  rect: false
+  cache: false
+  workers: 8
+  amp: true
+  seed: 0
+  deterministic: false
+  plots: true
+  device: auto                 # auto = cuda:0 > cpu (MPS backward is not reliable on torch 2.14)
+  project: runs/pitch-kp
+  name: yolo11m-pose-pv
