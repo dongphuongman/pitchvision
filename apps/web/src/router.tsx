@@ -10,7 +10,14 @@ import {
 } from '@tanstack/react-router';
 import { AppShell } from '@/app/AppShell';
 import { RootLayout } from '@/app/RootLayout';
-import { ErrorPage, NotFoundPage } from '@/app/StatusPages';
+import { ErrorPage, FullPageSpinner, NotFoundPage } from '@/app/StatusPages';
+import { nextAfterAuth, safeReturnTo } from '@/auth/redirects';
+import { ensureSession, switchOrganization, useAuthStore } from '@/auth/session';
+import {
+  ONBOARDING_STEPS,
+  useOnboardingDraft,
+  type OnboardingStep,
+} from '@/features/onboarding/draft';
 import { SETTINGS_SECTIONS, type SettingsSection } from '@/features/settings/sections';
 import { WORKSPACE_TABS, type WorkspaceTab } from '@/features/video/tabs';
 
@@ -20,6 +27,29 @@ const LibraryPage = lazyRouteComponent(
   'LibraryPage',
 );
 const SignInPage = lazyRouteComponent(() => import('@/features/auth/SignInPage'), 'SignInPage');
+const SignUpPage = lazyRouteComponent(() => import('@/features/auth/SignUpPage'), 'SignUpPage');
+const ForgotPasswordPage = lazyRouteComponent(
+  () => import('@/features/auth/ForgotPasswordPage'),
+  'ForgotPasswordPage',
+);
+const ResetPasswordPage = lazyRouteComponent(
+  () => import('@/features/auth/ResetPasswordPage'),
+  'ResetPasswordPage',
+);
+const VerifyEmailPage = lazyRouteComponent(
+  () => import('@/features/auth/VerifyEmailPage'),
+  'VerifyEmailPage',
+);
+const AuthCallbackPage = lazyRouteComponent(
+  () => import('@/features/auth/AuthCallbackPage'),
+  'AuthCallbackPage',
+);
+const InvitePage = lazyRouteComponent(() => import('@/features/auth/InvitePage'), 'InvitePage');
+const OnboardingPage = lazyRouteComponent(
+  () => import('@/features/onboarding/OnboardingPage'),
+  'OnboardingPage',
+);
+const LegalPage = lazyRouteComponent(() => import('@/features/legal/LegalPage'), 'LegalPage');
 const ExportsPage = lazyRouteComponent(
   () => import('@/features/exports/ExportsPage'),
   'ExportsPage',
@@ -41,6 +71,12 @@ const WorkspacePage = lazyRouteComponent(
  * Code-based route tree (no codegen step). Route ids used with getRouteApi():
  *   /_app/library, /_app/videos/$videoId/$tab, /_app/settings/$section, /signin …
  * Phase C screens (Live) are intentionally absent.
+ *
+ * Auth rules (UIUX §3.1, SCR-02 E05):
+ *   - every navigation first waits for the one-time silent refresh (ensureSession);
+ *   - app routes: signed out → /signin?return_to=<here>; unverified → /verify-email;
+ *     no organization → /onboarding/organization; return_to is carried along;
+ *   - signed-in users opening /signin or /signup go straight to their destination.
  */
 
 export interface RouterContext {
@@ -50,8 +86,38 @@ export interface RouterContext {
 export type AppDialog = 'shortcuts';
 export type NewAnalysisSource = 'youtube' | 'upload';
 
+interface ReturnToSearch {
+  return_to?: string;
+}
+
+function str(v: unknown): string | undefined {
+  return typeof v === 'string' && v !== '' ? v : undefined;
+}
+
+/** Only same-origin relative paths survive (open-redirect guard). */
+function returnToSearch(s: Record<string, unknown>): ReturnToSearch {
+  return { return_to: safeReturnTo(s.return_to) };
+}
+
+/** Signed-in users don't need the public auth forms: send them where they belong. */
+function redirectIfSignedIn(returnTo: string | undefined): void {
+  const auth = useAuthStore.getState();
+  if (auth.status === 'authenticated') throw redirect({ href: nextAfterAuth(auth, returnTo) });
+}
+
+function requireSignedIn(href: string) {
+  const auth = useAuthStore.getState();
+  if (auth.status !== 'authenticated' || !auth.user) {
+    throw redirect({ to: '/signin', search: { return_to: safeReturnTo(href) } });
+  }
+  return { ...auth, user: auth.user };
+}
+
 const rootRoute = createRootRouteWithContext<RouterContext>()({
+  // Silent refresh on app load: the session (if any) is known before any guard runs.
+  beforeLoad: () => ensureSession(),
   component: RootLayout,
+  pendingComponent: FullPageSpinner,
   notFoundComponent: NotFoundPage,
   errorComponent: ErrorPage,
 });
@@ -68,10 +134,126 @@ const indexRoute = createRoute({
 const signInRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/signin',
-  validateSearch: (s: Record<string, unknown>): { return_to?: string } => ({
-    return_to: typeof s.return_to === 'string' ? s.return_to : undefined,
+  validateSearch: (s: Record<string, unknown>): ReturnToSearch & { email?: string } => ({
+    ...returnToSearch(s),
+    email: str(s.email),
   }),
+  beforeLoad: ({ search }) => redirectIfSignedIn(search.return_to),
   component: SignInPage,
+});
+
+// SCR-03 Sign up: /signup?invite=&plan=&name=&return_to=
+const signUpRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/signup',
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): ReturnToSearch & { invite?: string; plan?: string; name?: string } => ({
+    ...returnToSearch(s),
+    invite: str(s.invite),
+    plan: s.plan === 'free' || s.plan === 'pro' || s.plan === 'team' ? s.plan : undefined,
+    name: str(s.name),
+  }),
+  beforeLoad: ({ search }) =>
+    redirectIfSignedIn(
+      search.invite ? `/invite/${encodeURIComponent(search.invite)}` : search.return_to,
+    ),
+  component: SignUpPage,
+});
+
+// SCR-04 Forgot password (email prefilled from SCR-02).
+const forgotRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  validateSearch: (s: Record<string, unknown>): { email?: string } => ({ email: str(s.email) }),
+  component: ForgotPasswordPage,
+});
+
+// SCR-05 Reset password (link from the email; works signed in or out).
+const resetRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  validateSearch: (s: Record<string, unknown>): { token?: string } => ({ token: str(s.token) }),
+  component: ResetPasswordPage,
+});
+
+// SCR-06 Verify email: ?token= (email link, public) or the inbox screen (signed in, unverified).
+const verifyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/verify-email',
+  validateSearch: (s: Record<string, unknown>): ReturnToSearch & { token?: string } => ({
+    ...returnToSearch(s),
+    token: str(s.token),
+  }),
+  beforeLoad: ({ search, location }) => {
+    if (search.token) return;
+    const auth = requireSignedIn(location.href);
+    if (auth.user.email_verified) throw redirect({ href: nextAfterAuth(auth, search.return_to) });
+  },
+  component: VerifyEmailPage,
+});
+
+// Landing page after Google OIDC (identity → /auth/callback#…).
+const authCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/auth/callback',
+  component: AuthCallbackPage,
+});
+
+// SCR-07 Onboarding wizard: /onboarding/organization → /region → /preferences.
+const onboardingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/onboarding/$step',
+  params: {
+    parse: (p: { step: string }): { step: OnboardingStep } => {
+      if (!(ONBOARDING_STEPS as readonly string[]).includes(p.step)) throw notFound();
+      return { step: p.step as OnboardingStep };
+    },
+    stringify: (p: { step: OnboardingStep }) => ({ step: p.step }),
+  },
+  validateSearch: returnToSearch,
+  beforeLoad: ({ params, search, location }) => {
+    const auth = requireSignedIn(location.href);
+    if (!auth.user.email_verified) {
+      throw redirect({ to: '/verify-email', search: { return_to: search.return_to } });
+    }
+    const draft = useOnboardingDraft.getState();
+    const hasOrg = auth.memberships.length > 0;
+    if (params.step === 'preferences') {
+      // Step 3 needs an org (created at step 2, or joined through an invitation).
+      if (!hasOrg) {
+        throw redirect({ to: '/onboarding/$step', params: { step: 'organization' }, search });
+      }
+      return;
+    }
+    // Already a member somewhere and not in the middle of this wizard → nothing to set up.
+    if (hasOrg && !draft.createdOrgId) {
+      throw redirect({ href: nextAfterAuth(auth, search.return_to) });
+    }
+    if (params.step === 'region' && !draft.name) {
+      throw redirect({ to: '/onboarding/$step', params: { step: 'organization' }, search });
+    }
+  },
+  component: OnboardingPage,
+});
+
+// SCR-52 Accept invitation (public; the page handles signed-in / signed-out states).
+const inviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/invite/$token',
+  component: InvitePage,
+});
+
+// SCR-53 Legal (static, public).
+const termsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/terms',
+  component: () => <LegalPage doc="terms" />,
+});
+const privacyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/privacy',
+  component: () => <LegalPage doc="privacy" />,
 });
 
 // Authenticated app layout with the global top bar (G). `?dialog=` hosts app-wide dialogs.
@@ -81,6 +263,23 @@ const appRoute = createRoute({
   validateSearch: (s: Record<string, unknown>): { dialog?: AppDialog } => ({
     dialog: s.dialog === 'shortcuts' ? 'shortcuts' : undefined,
   }),
+  beforeLoad: async ({ location }) => {
+    const auth = requireSignedIn(location.href);
+    const returnTo = safeReturnTo(location.href);
+    if (!auth.user.email_verified) {
+      throw redirect({ to: '/verify-email', search: { return_to: returnTo } });
+    }
+    const first = auth.memberships[0];
+    if (!first) {
+      throw redirect({
+        to: '/onboarding/$step',
+        params: { step: 'organization' },
+        search: { return_to: returnTo },
+      });
+    }
+    // Member somewhere but the token has no active org: activate the first membership.
+    if (!auth.activeOrgId) await switchOrganization(first.org_id);
+  },
   component: AppShell,
 });
 
@@ -187,6 +386,15 @@ const devRoutes = import.meta.env.DEV
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
+  signUpRoute,
+  forgotRoute,
+  resetRoute,
+  verifyRoute,
+  authCallbackRoute,
+  onboardingRoute,
+  inviteRoute,
+  termsRoute,
+  privacyRoute,
   appRoute.addChildren([
     libraryRoute,
     newRoute,
@@ -205,6 +413,7 @@ export function createAppRouter(opts: { queryClient: QueryClient; history?: Rout
     context: { queryClient: opts.queryClient },
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0, // TanStack Query owns caching
+    defaultPendingMs: 300,
     scrollRestoration: true,
   });
 }

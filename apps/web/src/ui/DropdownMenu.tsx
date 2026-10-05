@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-react';
 import { DropdownMenu as RadixMenu } from 'radix-ui';
 import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
@@ -53,6 +54,45 @@ export const DropdownMenuItem = forwardRef<HTMLDivElement, DropdownMenuItemProps
     );
   },
 );
+
+/** Nested menu trigger (e.g. G.E13 "Switch organization ▸"). */
+export const DropdownMenuSubTrigger = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<typeof RadixMenu.SubTrigger> & { icon?: ReactNode }
+>(function DropdownMenuSubTrigger({ className, icon, children, ...rest }, ref) {
+  return (
+    <RadixMenu.SubTrigger
+      ref={ref}
+      className={cn(menuItemClasses, 'data-[state=open]:bg-surface-3', className)}
+      {...rest}
+    >
+      {icon && (
+        <span aria-hidden="true" className="flex">
+          {icon}
+        </span>
+      )}
+      <span className="flex-1">{children}</span>
+      <ChevronRight size={15} aria-hidden="true" className="ml-auto text-fg-3" />
+    </RadixMenu.SubTrigger>
+  );
+});
+
+export const DropdownMenuSubContent = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<typeof RadixMenu.SubContent>
+>(function DropdownMenuSubContent({ className, sideOffset = 6, ...rest }, ref) {
+  return (
+    <RadixMenu.Portal>
+      <RadixMenu.SubContent
+        ref={ref}
+        sideOffset={sideOffset}
+        collisionPadding={8}
+        className={cn(menuContentClasses, className)}
+        {...rest}
+      />
+    </RadixMenu.Portal>
+  );
+});
 
 export function DropdownMenuLabel({
   className,

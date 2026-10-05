@@ -20,6 +20,7 @@
     "test": "vitest",
     "gen": "node scripts/gen.mjs all",
     "gen:api": "node scripts/gen.mjs openapi",
+    "gen:identity": "node scripts/gen.mjs identity",
     "gen:schemas": "node scripts/gen.mjs schemas",
     "gen:check": "node scripts/gen.mjs all --check"
   },
@@ -58,6 +59,7 @@
     "globals": "^17.13.0",
     "jsdom": "^30.1.2",
     "json-schema-to-typescript": "^16.0.0",
+    "msw": "^3.0.2",
     "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",

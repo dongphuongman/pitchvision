@@ -23,8 +23,36 @@
     "preferences": "Preferences",
     "shortcuts": "Keyboard shortcuts",
     "theme": "Theme",
+    "help": "Help & docs",
+    "switchOrg": "Switch organization",
+    "currentOrg": "Current organization",
+    "orgSwitched": "Switched to {{org}}.",
+    "orgSwitchFailed": "Couldn't switch organization. Try again.",
     "signOut": "Sign out"
   },
+  "signOutDialog": {
+    "title": "An upload is in progress",
+    "body": "An upload is in progress — signing out will cancel it.",
+    "stay": "Stay",
+    "leave": "Discard & sign out"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "editor": "Editor",
+    "viewer": "Viewer"
+  },
+  "regions": {
+    "eu": "European Union",
+    "us": "United States"
+  },
+  "legal": {
+    "terms": "Terms",
+    "privacy": "Privacy"
+  },
+  "signIn": "Sign in",
+  "goToLibrary": "Go to library",
+  "loadingApp": "Loading PitchVision…",
   "theme": {
     "system": "System",
     "dark": "Dark",

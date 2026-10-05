@@ -3,14 +3,16 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { msw } from 'msw/vite';
 import { defineConfig } from 'vite';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
   version: string;
 };
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
+export default defineConfig(({ command }) => ({
+  // msw: serves mockServiceWorker.js for `VITE_MOCK_API=1 pnpm dev`; never part of a build.
+  plugins: [react(), tailwindcss(), ...(command === 'serve' ? [msw({ mode: 'worker-only' })] : [])],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
@@ -28,5 +30,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     restoreMocks: true,
+    // Full-app flows (router + lazy chunks + MSW + user-event typing) run longer than 5 s
+    // when the whole suite shares the CPU.
+    testTimeout: 15_000,
   },
-});
+}));
