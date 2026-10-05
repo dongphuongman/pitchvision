@@ -1,0 +1,59 @@
+{
+  "progress": "Step {{step}} of {{total}}",
+  "org": {
+    "title": "Set up your organization",
+    "subtitle": "This is where your team's matches live.",
+    "name": "Organization name",
+    "namePlaceholder": "Riverside FC Academy",
+    "nameRequired": "Enter your organization's name.",
+    "kind": "Type",
+    "kindLocked": "The type can't be changed after the organization is created.",
+    "kinds": {
+      "club": "Club",
+      "academy": "Academy",
+      "media": "Media",
+      "agency": "Agency",
+      "individual": "Individual",
+      "other": "Other"
+    },
+    "role": "Your role",
+    "rolePlaceholder": "Select your role",
+    "roles": {
+      "head_coach": "Head coach",
+      "coach": "Coach",
+      "analyst": "Analyst",
+      "scout": "Scout",
+      "director": "Technical director",
+      "journalist": "Journalist",
+      "player": "Player",
+      "other": "Other"
+    }
+  },
+  "region": {
+    "title": "Where should we store your data?",
+    "subtitle": "Videos and tracking data stay in this region.",
+    "options": {
+      "eu": { "name": "European Union", "detail": "Frankfurt · GDPR" },
+      "us": { "name": "United States", "detail": "Virginia" }
+    },
+    "suggested": "Suggested for you",
+    "required": "Choose where to store your data.",
+    "permanent": "This can't be changed later.",
+    "learnMore": "Learn more",
+    "learnMoreBody": "Data residency: your videos, tracking data and reports never leave the selected region.",
+    "confirm": "Store data in the {{region}}? This is permanent.",
+    "confirmCta": "Confirm",
+    "locked": "Your organization's data is stored in the {{region}}. This can't be changed."
+  },
+  "prefs": {
+    "title": "Preferences",
+    "subtitle": "You can change these anytime.",
+    "language": "Language",
+    "units": "Units",
+    "metric": "Metric (m, km/h)",
+    "imperial": "Imperial (yd, mph)",
+    "region": "Data region",
+    "finish": "Finish setup",
+    "welcome": "Welcome to PitchVision"
+  }
+}
