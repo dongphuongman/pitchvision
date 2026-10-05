@@ -2,13 +2,14 @@
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 
-def make_engine(url: str, **kwargs: object) -> AsyncEngine:
-    return create_async_engine(url, pool_pre_ping=True, **kwargs)  # type: ignore[arg-type]
+def make_engine(url: str, **kwargs: Any) -> AsyncEngine:
+    return create_async_engine(url, pool_pre_ping=True, **kwargs)
 
 
 def make_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
