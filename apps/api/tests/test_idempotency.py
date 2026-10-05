@@ -45,7 +45,7 @@ async def create_video(body: CreateIn, idem: Idem, session: DbSession, principal
 
 @pytest.fixture
 async def client(migrated: Db) -> AsyncIterator[httpx.AsyncClient]:
-    app = create_app(Settings(env="local", database_url=migrated.app_url))
+    app = create_app(Settings(env="local", dev_auth=True, database_url=migrated.app_url))
     app.include_router(router, prefix=API_PREFIX)
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:

@@ -28,7 +28,7 @@ class Recorder:
 
 @pytest.mark.parametrize(
     ("role", "queue"),
-    [("orchestrator", "orchestrate"), ("cpu", "cpu"), ("gpu", "gpu"), ("  CPU ", "cpu")],
+    [("orchestrator", "orchestrate"), ("cpu", "cpu"), ("gpu", "gpu"), ("ingest", "ingest"), ("  CPU ", "cpu")],
 )
 def test_celery_roles_start_worker_on_their_queue(role: str, queue: str) -> None:
     run = Recorder()
@@ -41,6 +41,7 @@ def test_celery_roles_start_worker_on_their_queue(role: str, queue: str) -> None
 
 def test_gpu_defaults_to_one_process_and_env_overrides() -> None:
     assert "--concurrency=1" in celery_worker_argv(Role.GPU, {})
+    assert "--concurrency=4" in celery_worker_argv(Role.INGEST, {})
     assert not any(a.startswith("--concurrency") for a in celery_worker_argv(Role.CPU, {}))
     assert "--concurrency=4" in celery_worker_argv(Role.CPU, {"WORKER_CONCURRENCY": "4"})
 
@@ -50,7 +51,7 @@ def test_missing_or_unknown_role_errors(env: dict[str, str], capsys: pytest.Capt
     run = Recorder()
     assert main([], env, run_celery=run) == EXIT_BAD_ROLE
     assert run.argv is None
-    assert "orchestrator, cpu, gpu, live, runpod" in capsys.readouterr().err
+    assert "orchestrator, cpu, gpu, ingest, live, runpod" in capsys.readouterr().err
     with pytest.raises(UnknownRoleError):
         parse_role(env)
 
@@ -70,7 +71,7 @@ def test_healthcheck_reports_ping_result() -> None:
 
 def test_celery_app_declares_queues_and_ping_task() -> None:
     app = create_app("memory://")
-    assert {q.name for q in app.conf.task_queues} == set(QUEUES) == {"orchestrate", "cpu", "gpu"}
+    assert {q.name for q in app.conf.task_queues} == set(QUEUES) == {"orchestrate", "cpu", "gpu", "ingest"}
     app.loader.import_default_modules()
     from pitchvision_worker.tasks import ping
 

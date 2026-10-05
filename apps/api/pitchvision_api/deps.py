@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pitchvision_api.auth import Principal, current_principal
+from pitchvision_api.auth import Principal, Role, current_principal, require_role
 from pitchvision_api.db import org_session
 from pitchvision_api.settings import Settings
 
@@ -16,6 +16,7 @@ def get_settings(request: Request) -> Settings:
 
 
 CurrentPrincipal = Annotated[Principal, Depends(current_principal)]
+EditorPrincipal = Annotated[Principal, Depends(require_role(Role.EDITOR))]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 

@@ -5,6 +5,8 @@ One image, three Celery roles, one queue each:
 - ``orchestrate`` — orchestrator: builds the job DAG, fans out segment tasks.
 - ``cpu``         — cpu-worker: ffmpeg/ffprobe, stitching, stats, exports, LLM calls.
 - ``gpu``         — gpu-worker: segment inference (TensorRT).
+- ``ingest``      — ingest-worker: YouTube probe/download (S1). Own queue so it can run on a host with a
+                    different egress IP (M1-OPS-06, SP-10: datacenter IPs untested against bot-checks).
 
 W1 skeleton: only the queues and a ``ping`` task exist so containers start and can be
 health-checked. Pipeline tasks land with the M1-BE/M1-CV PRs.
@@ -21,7 +23,12 @@ from kombu import Queue
 QUEUE_ORCHESTRATE = "orchestrate"
 QUEUE_CPU = "cpu"
 QUEUE_GPU = "gpu"
-QUEUES: tuple[str, ...] = (QUEUE_ORCHESTRATE, QUEUE_CPU, QUEUE_GPU)
+QUEUE_INGEST = "ingest"
+QUEUES: tuple[str, ...] = (QUEUE_ORCHESTRATE, QUEUE_CPU, QUEUE_GPU, QUEUE_INGEST)
+
+# Redis redelivers an unacked (acks_late) task after this long; must exceed the longest task (3 h match
+# download on a slow egress), or a second worker starts the same download.
+VISIBILITY_TIMEOUT_S = 6 * 3600
 
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 
@@ -38,6 +45,8 @@ def create_app(broker_url: str | None = None) -> Celery:
     app.conf.update(
         task_queues=[Queue(name) for name in QUEUES],
         task_default_queue=QUEUE_CPU,
+        task_routes={"ingest.*": {"queue": QUEUE_INGEST}},
+        broker_transport_options={"visibility_timeout": VISIBILITY_TIMEOUT_S},
         task_serializer="json",
         result_serializer="json",
         accept_content=["json"],
