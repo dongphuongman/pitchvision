@@ -432,6 +432,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/usage': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Usage
+     * @description Minutes used this calendar month (UTC) by analysis jobs that are running or done, the plan's limit and when
+     *     it resets. The plan comes from the access token (a change shows after the next token refresh).
+     */
+    get: operations['get_usage_api_v1_usage_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/videos': {
     parameters: {
       query?: never;
@@ -1663,6 +1684,29 @@ export interface components {
       /** Width */
       width: number | null;
     };
+    /** Usage */
+    Usage: {
+      /** Export Max Height */
+      export_max_height: number;
+      /** Export Watermark */
+      export_watermark: boolean;
+      /** Minutes Limit */
+      minutes_limit: number;
+      /** Minutes Used */
+      minutes_used: number;
+      /**
+       * Period Start
+       * Format: date-time
+       */
+      period_start: string;
+      /** Plan */
+      plan: string;
+      /**
+       * Resets At
+       * Format: date-time
+       */
+      resets_at: string;
+    };
     /** VideoError */
     VideoError: {
       /** Code */
@@ -2738,6 +2782,44 @@ export interface operations {
         };
         content: {
           'application/json': Record<string, never>;
+        };
+      };
+    };
+  };
+  get_usage_api_v1_usage_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Usage'];
         };
       };
     };

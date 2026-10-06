@@ -18,6 +18,7 @@ from pitchvision_api.db.models import Video
 from pitchvision_api.errors import ApiError
 from pitchvision_api.repositories import videos as repo
 from pitchvision_api.schemas.videos import FromUrlIn, UrlPreview
+from pitchvision_api.services import quota
 from pitchvision_api.services.tasks import (
     QUEUE_INGEST,
     TASK_DOWNLOAD,
@@ -127,6 +128,7 @@ async def preview(tasks: TaskQueue, settings: Settings, url: str) -> UrlPreview:
 
 async def create_from_url(session: AsyncSession, tasks: TaskQueue, principal: Principal, body: FromUrlIn) -> Video:
     ref = parse(body.url)
+    await quota.ensure(session, principal)
     video = await repo.add(
         session,
         Video(

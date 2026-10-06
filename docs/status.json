@@ -182,6 +182,10 @@
     {
       "date": "2026-10-06",
       "text": "M1-BE-17 export S11 (backend): bảng exports + API (tạo/danh sách/huỷ/thử lại/xoá/tải về presigned 15 phút), worker render MP4 H.264 (box/nhãn/bóng/trails, panel sơ đồ sân, watermark gói Free, 1080p chỉ Pro, hết hạn 7 ngày + sweep dọn file). Thêm gói Free/Pro/Team (subscriptions, claim plan). Python 873 test."
+    },
+    {
+      "date": "2026-10-06",
+      "text": "M1-BE-18 quota phút (backend): tính phút đã dùng theo tháng từ job analyze (job lỗi/huỷ, job phái sinh không tính), chặn 402 khi upload/nhập YouTube/tạo job/thử lại vượt hạn mức; GET /usage cho đồng hồ G.E06."
     }
   ]
 }

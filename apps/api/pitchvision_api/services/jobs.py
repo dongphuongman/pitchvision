@@ -24,6 +24,7 @@ from pitchvision_api.errors import ApiError
 from pitchvision_api.repositories import jobs as repo
 from pitchvision_api.repositories import videos as videos_repo
 from pitchvision_api.schemas.jobs import JobCreate, job_error
+from pitchvision_api.services import quota
 from pitchvision_api.services.tasks import (
     QUEUE_ORCHESTRATE,
     TASK_CANCEL_JOB,
@@ -93,6 +94,7 @@ async def create(
         )
     if (active := await repo.active_for_video(session, principal.org_id, video.id)) is not None:
         raise _active_conflict(active)
+    await quota.ensure(session, principal, quota.minutes_of(video.duration_ms))
     try:
         job = await repo.add(
             session,
@@ -210,6 +212,9 @@ async def retry(session: AsyncSession, tasks: TaskQueue, principal: Principal, j
         )
     if (active := await repo.active_for_video(session, principal.org_id, job.video_id)) is not None:
         raise _active_conflict(active)
+    if (job.detail or {}).get("kind", "analyze") == "analyze":  # a failed job wasn't charged; its retry is
+        video = await videos_repo.get(session, principal.org_id, job.video_id)
+        await quota.ensure(session, principal, quota.minutes_of(video.duration_ms if video else None))
     await repo.reset_failed_tasks(session, principal.org_id, job.id)
     job.status = JobStatus.queued.value
     job.stage = None  # the WS snapshot / latest_job must not report the failed stage as running

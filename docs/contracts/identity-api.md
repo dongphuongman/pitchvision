@@ -92,6 +92,12 @@ New error codes to add to `pitchvision_schemas.ErrorCode`: `EMAIL_TAKEN`, `INVAL
   API on the next refresh (≤ 15 min). Missing / unknown claims → Free, so older tokens never grant more.
 - Limits live in `pitchvision_schemas.plans` (Free 120 min/month, 720p exports with a watermark; Pro / Team 900 min,
   1080p, no watermark; exports kept 7 days). Prices and the Team allowance are still open (UIUX UX-5).
+- Quota (apps/api `services/quota.py`, M1-BE-18): minutes used = Σ ⌈video duration⌉ of `analyze` jobs created this
+  UTC calendar month that are not failed / cancelled (derived jobs free; a retry is checked again). 402
+  `QUOTA_EXCEEDED` (`reason: quota`, `used`, `limit`, `needed`, `resets_at`) on POST /videos/uploads and
+  /videos/from-url when no minute is left, and on POST /jobs, /jobs/{id}/retry when the video does not fit.
+  `GET /api/v1/usage` → `{plan, minutes_limit, minutes_used, period_start, resets_at, export_max_height,
+  export_watermark}` for the top-bar meter (G.E06).
 - The local dev header `X-Dev-Org` stub stays only for `PV_ENV=local` tests and is removed from the default path.
 
 ## Google OIDC

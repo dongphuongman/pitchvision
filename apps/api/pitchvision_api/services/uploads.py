@@ -24,6 +24,7 @@ from pitchvision_api.schemas.videos import (
     VideoOut,
     error_json,
 )
+from pitchvision_api.services import quota
 from pitchvision_api.services.storage import (
     MAX_PARTS,
     PART_SIZE,
@@ -87,6 +88,7 @@ async def create(
     n_parts = part_count(body.size)
     if n_parts > MAX_PARTS:
         raise _invalid("File needs more than 10000 parts of 16 MiB.")
+    await quota.ensure(session, principal)
     title = body.title or PurePosixPath(PureWindowsPath(body.filename).name).stem[:200] or None
     video = await repo.add(
         session,

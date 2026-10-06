@@ -171,6 +171,7 @@
   </table>
   <h3>Nhật ký</h3>
   <ul>
+      <li><code>2026-10-06</code> M1-BE-18 quota phút (backend): tính phút đã dùng theo tháng từ job analyze (job lỗi/huỷ, job phái sinh không tính), chặn 402 khi upload/nhập YouTube/tạo job/thử lại vượt hạn mức; GET /usage cho đồng hồ G.E06.</li>
       <li><code>2026-10-06</code> M1-BE-17 export S11 (backend): bảng exports + API (tạo/danh sách/huỷ/thử lại/xoá/tải về presigned 15 phút), worker render MP4 H.264 (box/nhãn/bóng/trails, panel sơ đồ sân, watermark gói Free, 1080p chỉ Pro, hết hạn 7 ngày + sweep dọn file). Thêm gói Free/Pro/Team (subscriptions, claim plan). Python 873 test.</li>
       <li><code>2026-10-06</code> Hiệu chỉnh sân sau lỗi HOMOGRAPHY_UNAVAILABLE (SCR-13 E11): backend đã đúng — job recalibrate lỗi giữ nguyên phân tích cũ, lần hiệu chỉnh tiếp lấy job done gần nhất làm parent; thêm test API + ghi chú hợp đồng.</li>
       <li><code>2026-10-06</code> Workspace SCR-20, SCR-14 xác nhận đội, SCR-15 hiệu chỉnh sân (web + backend) đã merge và push. Python 855 test, web 233 test.</li>

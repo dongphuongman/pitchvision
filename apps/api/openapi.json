@@ -2330,6 +2330,53 @@
         }
       }
     },
+    "/api/v1/usage": {
+      "get": {
+        "tags": [
+          "usage"
+        ],
+        "summary": "Get Usage",
+        "description": "Minutes used this calendar month (UTC) by analysis jobs that are running or done, the plan's limit and when\nit resets. The plan comes from the access token (a change shows after the next token refresh).",
+        "operationId": "get_usage_api_v1_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/tiles/{video_id}/{job_id}/r{revision}/{tile_no}.json.gz": {
       "get": {
         "tags": [
@@ -4782,6 +4829,51 @@
           "thumbnail_url"
         ],
         "title": "UrlPreview"
+      },
+      "Usage": {
+        "properties": {
+          "plan": {
+            "type": "string",
+            "title": "Plan"
+          },
+          "minutes_limit": {
+            "type": "integer",
+            "title": "Minutes Limit"
+          },
+          "minutes_used": {
+            "type": "integer",
+            "title": "Minutes Used"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Period Start"
+          },
+          "resets_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Resets At"
+          },
+          "export_max_height": {
+            "type": "integer",
+            "title": "Export Max Height"
+          },
+          "export_watermark": {
+            "type": "boolean",
+            "title": "Export Watermark"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan",
+          "minutes_limit",
+          "minutes_used",
+          "period_start",
+          "resets_at",
+          "export_max_height",
+          "export_watermark"
+        ],
+        "title": "Usage"
       },
       "VideoError": {
         "properties": {
