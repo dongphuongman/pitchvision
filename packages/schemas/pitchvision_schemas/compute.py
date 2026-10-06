@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from pitchvision_schemas.pipeline import PipelineConfig, Segment
 
-GpuStage = Literal["calibrate", "infer", "ocr", "render", "shots"]
+GpuStage = Literal["calibrate", "infer", "ocr", "pitch", "render", "shots"]
 CpuStage = Literal["normalize"]
 TaskStatus = Literal["queued", "running", "done", "failed"]
 
@@ -17,13 +17,15 @@ def make_task_id(job_id: str, stage: str, segment: int | None = None) -> str:
 class GpuTask(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    task_id: str = Field(..., description='idempotency key = f"{job_id}:{stage}:{segment:03d}" (segment: infer only)')
+    task_id: str = Field(
+        ..., description='idempotency key = f"{job_id}:{stage}:{segment:03d}" (segment: infer / pitch only)')
     stage: GpuStage
     image_tag: str = Field(..., description="must match across backends (deterministic results)")
     inputs: dict[str, str] = Field(default_factory=dict, description="name → object key")
     output_prefix: str
     config: PipelineConfig
-    segment: Segment | None = Field(None, description="the S4 unit of work (stage infer); None for whole-video stages")
+    segment: Segment | None = Field(
+        None, description="the S4 unit of work (stages infer / pitch); None for whole-video stages")
     timeout_s: int = 1800
 
     @staticmethod

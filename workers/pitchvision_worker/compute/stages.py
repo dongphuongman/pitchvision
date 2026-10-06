@@ -3,9 +3,9 @@
 An adapter receives the task, its inputs downloaded to local paths and an empty output dir, calls the stage
 function and returns a JSON-able result summary (+ optional explicit uploads). The executor does all I/O.
 
-``calibrate``, ``infer`` and ``plan_segments`` are resolved lazily from ``pitchvision_worker.stages.{calibrate,infer,
-segments}`` (written by the CV track): an image without them fails the task with a clear non-retryable INTERNAL
-error instead of failing at import. Tests swap entries of ``STAGES`` / ``PLANNERS`` for fakes.
+``calibrate``, ``infer``, ``pitch`` and ``plan_segments`` are resolved lazily from ``pitchvision_worker.stages.
+{calibrate,infer,pitch,segments}`` (written by the CV track): an image without them fails the task with a clear
+non-retryable INTERNAL error instead of failing at import. Tests swap entries of ``STAGES`` / ``PLANNERS`` for fakes.
 """
 
 from __future__ import annotations
@@ -104,6 +104,20 @@ def _infer(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutp
     return StageOutput((result if isinstance(result, dict) else {"output": result}) | {"segment": segment.model_dump()})
 
 
+def _pitch(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
+    """Optional pitch calibration of one segment: result ``status`` is ``ok`` (homography.parquet written) or
+    ``unavailable`` (no registered / local keypoint model — nothing written, S5 leaves px/py NaN)."""
+    run_pitch = contract_fn("pitch", "run_pitch")
+    segment = task_segment(task, inputs)
+    cuts: list[int] = []
+    if "shots" in inputs:
+        timeline = ShotTimeline.model_validate_json(inputs["shots"].read_text())
+        cuts = [s.t0_ms for s in timeline.shots[1:]]
+    out = run_pitch(inputs["normalized"], segment, out_dir, task.config, cuts_ms=cuts)
+    result = jsonable(out)
+    return StageOutput((result if isinstance(result, dict) else {"output": result}) | {"segment": segment.model_dump()})
+
+
 def task_segment(task: StageTask, inputs: dict[str, Path]) -> Segment:
     """The S4 segment carried by the GpuTask. Tasks queued before GpuTask.segment existed (W3 dev only) carried
     the plan as input ``segments`` + the index in the task id; they still resolve."""
@@ -133,5 +147,6 @@ STAGES: dict[str, StageFn] = {
     "shots": _shots,
     "calibrate": _calibrate,
     "infer": _infer,
+    "pitch": _pitch,
 }
 PLANNERS: dict[str, SegmentPlanner] = {"plan_segments": _plan_segments}
