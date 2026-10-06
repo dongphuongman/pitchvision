@@ -1,0 +1,58 @@
+{
+  "nav": {
+    "main": "Site navigation",
+    "features": "Features",
+    "pricing": "Pricing",
+    "docs": "Docs",
+    "getStarted": "Get started"
+  },
+  "hero": {
+    "title": "Analyze any broadcast match.",
+    "subtitle": "Paste a YouTube link or upload the TV feed. PitchVision finds every player and the ball, splits the teams, and draws the tactical map — in minutes, not hours.",
+    "chips": "Detection · Tracking · Team split · Tactical map · Annotated exports",
+    "cta": "Analyze a match free",
+    "secondary": "See how it works",
+    "demoLabel": "Example: a broadcast frame with tracked players next to the tactical map"
+  },
+  "features": {
+    "title": "From the TV feed to tactical data",
+    "items": {
+      "broadcast": {
+        "title": "Made for broadcast footage",
+        "body": "Wide shots are analysed; replays and close-ups are recognised and skipped, so a 90-minute match with cuts just works."
+      },
+      "tracking": {
+        "title": "Players, teams and the ball",
+        "body": "Every player gets a track and a team from the kit colours. Rename teams, fix a goalkeeper, set the attacking direction."
+      },
+      "map": {
+        "title": "Tactical map in sync",
+        "body": "Positions on a 105 × 68 m pitch, frame-exact with the video. Calibrate the pitch by hand when the automatic mapping is unsure."
+      },
+      "exports": {
+        "title": "Clips you can share",
+        "body": "Export annotated MP4s — boxes, labels, the ball, trails and the map side by side — for any part of the match."
+      }
+    }
+  },
+  "steps": {
+    "title": "How it works",
+    "one": "Add a match: YouTube link or file upload.",
+    "two": "We analyse it on GPUs and email you when it is ready.",
+    "three": "Confirm the teams, explore the map, export clips."
+  },
+  "pricing": {
+    "title": "Pricing",
+    "subtitle": "Start free. Upgrade when you analyse more matches.",
+    "free": "Start free",
+    "pro": "Choose Pro",
+    "team": "Contact sales",
+    "note": "Paid plans open soon — choosing Pro now puts you on the list."
+  },
+  "footer": {
+    "rights": "© {{year}} PitchVision",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "status": "Status"
+  }
+}

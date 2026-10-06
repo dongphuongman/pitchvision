@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { AppShell } from '@/app/AppShell';
 import { RootLayout } from '@/app/RootLayout';
-import { ErrorPage, FullPageSpinner, NotFoundPage } from '@/app/StatusPages';
+import { ErrorPage, ForbiddenPage, FullPageSpinner, NotFoundPage } from '@/app/StatusPages';
 import { nextAfterAuth, safeReturnTo } from '@/auth/redirects';
 import { ensureSession, switchOrganization, useAuthStore } from '@/auth/session';
 import {
@@ -58,6 +58,10 @@ const OnboardingPage = lazyRouteComponent(
   'OnboardingPage',
 );
 const LegalPage = lazyRouteComponent(() => import('@/features/legal/LegalPage'), 'LegalPage');
+const LandingPage = lazyRouteComponent(
+  () => import('@/features/landing/LandingPage'),
+  'LandingPage',
+);
 const ExportsPage = lazyRouteComponent(
   () => import('@/features/exports/ExportsPage'),
   'ExportsPage',
@@ -139,12 +143,14 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   errorComponent: ErrorPage,
 });
 
+// SCR-01 Landing (public). Signed-in visitors go straight to the library (UIUX §3.1).
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   beforeLoad: () => {
-    throw redirect({ to: '/library' });
+    if (useAuthStore.getState().status === 'authenticated') throw redirect({ to: '/library' });
   },
+  component: LandingPage,
 });
 
 // SCR-02 Sign in (public, no app shell).
@@ -417,6 +423,25 @@ const workspaceRoute = createRoute({
   component: WorkspacePage,
 });
 
+// SCR-50 /403 (role) and /error (static, e.g. for links from emails / support).
+const forbiddenRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/403',
+  component: ForbiddenPage,
+});
+
+const errorRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/error',
+  component: () => (
+    <ErrorPage
+      reset={() => window.location.assign('/library')}
+      error={new Error('error page')}
+      info={{ componentStack: '' }}
+    />
+  ),
+});
+
 // SCR-26 Exports.
 const exportsRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -488,6 +513,8 @@ export const routeTree = rootRoute.addChildren([
     exportsRoute,
     settingsIndexRoute,
     settingsRoute,
+    forbiddenRoute,
+    errorRoute,
   ]),
   ...devRoutes,
 ]);

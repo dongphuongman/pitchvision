@@ -1,6 +1,7 @@
 import auth from './locales/en/auth.json';
 import common from './locales/en/common.json';
 import errors from './locales/en/errors.json';
+import landing from './locales/en/landing.json';
 import legal from './locales/en/legal.json';
 import library from './locales/en/library.json';
 import onboarding from './locales/en/onboarding.json';
@@ -18,6 +19,7 @@ export const en = {
   auth,
   onboarding,
   legal,
+  landing,
   errors,
 } as const;
 

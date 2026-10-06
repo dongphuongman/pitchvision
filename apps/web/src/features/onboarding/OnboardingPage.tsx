@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { Popover, RadioGroup } from 'radix-ui';
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { takeSignupPlan } from '@/lib/signupPlan';
 import { identityApi, ORG_KINDS, REGIONS, type Region } from '@/api/identity';
 import { useApiErrorMessage } from '@/api/useApiErrorMessage';
 import { safeReturnTo } from '@/auth/redirects';
@@ -407,7 +408,12 @@ function PreferencesStep({ headingRef }: { headingRef: HeadingRef }) {
   function finish() {
     draft.reset();
     toast({ title: t('prefs.welcome'), tone: 'success' });
-    // TODO(SCR-41 / tour): plan=pro opens Upgrade, otherwise the 4-step coach-mark tour.
+    // F1 E12: plan=pro from the landing / sign-up opens SCR-41 over the library (tour: later).
+    const plan = takeSignupPlan();
+    if (plan) {
+      void navigate({ to: '/library', search: { dialog: 'upgrade' }, replace: true });
+      return;
+    }
     void navigate({ href: safeReturnTo(return_to) ?? '/library', replace: true });
   }
 

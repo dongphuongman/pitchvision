@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { renderApp, testSession } from '@/test/renderApp';
 
 describe('router + app shell', () => {
-  it('redirects / to the library and renders the shell', async () => {
+  it('redirects / to the library when signed in and renders the shell', async () => {
     const { router } = renderApp('/');
     expect(await screen.findByRole('heading', { level: 1, name: 'Library' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/library');

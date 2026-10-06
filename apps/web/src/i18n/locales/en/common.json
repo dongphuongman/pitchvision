@@ -128,5 +128,9 @@
       "quota_100": "You've used all of this month's minutes"
     },
     "untitled": "Your video"
+  },
+  "forbidden": {
+    "title": "You don't have access",
+    "body": "Your role in this organization does not allow this page. Ask an admin if you need it."
   }
 }

@@ -1,5 +1,5 @@
 import { Link, type ErrorComponentProps } from '@tanstack/react-router';
-import { CircleAlert, Compass } from 'lucide-react';
+import { CircleAlert, Compass, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button, EmptyState, Spinner } from '@/ui';
 import { Page } from './Page';
@@ -45,6 +45,25 @@ export function ErrorPage({ reset }: ErrorComponentProps) {
         actions={
           <Button variant="primary" onClick={reset}>
             {t('actions.retry')}
+          </Button>
+        }
+      />
+    </Page>
+  );
+}
+
+/** SCR-50 /403: signed in, but the role doesn't allow the page. */
+export function ForbiddenPage() {
+  const { t } = useTranslation();
+  return (
+    <Page>
+      <EmptyState
+        icon={<Lock size={30} />}
+        title={t('forbidden.title')}
+        description={t('forbidden.body')}
+        actions={
+          <Button asChild variant="primary">
+            <Link to="/library">{t('notFound.cta')}</Link>
           </Button>
         }
       />

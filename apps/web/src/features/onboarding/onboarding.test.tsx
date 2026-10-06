@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { mockOrg, mockUser } from '@/mocks/identity';
 import { suggestRegion } from '@/lib/region';
+import { rememberSignupPlan } from '@/lib/signupPlan';
 import { setupIdentityMock } from '@/test/msw';
 import { renderApp } from '@/test/renderApp';
 
@@ -82,6 +83,24 @@ describe('SCR-07 Onboarding', () => {
     useOnboardingDraft.getState().set({ region: null });
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
     expect(await screen.findByText('Choose where to store your data.')).toBeInTheDocument();
+  });
+
+  it('plan=pro from sign-up opens the plans (SCR-41) after setup', async () => {
+    const user = userEvent.setup();
+    const me = mockUser({ email: 'pro@club.com' });
+    mock.db.users.push(me);
+    mock.db.cookie = { userId: me.id, activeOrgId: null };
+    rememberSignupPlan('pro');
+    const { router } = renderApp('/library', { auth: 'bootstrap' });
+    await user.type(await screen.findByLabelText('Organization name'), 'Pro Club');
+    await user.click(screen.getByRole('radio', { name: 'Club' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(await screen.findByRole('radio', { name: /European Union/ }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+    await user.click(await screen.findByRole('button', { name: 'Finish setup' }));
+    expect(await screen.findByRole('dialog', { name: 'Upgrade your plan' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/library');
   });
 
   it('members of an org skip the wizard', async () => {

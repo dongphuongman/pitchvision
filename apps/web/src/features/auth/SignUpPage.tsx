@@ -8,6 +8,7 @@ import { useApiErrorMessage } from '@/api/useApiErrorMessage';
 import { nextAfterAuth, safeReturnTo } from '@/auth/redirects';
 import { applySession } from '@/auth/session';
 import { isValidEmail, MIN_PASSWORD_LENGTH, passwordStrength } from '@/lib/password';
+import { rememberSignupPlan } from '@/lib/signupPlan';
 import { Banner, Button, Checkbox, Field, Input, PasswordInput, StrengthMeter } from '@/ui';
 import { AuthHeading, AuthLayout, GoogleButton, OrDivider, textLinkClass } from './AuthLayout';
 
@@ -56,6 +57,7 @@ export function SignUpPage() {
       }),
     onSuccess: (session) => {
       applySession(session);
+      rememberSignupPlan(search.plan);
       // Invited with a matching email ⇒ already verified and a member: skip onboarding 1–2.
       const joinedViaInvite = Boolean(lockedEmail) && session.user.email_verified;
       const href =
