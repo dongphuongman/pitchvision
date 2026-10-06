@@ -75,11 +75,15 @@ const WorkspacePage = lazyRouteComponent(
   'WorkspacePage',
 );
 const TeamsPage = lazyRouteComponent(() => import('@/features/teams/TeamsPage'), 'TeamsPage');
+const CalibrationPage = lazyRouteComponent(
+  () => import('@/features/calibration/CalibrationPage'),
+  'CalibrationPage',
+);
 
 /*
  * Code-based route tree (no codegen step). Route ids used with getRouteApi():
  *   /_app/library, /_app/videos/$videoId/$tab, /_app/videos/$videoId/teams,
- *   /_app/settings/$section, /signin …
+ *   /_app/videos/$videoId/calibrate, /_app/settings/$section, /signin …
  * Phase C screens (Live) are intentionally absent.
  *
  * Auth rules (UIUX §3.1, SCR-02 E05):
@@ -376,6 +380,17 @@ const teamsRoute = createRoute({
   component: TeamsPage,
 });
 
+// SCR-15 Manual pitch calibration: /videos/:id/calibrate?t=<seconds>&return_to=.
+const calibrateRoute = createRoute({
+  getParentRoute: () => videoRoute,
+  path: '/calibrate',
+  validateSearch: (s: Record<string, unknown>): ReturnToSearch & { t?: number } => ({
+    ...returnToSearch(s),
+    t: seconds(s.t),
+  }),
+  component: CalibrationPage,
+});
+
 // SCR-20 Analysis workspace: /videos/:id/:tab?t=<seconds>.
 const workspaceRoute = createRoute({
   getParentRoute: () => videoRoute,
@@ -452,7 +467,13 @@ export const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     libraryRoute,
     newRoute,
-    videoRoute.addChildren([videoIndexRoute, processingRoute, teamsRoute, workspaceRoute]),
+    videoRoute.addChildren([
+      videoIndexRoute,
+      processingRoute,
+      teamsRoute,
+      calibrateRoute,
+      workspaceRoute,
+    ]),
     exportsRoute,
     settingsIndexRoute,
     settingsRoute,
