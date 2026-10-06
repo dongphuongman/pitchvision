@@ -27,6 +27,8 @@ export const JOB_STATUS_TONE: Record<JobStatus, BadgeTone> = {
 /** Video status as shown on library cards (UIUX SCR-10 E10). */
 export type VideoStatus =
   | 'uploading'
+  | 'ingesting'
+  | 'not_analyzed'
   | 'queued'
   | 'analyzing'
   | 'needs_team_confirmation'
@@ -38,6 +40,8 @@ export type VideoStatus =
 
 export const VIDEO_STATUS_TONE: Record<VideoStatus, BadgeTone> = {
   uploading: 'run',
+  ingesting: 'run',
+  not_analyzed: 'mute',
   queued: 'run',
   analyzing: 'run',
   needs_team_confirmation: 'warn',

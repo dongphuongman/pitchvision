@@ -18,6 +18,14 @@ import {
   useOnboardingDraft,
   type OnboardingStep,
 } from '@/features/onboarding/draft';
+import {
+  SORTS,
+  SOURCE_FILTERS,
+  STATUS_FILTERS,
+  type LibrarySort,
+  type SourceFilter,
+  type StatusFilter,
+} from '@/features/library/model';
 import { SETTINGS_SECTIONS, type SettingsSection } from '@/features/settings/sections';
 import { WORKSPACE_TABS, type WorkspaceTab } from '@/features/video/tabs';
 
@@ -283,13 +291,35 @@ const appRoute = createRoute({
   component: AppShell,
 });
 
-// SCR-10 Library; SCR-11 New analysis is a modal on top: /library?new=youtube|upload.
+function oneOf<T extends string>(values: readonly T[], v: unknown): T | undefined {
+  return typeof v === 'string' && (values as readonly string[]).includes(v) ? (v as T) : undefined;
+}
+
+export interface LibrarySearch {
+  new?: NewAnalysisSource;
+  q?: string;
+  status?: StatusFilter;
+  source?: SourceFilter;
+  sort?: LibrarySort;
+}
+
+// SCR-10 Library (/library?q=&status=&source=&sort=); SCR-11 New analysis is a modal on top:
+// /library?new=youtube|upload. Defaults (all / newest) are omitted from the URL.
 const libraryRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/library',
-  validateSearch: (s: Record<string, unknown>): { new?: NewAnalysisSource } => ({
-    new: s.new === 'youtube' || s.new === 'upload' ? s.new : undefined,
-  }),
+  validateSearch: (s: Record<string, unknown>): LibrarySearch => {
+    const status = oneOf(STATUS_FILTERS, s.status);
+    const source = oneOf(SOURCE_FILTERS, s.source);
+    const sort = oneOf(SORTS, s.sort);
+    return {
+      new: s.new === 'youtube' || s.new === 'upload' ? s.new : undefined,
+      q: str(s.q),
+      status: status === 'all' ? undefined : status,
+      source: source === 'all' ? undefined : source,
+      sort: sort === 'newest' ? undefined : sort,
+    };
+  },
   component: LibraryPage,
 });
 

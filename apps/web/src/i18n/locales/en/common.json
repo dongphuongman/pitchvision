@@ -81,6 +81,8 @@
     },
     "video": {
       "uploading": "Uploading",
+      "ingesting": "Preparing",
+      "not_analyzed": "Not analyzed",
       "queued": "Queued",
       "analyzing": "Analyzing",
       "needs_team_confirmation": "Confirm teams",

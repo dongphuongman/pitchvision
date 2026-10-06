@@ -2,11 +2,89 @@
   "title": "Library",
   "count_one": "{{count}} match",
   "count_other": "{{count}} matches",
+  "countMore": "{{count}}+ matches",
   "empty": {
     "title": "Analyze your first match",
     "body": "Paste a YouTube link to a broadcast match, or upload the recording.",
     "youtube": "Paste a YouTube link",
     "upload": "Upload a file"
+  },
+  "toolbar": {
+    "search": "Search matches…",
+    "searchLabel": "Search matches",
+    "status": "Status",
+    "source": "Source",
+    "sort": "Sort",
+    "view": "View",
+    "grid": "Grid",
+    "list": "List",
+    "statusOptions": {
+      "all": "All statuses",
+      "ready": "Ready",
+      "analyzing": "Analyzing",
+      "needs_action": "Needs action",
+      "failed": "Failed"
+    },
+    "sourceOptions": {
+      "all": "All sources",
+      "upload": "Upload",
+      "youtube": "YouTube"
+    },
+    "sortOptions": {
+      "newest": "Newest",
+      "oldest": "Oldest",
+      "title": "Title A–Z",
+      "duration": "Duration"
+    }
+  },
+  "card": {
+    "untitled": "Untitled match",
+    "progress": "Analysis progress",
+    "uploadProgress": "Upload progress",
+    "eta": "ETA {{time}}",
+    "coverage": "{{pct}} wide",
+    "coverageHint": "Tactical data for {{pct}} of match time",
+    "menu": "Actions for {{title}}",
+    "preparing": "Preparing video…",
+    "uploading": "Upload in progress",
+    "notAnalyzed": "Not analyzed yet"
+  },
+  "menu": {
+    "open": "Open",
+    "rename": "Rename",
+    "retry": "Retry analysis",
+    "delete": "Delete"
+  },
+  "rename": {
+    "title": "Rename",
+    "label": "Title",
+    "save": "Save",
+    "required": "Enter a title.",
+    "tooLong": "Use at most {{max}} characters.",
+    "saved": "Renamed to “{{title}}”.",
+    "failed": "Couldn't rename the match."
+  },
+  "delete": {
+    "title": "Delete {{title}}?",
+    "body": "Video, analysis, exports and share links will be removed. This can't be undone after 10 seconds.",
+    "confirm": "Delete",
+    "deleted": "“{{title}}” deleted.",
+    "undo": "Undo",
+    "restored": "“{{title}}” restored.",
+    "failed": "Couldn't delete “{{title}}”."
+  },
+  "retry": {
+    "started": "Analysis restarted.",
+    "failed": "Couldn't restart the analysis."
+  },
+  "list": {
+    "label": "Matches",
+    "loadMore": "Load more",
+    "loading": "Loading matches…",
+    "error": "Couldn't load your matches.",
+    "noResults": "No matches fit these filters.",
+    "clearFilters": "Clear filters",
+    "end": "That's everything."
   },
   "newAnalysis": {
     "title": "New analysis",

@@ -15,6 +15,7 @@ import type {
 export type Meta = components['schemas']['Meta'];
 
 export type Manifest = ManifestSchema.Manifest;
+export type TeamInfo = ManifestSchema.TeamInfo;
 export type Tile = TileSchema.Tile;
 export type TileFrame = TileSchema.TileFrame;
 export type ShotTimeline = ShotTimelineSchema.ShotTimeline;
