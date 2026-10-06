@@ -2,7 +2,7 @@ import { http, HttpResponse, ws, type WebSocketHandler } from 'msw';
 import { toLatestJob, type Job, type LatestJob, type PitchCalibration } from '@/api/jobs';
 import type { WsControlMessage, WsJobEvent, WsServerEvent } from '@/api/types';
 import type { Video } from '@/api/videos';
-import type { ManualCalibration } from '@/api/corrections';
+import type { ManualCalibration, PlayerOut } from '@/api/corrections';
 import { mockManifest } from './player';
 
 /**
@@ -30,6 +30,8 @@ export interface MockVideoDb {
   teams: Map<string, MockTeam[]>;
   /** SCR-15 latest manual calibration per video. */
   calibrations: Map<string, ManualCalibration>;
+  /** SCR-14 E06 goalkeeper / referee tracks per video (created on first read). */
+  players: Map<string, PlayerOut[]>;
 }
 
 export interface MockTeam {
@@ -38,6 +40,8 @@ export interface MockTeam {
   name: string;
   color: string;
   confirmed: boolean;
+  attack_h1?: 'left' | 'right' | null;
+  attack_source?: 'auto' | 'user' | null;
 }
 
 export function createVideoDb(partial: Partial<MockVideoDb> = {}): MockVideoDb {
@@ -48,6 +52,7 @@ export function createVideoDb(partial: Partial<MockVideoDb> = {}): MockVideoDb {
     sockets: new Map(),
     teams: new Map(),
     calibrations: new Map(),
+    players: new Map(),
     ...partial,
   };
 }

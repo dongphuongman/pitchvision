@@ -7,8 +7,13 @@
   people — AD §6.4 outlier rule), ``q`` = the frame's ``h_quality``;
 - teams: one per team-model cluster (0, 1) with a default name and the cluster's mean shirt colour (S3 stores it in
   ``team_model.json`` ``stats.colors``; a palette colour when missing);
-- players: one per global track (M1: no ReID yet, so one real player may have several rows) with its team cluster
-  and role from the majority class.
+- players: one per global track (M1: no ReID yet, so one real player may have several rows) with its team cluster,
+  role from the majority class and on-screen time (``frames``, ``t0_ms``, ``t1_ms`` — SCR-14 E06 lists goalkeepers
+  and referees longest first);
+- attacking direction (SCR-14 E05, ``guess_attack``): in the first half of the analysed time, a team's goalkeeper
+  stands in front of its own goal, so the team attacks the other side. Position = ``px`` (metres) when most of the
+  goalkeeper's rows have it, else the box centre on the image: the main broadcast camera films from one touchline,
+  so image left / right is pitch left / right. Both goalkeepers must agree; too few rows → unknown.
 """
 from __future__ import annotations
 
@@ -29,6 +34,8 @@ TEAM_NAMES = {0: "Team A", 1: "Team B"}
 DEFAULT_COLORS = {0: "#e53935", 1: "#1e88e5"}
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 POSITION_COLUMNS = ("ts_ms", "track_id", "team", "px", "py", "vx", "vy", "q")
+PITCH_LENGTH_M = 105.0
+MIN_GK_ROWS = 25  # 1 s of a goalkeeper at 25 fps
 
 
 @dataclass(frozen=True)
@@ -43,6 +50,9 @@ class PlayerRow:
     track_id: int
     cluster: int | None
     role: str
+    frames: int = 0
+    t0_ms: int | None = None
+    t1_ms: int | None = None
 
 
 @dataclass
@@ -51,6 +61,7 @@ class LoadBatch:
     teams: list[TeamRow]
     players: list[PlayerRow]
     stats: dict[str, Any] = field(default_factory=dict)
+    attack_h1: str | None = None  # side cluster 0 attacks in the first half ('left' | 'right'), None = unknown
 
 
 def team_rows(team_model: Mapping[str, Any] | None) -> list[TeamRow]:
@@ -78,13 +89,38 @@ def _role(cls: int) -> str:
     return {CLS_GOALKEEPER: "goalkeeper", CLS_REFEREE: "referee"}.get(cls, "player")
 
 
+def guess_attack(col: Mapping[str, np.ndarray], frame_width: float) -> str | None:
+    """'left' | 'right' that team cluster 0 attacks in the first half, from its / the other goalkeeper's mean
+    position; None when there are too few goalkeeper rows or the two goalkeepers disagree."""
+    ts = col["ts_ms"]
+    if len(ts) == 0:
+        return None
+    first = ts <= (int(ts.min()) + int(ts.max())) / 2
+    gk = (col["cls"] == CLS_GOALKEEPER) & first
+    votes: list[str] = []
+    for cluster in (0, 1):
+        sel = gk & (col["team"] == cluster)
+        if int(sel.sum()) < MIN_GK_ROWS:
+            continue
+        px = col["px"][sel].astype(np.float64)
+        finite = np.isfinite(px)
+        if finite.mean() > 0.5:
+            x, mid = float(px[finite].mean()), PITCH_LENGTH_M / 2
+        else:
+            x, mid = float(((col["x1"][sel] + col["x2"][sel]) / 2).mean()), frame_width / 2
+        own_goal_left = x < mid
+        attacks = "right" if own_goal_left else "left"
+        votes.append(attacks if cluster == 0 else ("left" if attacks == "right" else "right"))
+    return votes[0] if votes and all(v == votes[0] for v in votes) else None
+
+
 def prepare_load(tracks: Path, team_model: Path | Mapping[str, Any] | None, config: PipelineConfig | None = None
                  ) -> LoadBatch:
     cfg = config or PipelineConfig()
     tm = team_model if isinstance(team_model, Mapping) or team_model is None else load_team_model(team_model)
     t = read_tracks(tracks)
     col = {c: t.column(c).to_numpy(zero_copy_only=False) for c in ("frame_idx", "ts_ms", "track_id", "cls", "team",
-                                                                  "px", "py", "h_quality")}  # fmt: skip
+                                                                  "px", "py", "h_quality", "x1", "x2")}  # fmt: skip
     step = max(1, round(cfg.target_fps / POSITIONS_HZ))
     keep = col["frame_idx"] % step == 0
     sub = {c: v[keep] for c, v in col.items()}
@@ -112,11 +148,19 @@ def prepare_load(tracks: Path, team_model: Path | Mapping[str, Any] | None, conf
     tracked = col["track_id"] != NO_TRACK
     if tracked.any():
         all_ids = col["track_id"][tracked].astype(np.int64)
-        uniq, first = np.unique(all_ids, return_index=True)
+        uniq, first, counts = np.unique(all_ids, return_index=True, return_counts=True)
         cls_t, team_t = col["cls"][tracked], col["team"][tracked]  # constant per global track after S5
-        for track_id, i in zip(uniq.tolist(), first.tolist(), strict=True):
+        ts_t = col["ts_ms"][tracked].astype(np.int64)
+        inv = np.searchsorted(uniq, all_ids)
+        t0, t1 = np.full(len(uniq), np.iinfo(np.int64).max), np.full(len(uniq), -1)
+        np.minimum.at(t0, inv, ts_t)
+        np.maximum.at(t1, inv, ts_t)
+        for k, (track_id, i) in enumerate(zip(uniq.tolist(), first.tolist(), strict=True)):
             team = int(team_t[i])
-            players.append(PlayerRow(int(track_id), team if team in (0, 1) else None, _role(int(cls_t[i]))))
-    stats = {"positions": len(final), "players": len(players), "step_frames": step,
+            players.append(PlayerRow(int(track_id), team if team in (0, 1) else None, _role(int(cls_t[i])),
+                                     int(counts[k]), int(t0[k]), int(t1[k])))  # fmt: skip
+    stats: dict[str, Any] = {"positions": len(final), "players": len(players), "step_frames": step,
              "with_xy": int(np.isfinite(positions["px"]).sum())}
-    return LoadBatch(positions=positions, teams=team_rows(tm), players=players, stats=stats)
+    attack = guess_attack(col, float(cfg.long_side_px))
+    stats["attack_h1"] = attack
+    return LoadBatch(positions=positions, teams=team_rows(tm), players=players, stats=stats, attack_h1=attack)

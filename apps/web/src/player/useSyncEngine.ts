@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import type { Manifest } from '@/api/types';
 import { msForFrame } from './frames';
+import { makeOverrider } from './overrides';
 import { DEFAULT_LAYERS, OverlayRenderer, teamColorMap, type OverlayLayers } from './overlay';
 import { PlaybackClock, type ClockState } from './PlaybackClock';
 import { shotAt } from './shots';
@@ -86,6 +87,7 @@ export function useSyncEngine(opts: SyncEngineOptions) {
   useEffect(() => {
     if (!clock || !store || !manifest || !video) return;
     const teamColors = teamColorMap(manifest.teams);
+    const fix = makeOverrider(manifest.track_overrides);
     const overlay = overlayCanvas
       ? new OverlayRenderer(overlayCanvas, video, {
           width: manifest.width,
@@ -104,8 +106,9 @@ export function useSyncEngine(opts: SyncEngineOptions) {
       const lookup = store.frame(frameIdx);
       // Before the tile arrives the manifest still knows the shot (map can say "replay").
       const shot = lookup.shot ?? shotAt(manifest.shots, msForFrame(frameIdx, manifest.fps))?.type;
-      overlay?.render(lookup.frame, lookup.loaded ? shot : undefined);
-      map?.render(lookup.frame, shot === 'main_wide' && !lookup.loaded ? undefined : shot);
+      const frame = fix(lookup.frame);
+      overlay?.render(frame, lookup.loaded ? shot : undefined);
+      map?.render(frame, shot === 'main_wide' && !lookup.loaded ? undefined : shot);
     };
     overlayRef.current = overlay;
     redrawRef.current = draw;

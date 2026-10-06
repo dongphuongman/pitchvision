@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from pitchvision_schemas.manifest import PitchStatus, TeamInfo
+from pitchvision_schemas.manifest import PitchStatus, TeamInfo, TrackOverride
 
 ExportKind = Literal["video"]
 ExportStatus = Literal["queued", "running", "done", "failed", "cancelled"]
@@ -49,6 +49,7 @@ class ExportSpec(BaseModel):
     watermark: bool = True
     ttl_days: int = Field(7, ge=1)   # the file is deleted this long after it is done (plan's export_ttl_days)
     teams: list[TeamInfo] = Field(default_factory=list)
+    track_overrides: list[TrackOverride] = Field(default_factory=list)  # SCR-14 E06 fixes, drawn like the player
     pitch_status: PitchStatus = "unavailable"
 
     @model_validator(mode="after")

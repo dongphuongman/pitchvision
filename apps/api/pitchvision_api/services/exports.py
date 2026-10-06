@@ -85,6 +85,7 @@ async def create(session: AsyncSession, storage: Storage, tasks: TaskQueue, sett
     spec = ExportSpec(kind=body.kind, job_id=m.job_id, revision=m.revision, from_ms=from_ms, to_ms=to_ms, fps=m.fps,
                       width=m.width, height=m.height, out_height=body.quality, layout=body.layout, layers=body.layers,
                       watermark=limits.export_watermark, ttl_days=limits.export_ttl_days, teams=m.teams,
+                      track_overrides=m.track_overrides,
                       pitch_status=m.pitch.status)  # fmt: skip
     name = export_filename(video.title, from_ms, to_ms, m.duration_ms)
     row = await repo.add(session, Export(org_id=principal.org_id, video_id=video.id, kind=body.kind, filename=name,

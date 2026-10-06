@@ -15,7 +15,7 @@ import cv2
 import numpy as np
 import pytest
 from cv_core.io.parquet import CLS_BALL, CLS_GOALKEEPER, CLS_PLAYER, CLS_REFEREE, NO_TRACK, write_tracks
-from pitchvision_schemas import ExportLayers, ExportSpec, TeamInfo, keys
+from pitchvision_schemas import ExportLayers, ExportSpec, TeamInfo, TrackOverride, keys
 from pitchvision_worker import export_render
 from pitchvision_worker.config import WorkerConfig
 from pitchvision_worker.export_render import Painter, RenderCancelled, frame_range, render
@@ -94,6 +94,10 @@ def test_painter_draws_team_boxes_and_watermark() -> None:
     assert out[400, 400].sum() == 0  # inside the box: untouched
     assert out[690:715, 1050:1270].max() > 100  # watermark, bottom-right
     assert Painter(spec(watermark=False, layout="video"), 1280, 720).wm is None
+    # SCR-14 E06: track 1 fixed to team 1 → drawn blue
+    fixed = Painter(spec(layout="video", track_overrides=[TrackOverride(track_id=1, team=1, cls=1)]), 1280, 720)
+    out = fixed.paint(np.zeros((720, 1280, 3), np.uint8), 0, rows)
+    assert tuple(out[300, 200]) == (255, 0, 0) and rows["team"][0] == 0  # BGR blue; input rows untouched
 
 
 def test_render_range_layers_map(tmp_path: Path) -> None:

@@ -112,6 +112,7 @@ class Painter:
         self.s = video_h / spec.height
         self.video_w, self.video_h = video_w, video_h
         self.team = {t.cluster: hex_bgr(t.color) for t in spec.teams}
+        self.fixes = {o.track_id: (o.team, o.cls) for o in spec.track_overrides}  # SCR-14 E06
         self.referee, self.unknown = hex_bgr(REFEREE_COLOR), hex_bgr(UNKNOWN_COLOR)
         self.font_scale = 0.5 * max(1.0, video_h / 720)
         self.thick = max(2, round(2 * video_h / 720))
@@ -168,8 +169,21 @@ class Painter:
         return patch, alpha, x, y
 
     # ---- per frame
+    def _fix(self, rows: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+        """User fixes (manifest track_overrides) on top of the detected team / class, like the web player."""
+        if not self.fixes or not len(rows["track_id"]):
+            return rows
+        hit = [i for i, tid in enumerate(rows["track_id"].tolist()) if tid in self.fixes]
+        if not hit:
+            return rows
+        rows = {**rows, "team": rows["team"].copy(), "cls": rows["cls"].copy()}
+        for i in hit:
+            rows["team"][i], rows["cls"][i] = self.fixes[int(rows["track_id"][i])]
+        return rows
+
     def paint(self, frame: np.ndarray, f: int, rows: dict[str, np.ndarray]) -> np.ndarray:
         s, L = self.s, self.layers
+        rows = self._fix(rows)
         n = len(rows["track_id"])
         if L.trails:
             self._trails(frame, f, rows)

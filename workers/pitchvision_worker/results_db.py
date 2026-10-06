@@ -30,6 +30,13 @@ def _num(v: float) -> float | None:
     return float(v) if math.isfinite(v) else None
 
 
+def attack_for(cluster0: str | None, cluster: int) -> str | None:
+    """Cluster 0's first-half direction → this cluster's (the other team attacks the opposite side)."""
+    if cluster0 is None or cluster == 0:
+        return cluster0
+    return "left" if cluster0 == "right" else "right"
+
+
 def write_results(engine: Engine, org_id: uuid.UUID, video_id: uuid.UUID, batch: LoadBatch) -> dict[str, int]:
     with org_tx(engine, org_id) as conn:
         deleted = int(conn.execute(text("SELECT pv_delete_positions(:v)"), {"v": video_id}).scalar_one())
@@ -44,24 +51,30 @@ def write_results(engine: Engine, org_id: uuid.UUID, video_id: uuid.UUID, batch:
         existing = {r["cluster"]: dict(r) for r in conn.execute(
             select(teams).where(teams.c.video_id == video_id)).mappings()}  # fmt: skip
         team_ids: dict[int, uuid.UUID] = {}
+        user_attack = any(r["attack_source"] == "user" for r in existing.values())
         for t in batch.teams:
             row = existing.get(t.cluster)
+            attack = attack_for(batch.attack_h1, t.cluster)
+            auto = {} if user_attack else {"attack_h1": attack, "attack_source": "auto" if attack else None}
             if row is None:
                 new_team = insert(teams).values(video_id=video_id, org_id=org_id, cluster=t.cluster, name=t.name,
-                                                color=t.color).returning(teams.c.id)  # fmt: skip
+                                                color=t.color, **auto).returning(teams.c.id)  # fmt: skip
                 team_ids[t.cluster] = conn.execute(new_team).scalar_one()
                 continue
             team_ids[t.cluster] = row["id"]
-            if not row["confirmed"]:
-                conn.execute(update(teams).where(teams.c.id == row["id"]).values(name=t.name, color=t.color))
+            values = auto if row["confirmed"] else {"name": t.name, "color": t.color, **auto}
+            if values:
+                conn.execute(update(teams).where(teams.c.id == row["id"]).values(**values))
 
         rows = [{"video_id": video_id, "org_id": org_id, "track_id": pl.track_id, "role": pl.role,
-                 "team_id": team_ids.get(pl.cluster) if pl.cluster is not None else None} for pl in batch.players]
+                 "team_id": team_ids.get(pl.cluster) if pl.cluster is not None else None, "frames": pl.frames,
+                 "t0_ms": pl.t0_ms, "t1_ms": pl.t1_ms} for pl in batch.players]  # fmt: skip
         for s in range(0, len(rows), PLAYER_CHUNK):
             stmt = pg_insert(players).values(rows[s:s + PLAYER_CHUNK])
             conn.execute(stmt.on_conflict_do_update(
                 index_elements=["video_id", "track_id"],
-                set_={"team_id": stmt.excluded.team_id, "role": stmt.excluded.role},
+                set_={"team_id": stmt.excluded.team_id, "role": stmt.excluded.role, "frames": stmt.excluded.frames,
+                      "t0_ms": stmt.excluded.t0_ms, "t1_ms": stmt.excluded.t1_ms},
                 where=players.c.confirmed.is_(False)))  # fmt: skip
         stale = delete(players).where(players.c.video_id == video_id, players.c.confirmed.is_(False))
         if rows:

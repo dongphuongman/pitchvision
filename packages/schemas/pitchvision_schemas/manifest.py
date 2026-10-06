@@ -6,12 +6,25 @@ from pydantic import BaseModel, ConfigDict, Field
 from pitchvision_schemas.shots import Shot
 from pitchvision_schemas.tiles import TILE_MS
 
+AttackSide = Literal["left", "right"]
+
 
 class TeamInfo(BaseModel):
     cluster: int
     name: str
     color: str = Field(..., pattern=r"^#[0-9a-fA-F]{6}$")
     confirmed: bool = False
+    attack_h1: AttackSide | None = Field(
+        None, description="Side this team attacks in the first half as the main camera sees it (SCR-14 E05); "
+        "null = unknown")
+
+
+class TrackOverride(BaseModel):
+    """A user's fix of one track (SCR-14 E06): tiles keep the detected team / class, players apply this on top."""
+
+    track_id: int
+    team: int = Field(..., ge=-1, le=1, description="cluster 0 / 1, -1 = no team (referee)")
+    cls: int = Field(..., ge=0, le=2, description="ObjCls: 0 player, 1 goalkeeper, 2 referee")
 
 
 class Coverage(BaseModel):
@@ -51,3 +64,5 @@ class Manifest(BaseModel):
     coverage: Coverage
     teams: list[TeamInfo]
     pitch: PitchCalibration
+    track_overrides: list[TrackOverride] = Field(
+        default_factory=list, description="Confirmed team / role fixes per track (served from the players table)")

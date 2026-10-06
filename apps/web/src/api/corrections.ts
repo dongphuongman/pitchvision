@@ -9,7 +9,9 @@ import { patchVideoInCache } from './videos';
  * User corrections of an analysis (apps/api/openapi.json, generated client):
  *
  *   GET   /results/{id}/teams              → TeamList (names, colours, sample sprite sheet)
- *   PATCH /results/{id}/teams              → TeamList              SCR-14 E09 (409 reason no_teams)
+ *   PATCH /results/{id}/teams              → TeamList              SCR-14 E09 + E05 attack_h1 (409 no_teams)
+ *   GET   /results/{id}/players            → PlayerList            SCR-14 E06 goalkeepers / referees
+ *   PATCH /results/{id}/players            → PlayerList            SCR-14 E06 fix (422 reason)
  *   GET   /results/{id}/teams/candidates   → TeamCandidates        SCR-14 manual (404 older jobs)
  *   POST  /results/{id}/teams/manual       → 202 JobOut team_rerun (Idempotency-Key; 409)
  *   GET   /results/{id}/calibration        → CalibrationState      SCR-15
@@ -20,6 +22,10 @@ import { patchVideoInCache } from './videos';
 export type TeamList = components['schemas']['TeamList'];
 export type Team = components['schemas']['TeamOut'];
 export type TeamEdit = components['schemas']['TeamEdit'];
+export type AttackSide = 'left' | 'right';
+export type PlayerList = components['schemas']['PlayerList'];
+export type PlayerOut = components['schemas']['PlayerOut'];
+export type PlayerFix = components['schemas']['PlayerFix'];
 export type SampleCrop = components['schemas']['SampleCrop'];
 export type SampleSheet = components['schemas']['SampleSheet'];
 export type TeamCandidates = components['schemas']['TeamCandidates'];
@@ -107,13 +113,46 @@ export function teamsQuery(videoId: string) {
   });
 }
 
-/** Sends the final mapping (`swap: false`, as the API recommends) and confirms the teams. */
-export async function patchTeams(videoId: string, teams: TeamEdit[]): Promise<TeamList> {
+/**
+ * Sends the final mapping (`swap: false`, as the API recommends) and confirms the teams.
+ * `attackH1`: side team cluster 0 attacks in the first half (E05; cluster 1 gets the other).
+ */
+export async function patchTeams(
+  videoId: string,
+  teams: TeamEdit[],
+  attackH1?: AttackSide | null,
+): Promise<TeamList> {
   const { data } = await api.PATCH('/api/v1/results/{video_id}/teams', {
     params: { path: { video_id: videoId } },
-    body: { teams, swap: false, confirmed: true },
+    body: { teams, swap: false, confirmed: true, attack_h1: attackH1 ?? null },
   });
   return required(data, 'teams');
+}
+
+/** SCR-14 E06: goalkeepers + referees, longest on screen first. */
+export function keyRolesQuery(videoId: string) {
+  return queryOptions({
+    queryKey: ['results', videoId, 'players', 'key-roles'] as const,
+    queryFn: async ({ signal }): Promise<PlayerList> => {
+      const { data } = await api.GET('/api/v1/results/{video_id}/players', {
+        params: {
+          path: { video_id: videoId },
+          query: { role: ['goalkeeper', 'referee'], limit: 50 },
+        },
+        signal,
+      });
+      return required(data, 'players');
+    },
+  });
+}
+
+/** E06 "Fix assignment" (display-only; refetch the manifest afterwards). */
+export async function patchPlayers(videoId: string, changes: PlayerFix[]): Promise<PlayerList> {
+  const { data } = await api.PATCH('/api/v1/results/{video_id}/players', {
+    params: { path: { video_id: videoId } },
+    body: { changes },
+  });
+  return required(data, 'players');
 }
 
 export function teamCandidatesQuery(videoId: string) {

@@ -2,7 +2,7 @@
 pitch calibration (SCR-15, M1-BE-20). Reads: any org member (viewer+). Writes: editor+."""
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import JSONResponse
@@ -17,6 +17,8 @@ from pitchvision_api.schemas.results import (
     FrameOut,
     ManualTeamsIn,
     MediaOut,
+    PlayerList,
+    PlayersPatch,
     TeamCandidates,
     TeamList,
     TeamsPatch,
@@ -47,6 +49,24 @@ async def get_pitch_template(response: Response, principal: CurrentPrincipal) ->
     landmark menu (E03) and pitch diagram / line preview (E05). Static."""
     response.headers["Cache-Control"] = "private, max-age=86400"
     return service.pitch_template()
+
+
+@router.get("/{video_id}/players")
+async def list_players(video_id: uuid.UUID, principal: CurrentPrincipal, session: DbSession,
+                       role: Annotated[list[Literal["player", "goalkeeper", "referee"]], Query()] = [],  # noqa: B006
+                       limit: Annotated[int, Query(ge=1, le=500)] = 50) -> PlayerList:  # fmt: skip
+    """Tracks of the video's analysis, longest on screen first (`role` filters, repeatable). SCR-14 E06 lists the
+    goalkeepers and referees."""
+    return await corrections.players(session, principal, video_id, list(role), limit)
+
+
+@router.patch("/{video_id}/players")
+async def patch_players(video_id: uuid.UUID, body: PlayersPatch, principal: EditorPrincipal, session: DbSession
+                        ) -> PlayerList:  # fmt: skip
+    """SCR-14 E06 "Fix assignment": set role + team of tracks. Display-only — tiles keep the detection; the
+    manifest's `track_overrides` carry the fix (re-fetch the manifest). 422 `reason`: unknown_track /
+    unknown_cluster."""
+    return await corrections.patch_players(session, principal, video_id, body)
 
 
 @router.get("/{video_id}/manifest")

@@ -152,6 +152,9 @@ class Team(Base):
     name: Mapped[str | None]
     color: Mapped[str | None]
     confirmed: Mapped[bool] = mapped_column(server_default="false")
+    # 0007: SCR-14 E05
+    attack_h1: Mapped[str | None]
+    attack_source: Mapped[str | None]
 
 
 class Player(Base):
@@ -173,6 +176,10 @@ class Player(Base):
     jersey_conf: Mapped[float | None]
     name: Mapped[str | None]
     confirmed: Mapped[bool] = mapped_column(server_default="false")
+    # 0007: on-screen time (SCR-14 E06)
+    frames: Mapped[int | None]
+    t0_ms: Mapped[int | None]
+    t1_ms: Mapped[int | None]
 
 
 class Position(Base):

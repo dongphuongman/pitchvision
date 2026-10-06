@@ -15,7 +15,15 @@ from pitchvision_schemas.exports import (
 )
 from pitchvision_schemas.jobs import JOB_KINDS, JOB_TRANSITIONS, JobKind, JobStatus, can_transition
 from pitchvision_schemas.keys import shots_key, tile_key
-from pitchvision_schemas.manifest import Coverage, Manifest, PitchCalibration, PitchStatus, TeamInfo
+from pitchvision_schemas.manifest import (
+    AttackSide,
+    Coverage,
+    Manifest,
+    PitchCalibration,
+    PitchStatus,
+    TeamInfo,
+    TrackOverride,
+)
 from pitchvision_schemas.notifications import EMAIL_TYPES, NOTIFICATION_TYPES, NotificationType, notification_path
 from pitchvision_schemas.pipeline import PipelineConfig, Segment
 from pitchvision_schemas.pitch_template import (
@@ -56,6 +64,7 @@ __all__ = [
     "SCHEMA_VERSION",
     "TERMINAL_EXPORT",
     "TILE_MS",
+    "AttackSide",
     "CancelledEvent",
     "Capacity",
     "ClientOp",
@@ -104,6 +113,7 @@ __all__ = [
     "TemplateLine",
     "Tile",
     "TileFrame",
+    "TrackOverride",
     "UnsubscribedMessage",
     "can_transition",
     "limits_for",

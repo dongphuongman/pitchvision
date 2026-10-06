@@ -190,8 +190,9 @@ async def test_teams_from_db_override_manifest(client: httpx.AsyncClient, migrat
     assert [(t["cluster"], t["name"], t["color"], t["confirmed"]) for t in teams] == [
         (0, "Reds", "#ff0000", True), (1, "Team B", "#1e88e5", False)]  # fmt: skip
     m = (await client.get(f"/api/v1/results/{vid}/manifest", headers=who(org, "viewer"))).json()
-    assert m["teams"] == [{"cluster": 0, "name": "Reds", "color": "#ff0000", "confirmed": True},
-                          {"cluster": 1, "name": "Team B", "color": "#1e88e5", "confirmed": False}]  # fmt: skip
+    assert m["teams"] == [{"cluster": 0, "name": "Reds", "color": "#ff0000", "confirmed": True, "attack_h1": None},
+                          {"cluster": 1, "name": "Team B", "color": "#1e88e5", "confirmed": False,
+                           "attack_h1": None}]  # fmt: skip
 
 
 async def test_tracks_keyset_paging_through_positions_org(client: httpx.AsyncClient, migrated: Db) -> None:

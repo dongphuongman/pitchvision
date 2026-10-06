@@ -56,8 +56,54 @@ describe('SCR-14 Team confirmation', () => {
       ],
       swap: false,
       confirmed: true,
+      attack_h1: 'left', // the auto guess, kept
     });
     await waitFor(() => expect(router.state.location.pathname).toBe(`/videos/${v.id}/overview`));
+  });
+
+  it("E05: shows the guessed attacking direction and saves the user's choice", async () => {
+    const v = seed();
+    const user = userEvent.setup();
+    renderApp(`/videos/${v.id}/teams`, { auth: testSession() });
+    const team1 = await screen.findByRole('region', { name: 'Team 1' });
+    expect(within(team1).getByRole('radio', { name: '← Left' })).toBeChecked();
+    expect(within(team1).getByText(/Guessed from where the goalkeepers stand/)).toBeInTheDocument();
+    expect(within(team1).getByText(/Team B attacks the other way/)).toBeInTheDocument();
+    await user.click(within(team1).getByRole('radio', { name: 'Right →' }));
+    expect(within(team1).queryByText(/Guessed from/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Confirm teams' }));
+    await waitFor(() => expect(logged('PATCH teams')).toHaveLength(1));
+    expect(logged('PATCH teams')[0]).toMatchObject({ attack_h1: 'right' });
+  });
+
+  it('E06: lists goalkeepers and referees and fixes an assignment', async () => {
+    const v = seed();
+    const user = userEvent.setup();
+    renderApp(`/videos/${v.id}/teams`, { auth: testSession() });
+    const section = await screen.findByRole('region', { name: 'Referees & goalkeepers' });
+    const gk12 = await within(section).findByRole('button', {
+      name: 'Fix assignment of GK #12 · Team A',
+    });
+    expect(within(section).getByText('Ref #4')).toBeInTheDocument();
+    expect(within(section).getByText('25:20 on screen')).toBeInTheDocument();
+    await user.click(gk12);
+    await user.click(await screen.findByRole('menuitem', { name: 'Goalkeeper of Team B' }));
+    await waitFor(() => expect(logged('PATCH players')).toHaveLength(1));
+    expect(logged('PATCH players')[0]).toEqual({
+      changes: [{ track_id: 12, role: 'goalkeeper', team: 1 }],
+    });
+    expect(
+      await within(section).findByRole('button', { name: 'Fix assignment of GK #12 · Team B' }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText('Assignment updated')).toBeInTheDocument();
+  });
+
+  it('E06: viewers see the assignments without menus', async () => {
+    const v = seed();
+    renderApp(`/videos/${v.id}/teams`, { auth: testSession({ role: 'viewer' }) });
+    const section = await screen.findByRole('region', { name: 'Referees & goalkeepers' });
+    expect(await within(section).findByText('GK #7 · Team A')).toBeInTheDocument();
+    expect(within(section).queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('picks a custom colour, validates names and returns to `return_to`', async () => {

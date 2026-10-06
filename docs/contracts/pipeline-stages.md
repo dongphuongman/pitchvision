@@ -190,6 +190,19 @@ API (all under `/api/v1/results/{video_id}`, problem+json, RLS; writes editor+, 
 `{job, correction_id, revision}`), `GET /calibration/frame?t_ms=`, `GET /media` (presigned normalized.mp4,
 `PV_MEDIA_URL_TTL_S` 6 h); plus `GET /api/v1/results/pitch-template`.
 
+## SCR-14 E05 / E06 — attacking direction, goalkeeper / referee fixes
+- `teams.attack_h1` (`left` | `right`, the side the team attacks in the first half as the main camera sees it) +
+  `attack_source` (`auto` | `user`), API migration 0007. S8 (`load_db.guess_attack`) guesses it: in the first half
+  of the analysed time each team's goalkeeper stands in front of its own goal; position = `px` when most rows have
+  it, else the box centre on the image (main camera on a touchline ⇒ image left/right = pitch left/right). Both
+  goalkeepers must agree and need ≥ 25 rows, else NULL. A re-run never overwrites `user`. `PATCH /teams`
+  `attack_h1` = cluster 0's side (cluster 1 gets the other). Manifest `teams[].attack_h1`.
+- `players.frames / t0_ms / t1_ms` (on-screen time per global track, S8). `GET /results/{v}/players?role=…`
+  (longest first), `PATCH /results/{v}/players {changes: [{track_id, role, team}]}` (editor+, recorded as a
+  `players` correction) sets role + team and `confirmed`. Display-only: tiles / positions keep the detection; the
+  manifest's `track_overrides [{track_id, team (-1 = none), cls}]` (confirmed players) are applied by the web
+  player (overlay + map) and frozen into `ExportSpec.track_overrides` for S11. A re-run keeps confirmed players.
+
 ## Exports — S11 render (M1-BE-17, SCR-25 / SCR-26)
 Outside the job DAG. `POST /api/v1/exports` (Idempotency-Key; any member) freezes a
 `pitchvision_schemas.ExportSpec` in `exports.spec` — latest done job + revision, range `[from_ms, to_ms)` (omitted =

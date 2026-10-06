@@ -34,6 +34,9 @@ from pitchvision_api.schemas.results import (
     CalibrationState,
     ManualCalibration,
     ManualTeamsIn,
+    PlayerList,
+    PlayerOut,
+    PlayersPatch,
     TeamsPatch,
 )
 from pitchvision_api.services import jobs as jobs_service
@@ -87,10 +90,48 @@ async def patch_teams(session: AsyncSession, principal: Principal, video_id: uui
         a.color, b.color = b.color, a.color
     for team in rows:
         team.confirmed = body.confirmed
+        if body.attack_h1 is not None and team.cluster in (0, 1):
+            other = "left" if body.attack_h1 == "right" else "right"
+            team.attack_h1, team.attack_source = (body.attack_h1 if team.cluster == 0 else other), "user"
     await session.flush()
     await _record(session, principal, video, "teams", {
-        "teams": [{"cluster": t.cluster, "name": t.name, "color": t.color} for t in rows],
-        "edits": [e.model_dump() for e in body.teams], "swap": body.swap, "confirmed": body.confirmed})
+        "teams": [{"cluster": t.cluster, "name": t.name, "color": t.color, "attack_h1": t.attack_h1} for t in rows],
+        "edits": [e.model_dump() for e in body.teams], "swap": body.swap, "confirmed": body.confirmed,
+        "attack_h1": body.attack_h1})
+
+
+# ---------------------------------------------------------------- SCR-14 E06
+FPS = 25
+
+
+async def players(session: AsyncSession, principal: Principal, video_id: uuid.UUID, roles: list[str],
+                  limit: int) -> PlayerList:  # fmt: skip
+    if await videos_repo.get(session, principal.org_id, video_id) is None:
+        raise not_found()
+    rows = await repo.players(session, principal.org_id, video_id, roles, limit)
+    return PlayerList(items=[PlayerOut(track_id=p.track_id, role=p.role, team=cluster, confirmed=p.confirmed,
+                                       seconds=round((p.frames or 0) / FPS, 1), t0_ms=p.t0_ms, t1_ms=p.t1_ms)
+                             for p, cluster in rows])  # fmt: skip
+
+
+async def patch_players(session: AsyncSession, principal: Principal, video_id: uuid.UUID, body: PlayersPatch
+                        ) -> PlayerList:  # fmt: skip
+    video = await _locked_video(session, principal, video_id)
+    by_cluster = {t.cluster: t for t in await repo.teams(session, principal.org_id, video_id) if t.cluster is not None}
+    found = {p.track_id: p for p in await repo.players_by_track(session, principal.org_id, video_id,
+                                                                 [c.track_id for c in body.changes])}  # fmt: skip
+    missing = sorted({c.track_id for c in body.changes} - set(found))
+    if missing:
+        raise _invalid("Unknown track", f"The analysis has no track {missing[0]}.", "unknown_track")
+    for c in body.changes:
+        p = found[c.track_id]
+        team = None if c.role == "referee" or c.team is None else by_cluster.get(c.team)
+        if c.role != "referee" and team is None:
+            raise _invalid("Unknown team", f"The analysis has no team cluster {c.team}.", "unknown_cluster")
+        p.role, p.team_id, p.confirmed = c.role, team.id if team else None, True
+    await session.flush()
+    await _record(session, principal, video, "players", {"changes": [c.model_dump() for c in body.changes]})
+    return await players(session, principal, video_id, ["goalkeeper", "referee"], 200)
 
 
 # ---------------------------------------------------------------- SCR-14 manual

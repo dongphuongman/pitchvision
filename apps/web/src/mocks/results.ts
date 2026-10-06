@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import type { ManualCalibration } from '@/api/corrections';
+import type { ManualCalibration, PlayerOut } from '@/api/corrections';
 import { generalPosition, type Pt } from '@/features/calibration/geometry';
 import pitchTemplate from './pitchTemplate.json';
 import { MOCK_TEAMS, mockShots } from './player';
@@ -118,10 +118,33 @@ export function resultsHandlers(db: MockVideoDb) {
         name: t.cluster === 0 ? 'Team A' : 'Team B',
         color: t.color,
         confirmed: false,
+        attack_h1: t.cluster === 0 ? ('left' as const) : ('right' as const),
+        attack_source: 'auto' as const,
       }));
       db.teams.set(videoId, teams);
     }
     return teams;
+  };
+  const playersOf = (videoId: string): PlayerOut[] => {
+    let rows = db.players.get(videoId);
+    if (!rows) {
+      const p = (track_id: number, role: string, team: number | null, seconds: number) => ({
+        track_id,
+        role,
+        team,
+        confirmed: false,
+        seconds,
+        t0_ms: 0,
+        t1_ms: seconds * 1000,
+      });
+      rows = [
+        p(7, 'goalkeeper', 0, 1520),
+        p(4, 'referee', null, 1310),
+        p(12, 'goalkeeper', 0, 640),
+      ];
+      db.players.set(videoId, rows);
+    }
+    return rows;
   };
   const teamList = (videoId: string) => {
     const teams = teamsOf(videoId);
@@ -193,6 +216,7 @@ export function resultsHandlers(db: MockVideoDb) {
         teams?: { cluster: number; name: string; color: string }[];
         swap?: boolean;
         confirmed?: boolean;
+        attack_h1?: 'left' | 'right' | null;
       };
       db.log.push(`PATCH teams ${v.id} ${JSON.stringify(body)}`);
       if (!doneJob(v.id)) {
@@ -215,7 +239,38 @@ export function resultsHandlers(db: MockVideoDb) {
         [a.name, b.name, a.color, b.color] = [b.name, a.name, b.color, a.color];
       }
       if (body.confirmed ?? true) for (const t of teams) t.confirmed = true;
+      if (body.attack_h1) {
+        for (const t of teams) {
+          const other = body.attack_h1 === 'left' ? 'right' : 'left';
+          t.attack_h1 = t.cluster === 0 ? body.attack_h1 : other;
+          t.attack_source = 'user';
+        }
+      }
       return HttpResponse.json(teamList(v.id));
+    }),
+    http.get('*/api/v1/results/:id/players', ({ params }) => {
+      const v = find(String(params.id));
+      if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
+      return HttpResponse.json({ items: playersOf(v.id) });
+    }),
+    http.patch('*/api/v1/results/:id/players', async ({ params, request }) => {
+      const v = find(String(params.id));
+      if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
+      const body = (await request.json()) as {
+        changes: { track_id: number; role: string; team?: number | null }[];
+      };
+      db.log.push(`PATCH players ${v.id} ${JSON.stringify(body)}`);
+      const rows = playersOf(v.id);
+      for (const c of body.changes) {
+        const p = rows.find((r) => r.track_id === c.track_id);
+        if (!p) return invalid('Unknown track', 'unknown_track');
+        Object.assign(p, {
+          role: c.role,
+          team: c.role === 'referee' ? null : (c.team ?? null),
+          confirmed: true,
+        });
+      }
+      return HttpResponse.json({ items: rows });
     }),
     http.get('*/api/v1/results/:id/teams/candidates', ({ params }) => {
       const v = find(String(params.id));

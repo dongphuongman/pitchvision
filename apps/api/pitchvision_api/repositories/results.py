@@ -6,7 +6,7 @@ from sqlalchemy import select, text, tuple_
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pitchvision_api.db.models import Correction, Job, JobTask, ShotRow, Team, positions_org
+from pitchvision_api.db.models import Correction, Job, JobTask, Player, ShotRow, Team, positions_org
 
 
 async def latest_done_job(session: AsyncSession, org_id: uuid.UUID, video_id: uuid.UUID) -> Job | None:
@@ -121,3 +121,29 @@ async def job_org(session: AsyncSession, job_id: uuid.UUID) -> uuid.UUID | None:
     """org of a job without an org context (migration 0003 SECURITY DEFINER helper; ids only)."""
     org: uuid.UUID | None = await session.scalar(text("SELECT pv_job_org(:j)"), {"j": job_id})
     return org
+
+
+async def players(session: AsyncSession, org_id: uuid.UUID, video_id: uuid.UUID, roles: list[str], limit: int
+                  ) -> list[tuple[Player, int | None]]:  # fmt: skip
+    """(player, team cluster) longest on screen first; ``roles`` empty = all."""
+    stmt = (select(Player, Team.cluster).outerjoin(Team, Team.id == Player.team_id)
+            .where(Player.org_id == org_id, Player.video_id == video_id))  # fmt: skip
+    if roles:
+        stmt = stmt.where(Player.role.in_(roles))
+    stmt = stmt.order_by(Player.frames.desc().nulls_last(), Player.track_id).limit(limit)
+    return [(r[0], r[1]) for r in (await session.execute(stmt)).all()]
+
+
+async def players_by_track(session: AsyncSession, org_id: uuid.UUID, video_id: uuid.UUID, track_ids: list[int]
+                           ) -> list[Player]:  # fmt: skip
+    stmt = (select(Player).where(Player.org_id == org_id, Player.video_id == video_id,
+                                 Player.track_id.in_(track_ids)).with_for_update())  # fmt: skip
+    return list((await session.scalars(stmt)).all())
+
+
+async def confirmed_players(session: AsyncSession, org_id: uuid.UUID, video_id: uuid.UUID
+                            ) -> list[tuple[Player, int | None]]:  # fmt: skip
+    stmt = (select(Player, Team.cluster).outerjoin(Team, Team.id == Player.team_id)
+            .where(Player.org_id == org_id, Player.video_id == video_id, Player.confirmed.is_(True))
+            .order_by(Player.track_id))  # fmt: skip
+    return [(r[0], r[1]) for r in (await session.execute(stmt)).all()]

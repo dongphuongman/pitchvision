@@ -341,6 +341,33 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/results/{video_id}/players': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Players
+     * @description Tracks of the video's analysis, longest on screen first (`role` filters, repeatable). SCR-14 E06 lists the
+     *     goalkeepers and referees.
+     */
+    get: operations['list_players_api_v1_results__video_id__players_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Patch Players
+     * @description SCR-14 E06 "Fix assignment": set role + team of tracks. Display-only — tiles keep the detection; the
+     *     manifest's `track_overrides` carry the fix (re-fetch the manifest). 422 `reason`: unknown_track /
+     *     unknown_cluster.
+     */
+    patch: operations['patch_players_api_v1_results__video_id__players_patch'];
+    trace?: never;
+  };
   '/api/v1/results/{video_id}/teams': {
     parameters: {
       query?: never;
@@ -1225,6 +1252,11 @@ export interface components {
        * @description e.g. /api/v1/tiles/{video}/{job}/r0/{tile_no}.json.gz?exp=…&sig=… — {tile_no} is 6-digit. Signed, expires (re-fetch the manifest on 403). The stored manifest.json holds the object-key template.
        */
       tile_url_template: string;
+      /**
+       * Track Overrides
+       * @description Confirmed team / role fixes per track (served from the players table)
+       */
+      track_overrides?: components['schemas']['TrackOverride'][];
       /** Video Id */
       video_id: string;
       /** Width */
@@ -1387,6 +1419,63 @@ export interface components {
       /** Width M */
       width_m: number;
     };
+    /** PlayerFix */
+    PlayerFix: {
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: 'player' | 'goalkeeper' | 'referee';
+      /**
+       * Team
+       * @description required for player / goalkeeper; ignored for referee
+       */
+      team?: number | null;
+      /** Track Id */
+      track_id: number;
+    };
+    /** PlayerList */
+    PlayerList: {
+      /** Items */
+      items: components['schemas']['PlayerOut'][];
+    };
+    /**
+     * PlayerOut
+     * @description A global track (M1: no ReID, so one real person may have several).
+     */
+    PlayerOut: {
+      /**
+       * Confirmed
+       * @description the role / team was set by a user (SCR-14 E06)
+       */
+      confirmed: boolean;
+      /** Role */
+      role: string | null;
+      /**
+       * Seconds
+       * @description time on screen
+       */
+      seconds: number;
+      /** T0 Ms */
+      t0_ms: number | null;
+      /** T1 Ms */
+      t1_ms: number | null;
+      /**
+       * Team
+       * @description cluster 0 / 1, null = no team
+       */
+      team: number | null;
+      /** Track Id */
+      track_id: number;
+    };
+    /**
+     * PlayersPatch
+     * @description SCR-14 E06 "Fix assignment": display-only (tiles keep the detection; the manifest's track_overrides apply).
+     */
+    PlayersPatch: {
+      /** Changes */
+      changes: components['schemas']['PlayerFix'][];
+    };
     /**
      * ProblemDetails
      * @description OpenAPI shape of every 4xx/5xx body: Problem + optional extensions.
@@ -1524,6 +1613,11 @@ export interface components {
     };
     /** TeamInfo */
     TeamInfo: {
+      /**
+       * Attack H1
+       * @description Side this team attacks in the first half as the main camera sees it (SCR-14 E05); null = unknown
+       */
+      attack_h1?: ('left' | 'right') | null;
       /** Cluster */
       cluster: number;
       /** Color */
@@ -1549,6 +1643,16 @@ export interface components {
     };
     /** TeamOut */
     TeamOut: {
+      /**
+       * Attack H1
+       * @description side attacked in the first half (SCR-14 E05)
+       */
+      attack_h1?: ('left' | 'right') | null;
+      /**
+       * Attack Source
+       * @description auto = guessed from the goalkeepers
+       */
+      attack_source?: ('auto' | 'user') | null;
       /**
        * Cluster
        * @description team-model cluster (0 / 1) the team was created from — the `team` value in tiles / tracks; never changes for a video's analysis
@@ -1581,6 +1685,11 @@ export interface components {
      *     ``swap: true``. Clusters (= tile ``team`` values) never move, so no tile is regenerated.
      */
     TeamsPatch: {
+      /**
+       * Attack H1
+       * @description E05: side team cluster 0 attacks in the first half (cluster 1 gets the other); omitted = unchanged
+       */
+      attack_h1?: ('left' | 'right') | null;
       /**
        * Confirmed
        * @default true
@@ -1639,6 +1748,24 @@ export interface components {
        * @description polyline in metres
        */
       points: [number, number][];
+    };
+    /**
+     * TrackOverride
+     * @description A user's fix of one track (SCR-14 E06): tiles keep the detected team / class, players apply this on top.
+     */
+    TrackOverride: {
+      /**
+       * Cls
+       * @description ObjCls: 0 player, 1 goalkeeper, 2 referee
+       */
+      cls: number;
+      /**
+       * Team
+       * @description cluster 0 / 1, -1 = no team (referee)
+       */
+      team: number;
+      /** Track Id */
+      track_id: number;
     };
     /** TrackPage */
     TrackPage: {
@@ -2662,6 +2789,93 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['MediaOut'];
+        };
+      };
+    };
+  };
+  list_players_api_v1_results__video_id__players_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+        role?: ('player' | 'goalkeeper' | 'referee')[];
+      };
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlayerList'];
+        };
+      };
+    };
+  };
+  patch_players_api_v1_results__video_id__players_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlayersPatch'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlayerList'];
         };
       };
     };

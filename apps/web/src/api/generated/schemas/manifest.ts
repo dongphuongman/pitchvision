@@ -31,6 +31,10 @@ export type T1Ms = number;
  */
 export type ShotType = 'main_wide' | 'close_up' | 'replay' | 'other';
 export type Shots = Shot[];
+/**
+ * Side this team attacks in the first half as the main camera sees it (SCR-14 E05); null = unknown
+ */
+export type AttackH1 = ('left' | 'right') | null;
 export type Cluster = number;
 export type Color = string;
 export type Confirmed = boolean;
@@ -42,6 +46,19 @@ export type TileMs = number;
  * e.g. /api/v1/tiles/{video}/{job}/r0/{tile_no}.json.gz?exp=…&sig=… — {tile_no} is 6-digit. Signed, expires (re-fetch the manifest on 403). The stored manifest.json holds the object-key template.
  */
 export type TileUrlTemplate = string;
+/**
+ * ObjCls: 0 player, 1 goalkeeper, 2 referee
+ */
+export type Cls = number;
+/**
+ * cluster 0 / 1, -1 = no team (referee)
+ */
+export type Team = number;
+export type TrackId = number;
+/**
+ * Confirmed team / role fixes per track (served from the players table)
+ */
+export type TrackOverrides = TrackOverride[];
 export type VideoId = string;
 export type Width = number;
 
@@ -60,6 +77,7 @@ export interface Manifest {
   tile_count: TileCount;
   tile_ms?: TileMs;
   tile_url_template: TileUrlTemplate;
+  track_overrides?: TrackOverrides;
   video_id: VideoId;
   width: Width;
 }
@@ -95,8 +113,20 @@ export interface Shot {
  * via the `definition` "TeamInfo".
  */
 export interface TeamInfo {
+  attack_h1?: AttackH1;
   cluster: Cluster;
   color: Color;
   confirmed?: Confirmed;
   name: Name;
+}
+/**
+ * A user's fix of one track (SCR-14 E06): tiles keep the detected team / class, players apply this on top.
+ *
+ * This interface was referenced by `Manifest`'s JSON-Schema
+ * via the `definition` "TrackOverride".
+ */
+export interface TrackOverride {
+  cls: Cls;
+  team: Team;
+  track_id: TrackId;
 }

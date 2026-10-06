@@ -213,7 +213,23 @@
       "started": "Re-running team detection",
       "unavailable": "Manual picking isn't available for this analysis. Re-analyze the video to use it.",
       "frameError": "Couldn't load this frame."
-    }
+    },
+    "attack": "Attacking direction (1st half)",
+    "attackLeft": "← Left",
+    "attackRight": "Right →",
+    "attackAuto": "Guessed from where the goalkeepers stand — check it.",
+    "attackUnknown": "Not detected — pick the side this team attacks.",
+    "attackOther": "{{name}} attacks the other way.",
+    "keyRoles": "Referees & goalkeepers",
+    "keyRolesHelp": "Detected on their own; fix any that went to the wrong team.",
+    "noKeyRoles": "No goalkeepers or referees were detected.",
+    "gk": "GK #{{id}}",
+    "ref": "Ref #{{id}}",
+    "onScreen": "{{time}} on screen",
+    "fixFor": "Fix assignment of {{who}}",
+    "asGoalkeeper": "Goalkeeper of {{team}}",
+    "asReferee": "Referee",
+    "fixed": "Assignment updated"
   },
   "calibrate": {
     "title": "Calibrate pitch",

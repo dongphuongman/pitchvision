@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pitchvision_schemas import PitchStatus
+from pitchvision_schemas import AttackSide, PitchStatus
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from pitchvision_api.db.models import Team
@@ -40,13 +40,15 @@ class TeamOut(BaseModel):
     name: str | None
     color: str | None = Field(description="#rrggbb (mean shirt colour of the cluster until the user changes it)")
     confirmed: bool
+    attack_h1: AttackSide | None = Field(None, description="side attacked in the first half (SCR-14 E05)")
+    attack_source: Literal["auto", "user"] | None = Field(None, description="auto = guessed from the goalkeepers")
     samples: list[SampleCrop] = Field(default_factory=list,
                                       description=f"≤ {MAX_SAMPLES_PER_TEAM} crops of this cluster in `sample_sheet`")
 
     @classmethod
     def of(cls, t: Team, samples: list[SampleCrop] | None = None) -> "TeamOut":
         return cls(id=t.id, cluster=t.cluster, name=t.name, color=t.color, confirmed=t.confirmed,
-                   samples=samples or [])  # fmt: skip
+                   attack_h1=t.attack_h1, attack_source=t.attack_source, samples=samples or [])  # type: ignore[arg-type]  # fmt: skip
 
 
 class TeamList(BaseModel):
@@ -77,6 +79,8 @@ class TeamsPatch(BaseModel):
     teams: list[TeamEdit] = Field(default_factory=list, max_length=2)
     swap: bool = False
     confirmed: bool = True
+    attack_h1: AttackSide | None = Field(None, description="E05: side team cluster 0 attacks in the first half "
+                                         "(cluster 1 gets the other); omitted = unchanged")
 
     @model_validator(mode="after")
     def _unique(self) -> "TeamsPatch":
@@ -195,3 +199,40 @@ class TrackPoint(BaseModel):
 class TrackPage(BaseModel):
     items: list[TrackPoint] = Field(description="ordered by (ts_ms, track_id)")
     next_cursor: str | None = Field(description="pass as `cursor` with the same from_ms / to_ms for the next page")
+
+
+PlayerRole = Literal["player", "goalkeeper", "referee"]
+
+
+class PlayerOut(BaseModel):
+    """A global track (M1: no ReID, so one real person may have several)."""
+
+    track_id: int
+    role: str | None
+    team: int | None = Field(description="cluster 0 / 1, null = no team")
+    confirmed: bool = Field(description="the role / team was set by a user (SCR-14 E06)")
+    seconds: float = Field(description="time on screen")
+    t0_ms: int | None
+    t1_ms: int | None
+
+
+class PlayerList(BaseModel):
+    items: list[PlayerOut]
+
+
+class PlayerFix(BaseModel):
+    track_id: int
+    role: PlayerRole
+    team: int | None = Field(None, ge=0, le=1, description="required for player / goalkeeper; ignored for referee")
+
+    @model_validator(mode="after")
+    def _team(self) -> "PlayerFix":
+        if self.role != "referee" and self.team is None:
+            raise ValueError("players and goalkeepers need a team")
+        return self
+
+
+class PlayersPatch(BaseModel):
+    """SCR-14 E06 "Fix assignment": display-only (tiles keep the detection; the manifest's track_overrides apply)."""
+
+    changes: list[PlayerFix] = Field(min_length=1, max_length=200)

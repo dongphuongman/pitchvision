@@ -8,7 +8,7 @@ like the API, so a worker bug can't touch another org's rows. Ingest updates are
 `status = 'ingesting'` so a redelivered task or a user who deleted the video in the meantime is a no-op.
 S8 result rows (positions / teams / players) are written by ``pitchvision_worker.results_db``.
 
-Columns mirror apps/api migrations 0001–0006 (the API owns the schema). Job queries live in
+Columns mirror apps/api migrations 0001–0007 (the API owns the schema). Job queries live in
 pitchvision_worker.orchestrator.store; cross-org lookups go through the SECURITY DEFINER helpers below.
 """
 
@@ -120,6 +120,8 @@ teams = Table(
     Column("name", Text),
     Column("color", Text),
     Column("confirmed", Boolean, nullable=False, server_default=text("false")),
+    Column("attack_h1", Text),
+    Column("attack_source", Text),
 )
 players = Table(
     "players",
@@ -131,6 +133,9 @@ players = Table(
     Column("team_id", UUID(as_uuid=True)),
     Column("role", Text),
     Column("confirmed", Boolean, nullable=False, server_default=text("false")),
+    Column("frames", Integer),
+    Column("t0_ms", Integer),
+    Column("t1_ms", Integer),
 )
 
 exports = Table(  # 0005 (SCR-25 / SCR-26); rendered by pitchvision_worker.exports

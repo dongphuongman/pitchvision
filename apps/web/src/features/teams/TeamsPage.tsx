@@ -7,6 +7,7 @@ import { Page } from '@/app/Page';
 import {
   patchTeams,
   teamsQuery,
+  type AttackSide,
   type SampleCrop,
   type SampleSheet,
   type Team,
@@ -14,8 +15,19 @@ import {
 import { can } from '@/auth/roles';
 import { useRole } from '@/auth/session';
 import { cn } from '@/lib/cn';
-import { Banner, Button, Card, Field, IconButton, Input, Skeleton, toast } from '@/ui';
+import {
+  Banner,
+  Button,
+  Card,
+  Field,
+  IconButton,
+  Input,
+  SegmentedControl,
+  Skeleton,
+  toast,
+} from '@/ui';
 import { BackLink, CorrectionError } from '@/features/video/corrections';
+import { KeyRoles } from './KeyRoles';
 import { ManualTeams } from './ManualTeams';
 
 const route = getRouteApi('/_app/videos/$videoId/teams');
@@ -85,14 +97,16 @@ function ConfirmTeams({ videoId, back }: { videoId: string; back: string }) {
   const canEdit = can(useRole(), 'editor');
   const teams = useQuery(teamsQuery(videoId));
   const [edited, setEdited] = useState<Draft[] | null>(null);
+  const [attackEdit, setAttackEdit] = useState<AttackSide | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [announce, setAnnounce] = useState('');
 
   const save = useMutation({
-    mutationFn: (drafts: Draft[]) =>
+    mutationFn: ({ drafts, attack }: { drafts: Draft[]; attack: AttackSide | null }) =>
       patchTeams(
         videoId,
         drafts.map((d) => ({ cluster: d.cluster, name: d.name.trim(), color: d.color })),
+        attack,
       ),
     onSuccess: (data) => {
       qc.setQueryData(teamsQuery(videoId).queryKey, data);
@@ -110,6 +124,9 @@ function ConfirmTeams({ videoId, back }: { videoId: string; back: string }) {
   if (items.length < 2) return <Banner tone="info">{t('teams.noTeams')}</Banner>;
 
   const drafts = edited ?? toDrafts(items);
+  const first = items.find((it) => it.cluster === 0);
+  const attack = attackEdit ?? first?.attack_h1 ?? null;
+  const attackAuto = attackEdit === null && first?.attack_source === 'auto';
   const [a, b] = drafts;
   const update = (cluster: number, patch: Partial<Draft>) =>
     setEdited(drafts.map((d) => (d.cluster === cluster ? { ...d, ...patch } : d)));
@@ -140,6 +157,17 @@ function ConfirmTeams({ videoId, back }: { videoId: string; back: string }) {
             readOnly={!canEdit}
             showError={submitted}
             onChange={(patch) => update(draft.cluster, patch)}
+            extra={
+              draft.cluster === 0 ? (
+                <AttackField
+                  value={attack}
+                  auto={attackAuto}
+                  other={b?.name ?? ''}
+                  readOnly={!canEdit}
+                  onChange={setAttackEdit}
+                />
+              ) : null
+            }
             between={
               i === 0 && canEdit ? (
                 <div className="grid place-items-center">
@@ -159,6 +187,7 @@ function ConfirmTeams({ videoId, back }: { videoId: string; back: string }) {
       <p aria-live="polite" className="sr-only">
         {announce}
       </p>
+      <KeyRoles videoId={videoId} teams={drafts} readOnly={!canEdit} />
       {tooClose && (
         <Banner tone="warn">
           <span aria-live="polite">{t('teams.colorsTooClose')}</span>
@@ -194,7 +223,7 @@ function ConfirmTeams({ videoId, back }: { videoId: string; back: string }) {
               disabled={save.isPending}
               onClick={() => {
                 setSubmitted(true);
-                if (!invalid) save.mutate(drafts);
+                if (!invalid) save.mutate({ drafts, attack });
               }}
             >
               {t('teams.confirm')}
@@ -215,6 +244,7 @@ function TeamCard({
   readOnly,
   showError,
   onChange,
+  extra,
   between,
 }: {
   n: number;
@@ -225,6 +255,7 @@ function TeamCard({
   readOnly: boolean;
   showError: boolean;
   onChange: (patch: Partial<Draft>) => void;
+  extra?: React.ReactNode;
   between: React.ReactNode;
 }) {
   const { t } = useTranslation('video');
@@ -286,9 +317,50 @@ function TeamCard({
             />
           </div>
         </div>
+        {extra}
       </Card>
       {between}
     </>
+  );
+}
+
+/** E05: side this team attacks in the first half (the other team gets the opposite). */
+function AttackField({
+  value,
+  auto,
+  other,
+  readOnly,
+  onChange,
+}: {
+  value: AttackSide | null;
+  auto: boolean;
+  other: string;
+  readOnly: boolean;
+  onChange: (v: AttackSide) => void;
+}) {
+  const { t } = useTranslation('video');
+  const labelId = useId();
+  return (
+    <div className="grid gap-1.5">
+      <span id={labelId} className="text-caption font-semibold text-fg-2">
+        {t('teams.attack')}
+      </span>
+      <SegmentedControl<AttackSide>
+        aria-labelledby={labelId}
+        value={value ?? undefined}
+        disabled={readOnly}
+        onValueChange={onChange}
+        options={[
+          { value: 'left', label: t('teams.attackLeft') },
+          { value: 'right', label: t('teams.attackRight') },
+        ]}
+      />
+      <p className="m-0 text-caption text-fg-3">
+        {value === null
+          ? t('teams.attackUnknown')
+          : `${auto ? `${t('teams.attackAuto')} ` : ''}${t('teams.attackOther', { name: other })}`}
+      </p>
+    </div>
   );
 }
 

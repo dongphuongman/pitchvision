@@ -19,7 +19,15 @@ import time
 import uuid
 from typing import Any
 
-from pitchvision_schemas import ErrorCode, Manifest, PitchTemplateInfo, TeamInfo, keys, load_pitch_template
+from pitchvision_schemas import (
+    ErrorCode,
+    Manifest,
+    PitchTemplateInfo,
+    TeamInfo,
+    TrackOverride,
+    keys,
+    load_pitch_template,
+)
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -96,7 +104,11 @@ async def manifest(session: AsyncSession, storage: Storage, settings: Settings, 
                 if t.cluster is not None and t.name and t.color and _HEX.match(t.color)]  # fmt: skip
     if db_teams:
         m.teams = [TeamInfo(cluster=int(t.cluster), name=str(t.name)[:100], color=str(t.color),
-                            confirmed=t.confirmed) for t in db_teams if t.cluster is not None]  # fmt: skip
+                            confirmed=t.confirmed, attack_h1=t.attack_h1 if t.attack_h1 in ("left", "right") else None)
+                   for t in db_teams if t.cluster is not None]  # type: ignore[arg-type]  # fmt: skip
+    fixed = await repo.confirmed_players(session, principal.org_id, video_id)
+    m.track_overrides = [TrackOverride(track_id=p.track_id, team=cluster if cluster in (0, 1) else -1,
+                                       cls=ROLE_CLS.get(p.role or "player", 0)) for p, cluster in fixed]  # fmt: skip
     base = settings.tile_base_url or TILES_ROUTE
     m.tile_url_template = signed_template(settings.tile_key, base, video_id, m.job_id, m.revision, time.time(),
                                           settings.tile_url_ttl_s)  # fmt: skip
@@ -104,6 +116,7 @@ async def manifest(session: AsyncSession, storage: Storage, settings: Settings, 
 
 
 FPS = 25  # normalized timeline (S2)
+ROLE_CLS = {"player": 0, "goalkeeper": 1, "referee": 2}  # players.role → ObjCls (tiles)
 TEAM_MODEL = "team_model.json"
 TEAM_GRID = "team_samples.jpg"
 CANDIDATES = "team_candidates.json"

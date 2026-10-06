@@ -11,7 +11,7 @@ tactical map, stats, AI report. Read `README.md` first (layout, commands, rules)
 "Trạng thái thực hiện" (rendered from `docs/status.json`).
 
 ## Where we are (M1, plan 12/10–20/11, alpha 04/12/2026)
-Done and on `main` (Python 883 tests, web 238 tests, CI green incl. 3 Docker images):
+Done and on `main` (Python 885 tests, web 243 tests, CI green incl. 3 Docker images):
 - Phase 0 spikes + Gate G0; SP-07 on real R2; SP-08 rVFC sync; SP-11 detector choice.
 - W1 foundation: uv + pnpm monorepo, import-linter, `packages/schemas`, Alembic + RLS, FastAPI, cv-core runtime/VideoReader, golden eval, web shell, Compose, Dockerfiles, GitHub Actions.
 - W2: identity-svc (auth, orgs, roles, invites, Google OIDC, JWKS), API JWT, presigned multipart upload, YouTube ingest (queue `ingest`), S2 normalise, shot classifier 97.9 %, D-FINE ONNX, keypoint/homography lib, auth/onboarding screens, Terraform R2.
@@ -23,7 +23,9 @@ Done and on `main` (Python 883 tests, web 238 tests, CI green incl. 3 Docker ima
   S11 export render + `/api/v1/exports` + SCR-25 modal + SCR-26 page (M1-BE-17); monthly minute quota + `GET /usage`
   + G.E06 meter (M1-BE-18); notifications table + `/api/v1/notifications` + SCR-51 bell + emails via identity
   `/internal/v1/notifications/email` (M1-BE-19); test for recalibrating after HOMOGRAPHY_UNAVAILABLE (backend was
-  already right: an `analyze` job never fails on the pitch).
+  already right: an `analyze` job never fails on the pitch); SCR-14 E05 attacking direction (auto-guessed by S8
+  from the goalkeepers, `PATCH /teams attack_h1`) + E06 goalkeeper / referee fixes (`/results/{v}/players`,
+  manifest `track_overrides`, applied by the web player and S11).
 
 Contracts: `docs/contracts/identity-api.md` (plans, quota), `docs/contracts/pipeline-stages.md` (stages, keys,
 derived jobs, exports, notifications).
@@ -31,10 +33,9 @@ derived jobs, exports, notifications).
 ## Next (doable on the Mac)
 1. Local email check:
    Add `PV_INTERNAL_TOKEN` to `infra/compose/.env` to get notification emails in Mailpit locally.
-2. SCR-14 E05/E06 (attacking direction, goalkeeper/referee fix) — backend + web.
-3. SCR-40 billing section (plan, usage, waitlist upgrade = SCR-41), /preferences email toggles, SCR-01 landing,
+2. SCR-40 billing section (plan, usage, waitlist upgrade = SCR-41), /preferences email toggles, SCR-01 landing,
    SCR-50 error pages, Playwright flows F1/F3/F4/F8 (M1-FE-14…16).
-4. Export follow-ups: 1080p from source.mp4 (now an upscale of the 720p copy); "member joined" notification.
+3. Export follow-ups: 1080p from source.mp4 (now an upscale of the 720p copy); "member joined" notification.
 
 ## Blocked on the PO
 - Keypoint model (tactical map): ~300 golden frames labelled (guide `training/keypoints/README.md`) + NVIDIA GPU (RunPod/4090). Until then every job reports `pitch_calibration = unavailable` (overlay works, map empty) unless calibrated manually.

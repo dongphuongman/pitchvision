@@ -1150,6 +1150,162 @@
         ]
       }
     },
+    "/api/v1/results/{video_id}/players": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "List Players",
+        "description": "Tracks of the video's analysis, longest on screen first (`role` filters, repeatable). SCR-14 E06 lists the\ngoalkeepers and referees.",
+        "operationId": "list_players_api_v1_results__video_id__players_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "player",
+                  "goalkeeper",
+                  "referee"
+                ],
+                "type": "string"
+              },
+              "default": [],
+              "title": "Role"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Patch Players",
+        "description": "SCR-14 E06 \"Fix assignment\": set role + team of tracks. Display-only — tiles keep the detection; the\nmanifest's `track_overrides` carry the fix (re-fetch the manifest). 422 `reason`: unknown_track /\nunknown_cluster.",
+        "operationId": "patch_players_api_v1_results__video_id__players_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayersPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/results/{video_id}/manifest": {
       "get": {
         "tags": [
@@ -3731,6 +3887,14 @@
           },
           "pitch": {
             "$ref": "#/components/schemas/PitchCalibration"
+          },
+          "track_overrides": {
+            "items": {
+              "$ref": "#/components/schemas/TrackOverride"
+            },
+            "type": "array",
+            "title": "Track Overrides",
+            "description": "Confirmed team / role fixes per track (served from the players table)"
           }
         },
         "additionalProperties": false,
@@ -4097,6 +4261,153 @@
           "lines"
         ],
         "title": "PitchTemplateInfo"
+      },
+      "PlayerFix": {
+        "properties": {
+          "track_id": {
+            "type": "integer",
+            "title": "Track Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "player",
+              "goalkeeper",
+              "referee"
+            ],
+            "title": "Role"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team",
+            "description": "required for player / goalkeeper; ignored for referee"
+          }
+        },
+        "type": "object",
+        "required": [
+          "track_id",
+          "role"
+        ],
+        "title": "PlayerFix"
+      },
+      "PlayerList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "PlayerList"
+      },
+      "PlayerOut": {
+        "properties": {
+          "track_id": {
+            "type": "integer",
+            "title": "Track Id"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team",
+            "description": "cluster 0 / 1, null = no team"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed",
+            "description": "the role / team was set by a user (SCR-14 E06)"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds",
+            "description": "time on screen"
+          },
+          "t0_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0 Ms"
+          },
+          "t1_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1 Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "track_id",
+          "role",
+          "team",
+          "confirmed",
+          "seconds",
+          "t0_ms",
+          "t1_ms"
+        ],
+        "title": "PlayerOut",
+        "description": "A global track (M1: no ReID, so one real person may have several)."
+      },
+      "PlayersPatch": {
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerFix"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Changes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "changes"
+        ],
+        "title": "PlayersPatch",
+        "description": "SCR-14 E06 \"Fix assignment\": display-only (tiles keep the detection; the manifest's track_overrides apply)."
       },
       "ProblemDetails": {
         "properties": {
@@ -4470,6 +4781,22 @@
             "type": "boolean",
             "title": "Confirmed",
             "default": false
+          },
+          "attack_h1": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "left",
+                  "right"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack H1",
+            "description": "Side this team attacks in the first half as the main camera sees it (SCR-14 E05); null = unknown"
           }
         },
         "type": "object",
@@ -4565,6 +4892,38 @@
             "type": "boolean",
             "title": "Confirmed"
           },
+          "attack_h1": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "left",
+                  "right"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack H1",
+            "description": "side attacked in the first half (SCR-14 E05)"
+          },
+          "attack_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "user"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack Source",
+            "description": "auto = guessed from the goalkeepers"
+          },
           "samples": {
             "items": {
               "$ref": "#/components/schemas/SampleCrop"
@@ -4603,6 +4962,22 @@
             "type": "boolean",
             "title": "Confirmed",
             "default": true
+          },
+          "attack_h1": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "left",
+                  "right"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack H1",
+            "description": "E05: side team cluster 0 attacks in the first half (cluster 1 gets the other); omitted = unchanged"
           }
         },
         "type": "object",
@@ -4700,6 +5075,36 @@
           "points"
         ],
         "title": "TemplateLine"
+      },
+      "TrackOverride": {
+        "properties": {
+          "track_id": {
+            "type": "integer",
+            "title": "Track Id"
+          },
+          "team": {
+            "type": "integer",
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Team",
+            "description": "cluster 0 / 1, -1 = no team (referee)"
+          },
+          "cls": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Cls",
+            "description": "ObjCls: 0 player, 1 goalkeeper, 2 referee"
+          }
+        },
+        "type": "object",
+        "required": [
+          "track_id",
+          "team",
+          "cls"
+        ],
+        "title": "TrackOverride",
+        "description": "A user's fix of one track (SCR-14 E06): tiles keep the detected team / class, players apply this on top."
       },
       "TrackPage": {
         "properties": {

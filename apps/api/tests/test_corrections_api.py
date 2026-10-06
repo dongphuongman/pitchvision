@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 import pytest
-from pitchvision_api.db.models import Correction, Job, ShotRow, Team, Video
+from pitchvision_api.db.models import Correction, Job, Player, ShotRow, Team, Video
 from pitchvision_api.main import create_app
 from pitchvision_api.services.corrections import general_position
 from pitchvision_api.services.tasks import TASK_EXTRACT_FRAME, TASK_START_JOB
@@ -358,3 +358,50 @@ async def test_pitch_template(client: httpx.AsyncClient) -> None:
                                  "y": 13.84}  # fmt: skip
     assert any(ln["name"] == "centre_circle" and ln["closed"] for ln in t["lines"])
     assert (await client.get("/api/v1/results/pitch-template")).status_code == 401
+
+
+# ---------------------------------------------------------------- SCR-14 E05 / E06
+async def test_attack_direction_and_player_fixes_reach_the_manifest(client: httpx.AsyncClient, migrated: Db,
+                                                                     s3: S3) -> None:  # fmt: skip
+    org = uuid.uuid4()
+    vid, job = await _analysed(migrated, org)
+    _publish(s3, org, vid, job, tiles=0)
+
+    async def add(s: Any) -> None:
+        teams = {t.cluster: t for t in (await s.scalars(select(Team).where(Team.video_id == vid))).all()}
+        teams[0].attack_h1, teams[0].attack_source = "left", "auto"
+        teams[1].attack_h1, teams[1].attack_source = "right", "auto"
+        for tid, role, cl, frames in ((7, "goalkeeper", 0, 2500), (9, "goalkeeper", 1, 100), (4, "referee", None, 900),
+                                      (1, "player", 0, 5000)):
+            s.add(Player(video_id=vid, org_id=org, track_id=tid, role=role, frames=frames, t0_ms=0, t1_ms=frames * 40,
+                         team_id=teams[cl].id if cl is not None else None))  # fmt: skip
+
+    await _exec(migrated, org, add)
+    url = f"/api/v1/results/{vid}"
+    t = (await client.get(f"{url}/teams", headers=who(org, "viewer"))).json()["items"]
+    assert [(x["attack_h1"], x["attack_source"]) for x in t] == [("left", "auto"), ("right", "auto")]
+
+    r = await client.get(f"{url}/players", params={"role": ["goalkeeper", "referee"]}, headers=who(org, "viewer"))
+    assert [(p["track_id"], p["role"], p["team"], p["seconds"]) for p in r.json()["items"]] == [
+        (7, "goalkeeper", 0, 100.0), (4, "referee", None, 36.0), (9, "goalkeeper", 1, 4.0)]
+    assert len((await client.get(f"{url}/players", headers=who(org))).json()["items"]) == 4
+
+    patch = {"teams": [], "confirmed": True, "attack_h1": "right"}
+    assert (await client.patch(f"{url}/teams", json=patch, headers=who(org))).status_code == 200
+    fixes = {"changes": [{"track_id": 9, "role": "goalkeeper", "team": 0}, {"track_id": 4, "role": "referee"}]}
+    assert_problem(await client.patch(f"{url}/players", json=fixes, headers=who(org, "viewer")), 403, "FORBIDDEN")
+    r = await client.patch(f"{url}/players", json=fixes, headers=who(org))
+    assert r.status_code == 200, r.text
+    nine = next(p for p in r.json()["items"] if p["track_id"] == 9)
+    assert (nine["team"], nine["confirmed"]) == (0, True)
+    bad = {"changes": [{"track_id": 999, "role": "referee"}]}
+    p = assert_problem(await client.patch(f"{url}/players", json=bad, headers=who(org)), 422, "VALIDATION_FAILED")
+    assert p["reason"] == "unknown_track"
+    assert_problem(await client.patch(f"{url}/players", json={"changes": [{"track_id": 9, "role": "goalkeeper"}]},
+                                      headers=who(org)), 422, "VALIDATION_FAILED")  # fmt: skip
+
+    m = (await client.get(f"{url}/manifest", headers=who(org, "viewer"))).json()
+    assert [(x["cluster"], x["attack_h1"]) for x in m["teams"]] == [(0, "right"), (1, "left")]
+    assert m["track_overrides"] == [{"track_id": 4, "team": -1, "cls": 2}, {"track_id": 9, "team": 0, "cls": 1}]
+    types = [c.type for c in await _rows(migrated, org, Correction, video_id=vid)]
+    assert sorted(types) == ["players", "teams"]
