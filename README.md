@@ -167,6 +167,8 @@ CI fail nếu bất kỳ file sinh ra nào cũ hơn nguồn.
 - API: `apps/api/alembic.ini`. Chạy bằng owner, qua `PV_MIGRATE_DATABASE_URL`.
 - Identity: `apps/identity/alembic.ini`, DB riêng.
 - API runtime kết nối bằng role `pv_app` (không bypass RLS).
+- Worker kết nối bằng role `pv_worker` (migration 0004): quyền của `pv_app` + INSERT vào hypertable `positions`
+  (trigger chặn `org_id` khác `app.org_id`; xoá chỉ qua `pv_delete_positions(video)`). Mật khẩu: `PV_WORKER_DB_PASSWORD`.
 
 ### Web
 

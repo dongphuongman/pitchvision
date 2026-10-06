@@ -1,4 +1,5 @@
 """Team split (S3 calibrate, S4 per-track vote): shirt crops → SigLIP embeddings → PCA → KMeans(2) + outliers."""
+from cv_core.teams.colors import cluster_colours
 from cv_core.teams.embed import (
     SIGLIP_MODEL,
     Embedder,
@@ -32,6 +33,7 @@ __all__ = [
     "TeamModel",
     "TeamSeparationFailed",
     "TrackTeamVoter",
+    "cluster_colours",
     "fit_team_model",
     "kmeans",
     "pca",

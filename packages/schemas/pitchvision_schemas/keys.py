@@ -43,8 +43,13 @@ def job_results_prefix(org_id: str, video_id: str, job_id: str) -> str:
     return _video("results", org_id, video_id) + f"jobs/{job_id}/"
 
 
+def tile_prefix(org_id: str, video_id: str, job_id: str, revision: int) -> str:
+    """S7 playback tiles of one job at one correction revision (write-once: a new revision = a new prefix)."""
+    return _video("tiles", org_id, video_id) + f"jobs/{job_id}/r{revision}/"
+
+
 def tile_key(org_id: str, video_id: str, job_id: str, revision: int, tile_no: int) -> str:
-    return _video("tiles", org_id, video_id) + f"jobs/{job_id}/r{revision}/{tile_no:06d}.json.gz"
+    return tile_prefix(org_id, video_id, job_id, revision) + f"{tile_no:06d}.json.gz"
 
 
 def export_key(org_id: str, video_id: str, export_id: str, ext: str) -> str:

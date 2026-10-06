@@ -22,7 +22,15 @@ from typing import Any
 
 import cv2
 import numpy as np
-from cv_core.teams import Embedder, FitParams, TeamModel, TeamSeparationFailed, fit_team_model, representative
+from cv_core.teams import (
+    Embedder,
+    FitParams,
+    TeamModel,
+    TeamSeparationFailed,
+    cluster_colours,
+    fit_team_model,
+    representative,
+)
 from cv_core.teams.calibrate import Detector, collect_crops, crops_grid, read_frames, sample_frame_indices
 from pitchvision_schemas import PipelineConfig, ShotTimeline
 
@@ -96,7 +104,8 @@ def run_calibrate(normalized: Path, timeline: ShotTimeline, out_dir: Path, confi
                               for i in idx] for j, idx in reps.items()}
     pred = model.predict(emb)
     model.stats.update(frames=len(frames), crops_per_frame=round(len(samples) / max(len(frames), 1), 2),
-                       outlier_share=round(float((pred == -1).mean()), 4))
+                       outlier_share=round(float((pred == -1).mean()), 4),
+                       colors={str(k): v for k, v in cluster_colours([s.crop for s in samples], pred).items()})
     path = model.save(out / TEAM_MODEL_NAME)
     rows = []
     for j, name in ((0, "team 0"), (1, "team 1"), (-1, "no team")):

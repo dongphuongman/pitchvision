@@ -159,3 +159,35 @@ def plan_every_120s(timeline: ShotTimeline, duration_ms: int, config: PipelineCo
 
 def new_id() -> uuid.UUID:
     return uuid.uuid4()
+
+
+# ---------------------------------------------------------------- synthetic S4 output (real detections schema)
+def synthetic_detections(path: Path, segment: Segment, *, players: int = 4, fps: int = 25, ball: bool = True,
+                         every: int = 1) -> Path:
+    """detections.parquet for ``segment``: ``players`` boxes swaying left/right (≤ 1.3 px/frame; the position depends
+    on the ABSOLUTE frame, so a player continues across a keyframe boundary), team = local id % 2, + a ball."""
+    import math
+
+    import numpy as np
+    from cv_core.io.parquet import CLS_BALL, CLS_PLAYER, NO_TRACK, write_detections
+
+    f0 = segment.t0_ms * fps // 1000
+    f1 = -(-segment.t1_ms * fps // 1000)
+    names = ("frame_idx", "ts_ms", "track_id", "cls", "team", "x1", "y1", "x2", "y2", "conf")
+    rows: dict[str, list[float]] = {k: [] for k in names}
+    for f in range(f0, f1, every):
+        for p in range(1, players + 1):
+            x = 100 + 150 * p + 100 * math.sin(2 * math.pi * f / 500)
+            for k, v in zip(names, (f, round(f * 1000 / fps), p, CLS_PLAYER, p % 2, x, 300 + 20 * p, x + 20,
+                                    350 + 20 * p, 0.9), strict=True):  # fmt: skip
+                rows[k].append(v)
+        if ball:
+            for k, v in zip(names, (f, round(f * 1000 / fps), NO_TRACK, CLS_BALL, -1, 640, 400, 646, 406, 0.5),
+                            strict=True):  # fmt: skip
+                rows[k].append(v)
+    return write_detections(path, {k: np.asarray(v) for k, v in rows.items()}, {"segment": segment.model_dump()})
+
+
+def team_model_json(colors: dict[str, str] | None = None) -> str:
+    """Minimal team_model.json for post-processing (it only reads ``stats.colors``)."""
+    return json.dumps({"format": "pv-team-model/v1", "stats": {"colors": colors or {"0": "#c8102e", "1": "#f5f5f5"}}})

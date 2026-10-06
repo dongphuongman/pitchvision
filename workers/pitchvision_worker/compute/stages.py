@@ -13,12 +13,13 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import json
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pitchvision_schemas import ErrorCode, PipelineConfig, Segment, ShotTimeline
+from pitchvision_schemas import ErrorCode, PipelineConfig, Segment, ShotTimeline, keys
 from pydantic import BaseModel
 
 from pitchvision_worker.compute.base import StageFailure, StageTask
@@ -137,6 +138,74 @@ def load_segment(segments_json: Path, index: int) -> Segment:
     raise StageFailure(ErrorCode.INTERNAL, f"segment {index} not in plan", retryable=False)
 
 
+def detections_input(index: int) -> str:
+    """Input name of segment ``index``'s detections.parquet in the stitch CpuTask."""
+    return f"detections_{index:03d}"
+
+
+def homography_input(index: int) -> str:
+    return f"homography_{index:03d}"
+
+
+def _task_params(task: StageTask) -> dict[str, Any]:
+    params: dict[str, Any] = getattr(task, "params", {}) or {}
+    return params
+
+
+def _stitch(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
+    """S5: params.segments = the plan; inputs shots + detections_NNN (+ homography_NNN when the pitch stage ran)."""
+    run_stitch = contract_fn("stitch", "run_stitch")
+    from pitchvision_worker.stages.stitch import SegmentInput
+
+    timeline = ShotTimeline.model_validate_json(inputs["shots"].read_text())
+    segments = [Segment.model_validate(s) for s in _task_params(task).get("segments") or []]
+    seg_inputs = [SegmentInput(s, inputs[detections_input(s.index)], inputs.get(homography_input(s.index)))
+                  for s in segments]  # fmt: skip
+    out = run_stitch(seg_inputs, timeline, out_dir, task.config)
+    result = jsonable(out)
+    return StageOutput(result if isinstance(result, dict) else {"output": result})
+
+
+def _tiles(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
+    """S7: tiles go to keys.tile_key(org, video, job, revision, n) — outside the task's output_prefix."""
+    run_tiles = contract_fn("tiles", "run_tiles")
+    p = _task_params(task)
+    timeline = ShotTimeline.model_validate_json(inputs["shots"].read_text())
+    out = run_tiles(inputs["tracks"], timeline, out_dir, task.config, duration_ms=int(p["duration_ms"]),
+                    frame_count=int(p["frame_count"]) if p.get("frame_count") else None)  # fmt: skip
+    revision = int(p.get("revision") or 0)
+    uploads = {keys.tile_key(str(p["org_id"]), str(p["video_id"]), str(p["job_id"]), revision, n): path
+               for n, path in sorted(out.paths.items())}  # fmt: skip
+    result = {"tile_count": out.tile_count, "frames": out.frames, "objects": out.objects, "bytes": out.bytes,
+              "revision": revision, "stats": out.stats}  # fmt: skip
+    return StageOutput(result, uploads=uploads)
+
+
+class LoadDbStage:
+    """S8: prepare rows (pure, ``stages.load_db``) and write them as pv_worker (``results_db``). The engine comes
+    from PV_WORKER_DATABASE_URL unless a factory is injected (tests)."""
+
+    def __init__(self, engine_factory: Callable[[], Any] | None = None) -> None:
+        self.engine_factory = engine_factory
+
+    def _engine(self) -> Any:
+        if self.engine_factory is not None:
+            return self.engine_factory()
+        from pitchvision_worker import repository
+        from pitchvision_worker.config import WorkerConfig
+
+        return repository.engine_for(WorkerConfig.from_env().database_url)
+
+    def __call__(self, task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
+        prepare_load = contract_fn("load_db", "prepare_load")
+        from pitchvision_worker.results_db import write_results
+
+        p = _task_params(task)
+        batch = prepare_load(inputs["tracks"], inputs.get("team_model"), task.config)
+        counts = write_results(self._engine(), uuid.UUID(str(p["org_id"])), uuid.UUID(str(p["video_id"])), batch)
+        return StageOutput({**counts, "revision": int(p.get("revision") or 0), "stats": batch.stats})
+
+
 def _plan_segments(timeline: ShotTimeline, duration_ms: int, config: PipelineConfig) -> list[Segment]:
     plan: list[Segment] = contract_fn("segments", "plan_segments")(timeline, duration_ms, config)
     return plan
@@ -148,5 +217,8 @@ STAGES: dict[str, StageFn] = {
     "calibrate": _calibrate,
     "infer": _infer,
     "pitch": _pitch,
+    "stitch": _stitch,
+    "tiles": _tiles,
+    "load_db": LoadDbStage(),
 }
 PLANNERS: dict[str, SegmentPlanner] = {"plan_segments": _plan_segments}

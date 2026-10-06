@@ -87,7 +87,7 @@ class ObjectStore:
 
 
 _TYPES = {".mp4": "video/mp4", ".json": "application/json", ".parquet": "application/vnd.apache.parquet",
-          ".jpg": "image/jpeg", ".png": "image/png"}  # fmt: skip
+          ".jpg": "image/jpeg", ".png": "image/png", ".gz": "application/gzip"}  # fmt: skip
 
 
 def content_type(path: Path) -> str:

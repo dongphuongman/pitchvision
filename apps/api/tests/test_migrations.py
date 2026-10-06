@@ -180,7 +180,7 @@ def test_downgrade_base_and_upgrade_again(migrated: Db) -> None:
     try:
         rows = _query(migrated, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
         assert TENANT_TABLES.isdisjoint({r[0] for r in rows}), rows
-        assert _query(migrated, "SELECT 1 FROM pg_roles WHERE rolname = 'pv_app'") == []
+        assert _query(migrated, "SELECT 1 FROM pg_roles WHERE rolname IN ('pv_app', 'pv_worker')") == []
     finally:
         command.upgrade(cfg, "head")
         enable_app_login(migrated)
