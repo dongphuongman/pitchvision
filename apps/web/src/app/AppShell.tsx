@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { can } from '@/auth/roles';
 import { useRole } from '@/auth/session';
 import type { AppDialog } from '@/router';
+import { UploadTray } from '@/features/upload/UploadTray';
 import { useUploadLifecycle } from '@/features/upload/useUploads';
 import { useSearchDialog } from '@/lib/useSearchDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
@@ -48,6 +49,7 @@ export function AppShell() {
         <Outlet />
       </main>
       <ShortcutsDialog open={dialog.value === 'shortcuts'} onOpenChange={dialog.onOpenChange} />
+      <UploadTray />
     </div>
   );
 }

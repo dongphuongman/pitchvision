@@ -24,6 +24,10 @@ uploads.subscribe((items) => {
   useSignOutGuard.getState().setUploadsInProgress(uploads.activeCount());
 });
 
+export function resetUploadsForTests(): void {
+  uploads.reset();
+}
+
 export function useUploads(): UploadItem[] {
   return useSyncExternalStore(
     (cb) => uploads.subscribe(cb),

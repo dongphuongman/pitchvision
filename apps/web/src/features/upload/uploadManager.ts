@@ -47,7 +47,7 @@ export interface UploadApi {
   getUploadState(videoId: string): Promise<UploadState>;
   completeUpload(videoId: string, parts: CompletedPart[]): Promise<unknown>;
   abortUpload(videoId: string): Promise<void>;
-  createJob(videoId: string): Promise<{ id: string }>;
+  createJob(videoId: string, config?: Record<string, unknown>): Promise<{ id: string }>;
 }
 
 /** PUT one part; resolves with the ETag storage returned. */
@@ -144,6 +144,14 @@ export class UploadManager {
     return () => this.listeners.delete(fn);
   }
 
+  /** Abort everything and forget all items (tests; sign-out of another user). */
+  reset(): void {
+    for (const c of this.controllers.values()) c.abort();
+    this.controllers.clear();
+    this.items.clear();
+    this.emit();
+  }
+
   /** Forget finished / failed / cancelled items (the tray's "clear"). */
   dismiss(id: string): void {
     const it = this.items.get(id);
@@ -171,7 +179,11 @@ export class UploadManager {
    */
   start(
     file: File,
-    { title, autoAnalyze }: { title: string | null; autoAnalyze: boolean },
+    {
+      title,
+      autoAnalyze,
+      jobConfig,
+    }: { title: string | null; autoAnalyze: boolean; jobConfig?: Record<string, unknown> },
   ): { id: string; done: Promise<UploadResult> } {
     const id = `u${++this.seq}`;
     const ctrl = new AbortController();
@@ -192,7 +204,7 @@ export class UploadManager {
       error: null,
     });
     this.emit();
-    const done = this.run(id, file, title, autoAnalyze, ctrl.signal).then(
+    const done = this.run(id, file, title, autoAnalyze, jobConfig, ctrl.signal).then(
       (res) => {
         this.controllers.delete(id);
         return res;
@@ -280,6 +292,7 @@ export class UploadManager {
     file: File,
     title: string | null,
     autoAnalyze: boolean,
+    jobConfig: Record<string, unknown> | undefined,
     signal: AbortSignal,
   ): Promise<UploadResult> {
     const key = this.keyFor(id);
@@ -376,7 +389,7 @@ export class UploadManager {
     this.storage?.removeItem(key);
 
     let jobId: string | null = null;
-    if (autoAnalyze) jobId = (await this.deps.api.createJob(videoId)).id;
+    if (autoAnalyze) jobId = (await this.deps.api.createJob(videoId, jobConfig)).id;
     this.patch(id, { phase: 'done', jobId, bytesPerSec: 0, etaS: null });
     return { videoId, jobId };
   }

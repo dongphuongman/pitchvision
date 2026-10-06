@@ -1,6 +1,7 @@
 import { setupServer } from 'msw/node';
 import { resetWsClientForTests } from '@/api/ws';
 import { resetPendingDeletesForTests } from '@/features/library/pendingDeletes';
+import { resetUploadsForTests } from '@/features/upload/useUploads';
 import { createMockDb, identityHandlers, type MockDb } from '@/mocks/identity';
 import { createVideoDb, videoHandlers, type MockVideoDb } from '@/mocks/videos';
 
@@ -26,6 +27,7 @@ export function setupIdentityMock() {
   afterEach(() => {
     resetWsClientForTests();
     resetPendingDeletesForTests();
+    resetUploadsForTests();
   });
   afterAll(() => server.close());
 

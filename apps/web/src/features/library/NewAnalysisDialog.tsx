@@ -1,6 +1,13 @@
 import { useNavigate } from '@tanstack/react-router';
 import { FileVideo, Upload, X } from 'lucide-react';
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/errors';
 import {
@@ -33,6 +40,8 @@ import {
   toast,
 } from '@/ui';
 import { YoutubeIcon } from '@/ui/icons';
+import { AdvancedSettingsDialog } from './AdvancedSettingsDialog';
+import { toJobConfig, useAnalysisDefaults, type AnalysisSettings } from './analysisSettings';
 
 const YOUTUBE_URL = /^(https?:\/\/)?((www|m)\.)?(youtube\.com|youtu\.be)\//i;
 const titleFromFilename = (name: string) =>
@@ -70,6 +79,10 @@ export function NewAnalysisDialog() {
   const dialog = useSearchDialog<NewAnalysisSource>('new');
   const navigate = useNavigate();
   const tab = dialog.value ?? 'youtube';
+  const defaults = useAnalysisDefaults((st) => st.settings);
+  const [settings, setSettings] = useState<AnalysisSettings>(defaults);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const summary = <ModeSummary settings={settings} onEdit={() => setAdvancedOpen(true)} />;
 
   const openProcessing = (videoId: string) => {
     dialog.close();
@@ -97,17 +110,47 @@ export function NewAnalysisDialog() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="youtube" className="flex flex-col gap-4">
-          <YoutubeTab onCancel={dialog.close} onStarted={openProcessing} />
+          <YoutubeTab
+            onCancel={dialog.close}
+            onStarted={openProcessing}
+            settings={settings}
+            summary={summary}
+          />
         </TabsContent>
         <TabsContent value="upload" className="flex flex-col gap-4">
           <UploadTab
             onCancel={dialog.close}
             onBackground={dialog.close}
             onAnalyzing={openProcessing}
+            settings={settings}
+            summary={summary}
           />
         </TabsContent>
       </Tabs>
+      <AdvancedSettingsDialog
+        open={advancedOpen}
+        onOpenChange={setAdvancedOpen}
+        value={settings}
+        onApply={setSettings}
+      />
     </Dialog>
+  );
+}
+
+/** "Standard mode · confidence 0.35 · Advanced settings" (SCR-11 E11/E20 → SCR-12). */
+function ModeSummary({ settings, onEdit }: { settings: AnalysisSettings; onEdit: () => void }) {
+  const { t } = useTranslation('library');
+  return (
+    <p className="m-0 text-caption text-fg-3">
+      {t('newAnalysis.modeSummary', {
+        mode: t(`settings.${settings.mode}`),
+        conf: settings.confidence.toFixed(2),
+      })}{' '}
+      ·{' '}
+      <button type="button" className="bg-transparent p-0 text-accent underline" onClick={onEdit}>
+        {t('newAnalysis.advanced')}
+      </button>
+    </p>
   );
 }
 
@@ -116,9 +159,13 @@ export function NewAnalysisDialog() {
 function YoutubeTab({
   onCancel,
   onStarted,
+  settings,
+  summary,
 }: {
   onCancel: () => void;
   onStarted: (videoId: string) => void;
+  settings: AnalysisSettings;
+  summary: ReactNode;
 }) {
   const { t } = useTranslation('library');
   const { t: tc } = useTranslation();
@@ -164,7 +211,7 @@ function YoutubeTab({
     setError(null);
     try {
       const video = await createFromUrl(preview.url, title.trim() || null);
-      await createJob(video.id);
+      await createJob(video.id, toJobConfig(settings));
       onStarted(video.id);
     } catch (e) {
       setError(e);
@@ -258,7 +305,7 @@ function YoutubeTab({
         checked={rights}
         onCheckedChange={(c) => setRights(c === true)}
       />
-      <p className="m-0 text-caption text-fg-3">{t('newAnalysis.mode')}</p>
+      {summary}
       <div className="flex justify-end gap-2">
         <Button onClick={onCancel}>{tc('actions.cancel')}</Button>
         <Button
@@ -281,10 +328,14 @@ function UploadTab({
   onCancel,
   onBackground,
   onAnalyzing,
+  settings,
+  summary,
 }: {
   onCancel: () => void;
   onBackground: () => void;
   onAnalyzing: (videoId: string) => void;
+  settings: AnalysisSettings;
+  summary: ReactNode;
 }) {
   const { t, i18n } = useTranslation('library');
   const { t: tc } = useTranslation();
@@ -321,7 +372,11 @@ function UploadTab({
 
   const start = () => {
     if (!file || fileError || !rights) return;
-    const { id, done } = uploads.start(file, { title: title.trim() || null, autoAnalyze });
+    const { id, done } = uploads.start(file, {
+      title: title.trim() || null,
+      autoAnalyze,
+      jobConfig: toJobConfig(settings),
+    });
     setUploadId(id);
     done.then(
       ({ videoId }) => {
@@ -496,7 +551,7 @@ function UploadTab({
         checked={autoAnalyze}
         onCheckedChange={(c) => setAutoAnalyze(c === true)}
       />
-      <p className="m-0 text-caption text-fg-3">{t('newAnalysis.mode')}</p>
+      {summary}
       <div className="flex justify-end gap-2">
         <Button onClick={onCancel}>{tc('actions.cancel')}</Button>
         <Button variant="primary" disabled={!file || fileError !== null || !rights} onClick={start}>

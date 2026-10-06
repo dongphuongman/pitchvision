@@ -91,10 +91,11 @@ export async function createFromUrl(url: string, title: string | null): Promise<
 /** `POST /jobs` (Idempotency-Key required, AD §10.1). A YouTube video still ingesting is accepted. */
 export async function createJob(
   videoId: string,
+  config?: Record<string, unknown>,
   idempotencyKey: string = crypto.randomUUID(),
 ): Promise<Job> {
   const { data } = await api.POST('/api/v1/jobs', {
-    body: { video_id: videoId },
+    body: { video_id: videoId, config: config ?? null },
     headers: { 'Idempotency-Key': idempotencyKey },
   });
   return required(data, 'job');

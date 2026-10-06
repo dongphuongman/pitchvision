@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { setupIdentityMock } from '@/test/msw';
 import { renderApp, testSession } from '@/test/renderApp';
@@ -87,5 +87,44 @@ describe('SCR-11 New analysis', () => {
       expect(mock.videos.log.some((l) => l.startsWith('POST complete'))).toBe(true),
     );
     expect(mock.videos.log.some((l) => l.startsWith('POST jobs'))).toBe(false);
+  });
+
+  it('SCR-12: Fast mode + confidence are sent as the job config', async () => {
+    const user = userEvent.setup();
+    renderApp('/library?new=youtube', { auth: testSession() });
+    await user.type(
+      await screen.findByLabelText('YouTube URL'),
+      'https://youtu.be/BukNW8GRI5A{Enter}',
+    );
+    await screen.findByTestId('yt-preview');
+    expect(screen.getByText(/Standard mode · confidence 0.35/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Advanced settings' }));
+    await user.click(await screen.findByRole('radio', { name: 'Fast' }));
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '0.5' } });
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(await screen.findByText(/Fast mode · confidence 0.50/)).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('checkbox', { name: 'I have the rights to analyze this video' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Analyze' }));
+    await waitFor(() =>
+      expect(mock.videos.log.find((l) => l.startsWith('POST jobs'))).toContain(
+        'config={"frame_stride":2,"conf_threshold":0.5}',
+      ),
+    );
+  });
+
+  it('G.B07: the upload tray shows a background upload', async () => {
+    const user = userEvent.setup();
+    renderApp('/library?new=upload', { auth: testSession() });
+    await user.upload(await screen.findByTestId('file-input'), videoFile('bg.mp4'));
+    await user.click(
+      screen.getByRole('checkbox', { name: 'I own or have permission to use this video' }),
+    );
+    await user.click(screen.getByRole('checkbox', { name: 'Start analysis when upload finishes' }));
+    await user.click(screen.getByRole('button', { name: 'Start upload' }));
+    const tray = await screen.findByRole('complementary', { name: 'Uploads' });
+    expect(await within(tray).findByText('Uploaded')).toBeInTheDocument();
+    expect(within(tray).getByText('bg.mp4')).toBeInTheDocument();
   });
 });

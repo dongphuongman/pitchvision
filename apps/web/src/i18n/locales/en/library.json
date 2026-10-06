@@ -129,6 +129,28 @@
     "soon": "Soon",
     "titleLabel": "Title",
     "rightsUpload": "I own or have permission to use this video",
-    "mode": "Standard mode · tracking, teams and tactical map"
+    "mode": "Standard mode · tracking, teams and tactical map",
+    "modeSummary": "{{mode}} mode · confidence {{conf}}",
+    "advanced": "Advanced settings"
+  },
+  "settings": {
+    "title": "Analysis settings",
+    "mode": "Mode",
+    "standard": "Standard",
+    "fast": "Fast",
+    "standardHelp": "Every frame · best accuracy.",
+    "fastHelp": "Every 2nd frame · about half the processing time.",
+    "confidence": "Detection confidence",
+    "confidenceHelp": "Lower finds more players and the ball but adds false detections.",
+    "saveDefault": "Save as my default",
+    "reset": "Reset to defaults",
+    "apply": "Apply"
+  },
+  "tray": {
+    "label": "Uploads",
+    "done": "Uploaded",
+    "failed": "Failed",
+    "dismiss": "Dismiss",
+    "progress": "Upload progress for {{name}}"
   }
 }

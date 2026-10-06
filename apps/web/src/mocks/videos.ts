@@ -420,7 +420,10 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
       if (!request.headers.get('Idempotency-Key')) {
         return problem(400, 'IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
       }
-      const { video_id } = (await request.json()) as { video_id: string };
+      const { video_id, config } = (await request.json()) as {
+        video_id: string;
+        config?: Record<string, unknown> | null;
+      };
       const v = find(video_id);
       if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
       const job = mockJob(v, {
@@ -430,7 +433,7 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
         created_at: new Date().toISOString(),
       });
       db.jobs.push(job);
-      db.log.push(`POST jobs ${v.id}`);
+      db.log.push(`POST jobs ${v.id} config=${JSON.stringify(config ?? null)}`);
       return HttpResponse.json(job, { status: 202 });
     }),
     wsHandler,
