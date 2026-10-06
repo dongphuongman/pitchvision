@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { can } from '@/auth/roles';
 import { useRole } from '@/auth/session';
 import type { AppDialog } from '@/router';
+import { useUploadLifecycle } from '@/features/upload/useUploads';
 import { useSearchDialog } from '@/lib/useSearchDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { TopBar } from './TopBar';
@@ -18,6 +19,7 @@ export function AppShell() {
   const dialog = useSearchDialog<AppDialog>('dialog');
   // N = New analysis (SCR-11) is Editor+ only, like the top-bar button.
   const canCreate = can(useRole(), 'editor');
+  useUploadLifecycle();
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

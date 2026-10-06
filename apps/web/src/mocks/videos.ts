@@ -144,9 +144,15 @@ function send(client: WsClient, frame: WsServerEvent): void {
   client.send(JSON.stringify(frame));
 }
 
-function problem(status: number, code: string, title: string) {
+function problem(status: number, code: string, title: string, detail?: string) {
   return HttpResponse.json(
-    { type: `https://docs.pitchvision.ai/errors/${code.toLowerCase()}`, title, status, code },
+    {
+      type: `https://docs.pitchvision.ai/errors/${code.toLowerCase()}`,
+      title,
+      status,
+      code,
+      detail,
+    },
     { status, headers: { 'Content-Type': 'application/problem+json' } },
   );
 }
@@ -292,6 +298,140 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
       db.log.push(`POST /api/v1/jobs/${job.id}/cancel`);
       cancel(job);
       return HttpResponse.json(job);
+    }),
+    // ---------------------------------------------------------------- SCR-11 (M1-FE-09)
+    http.post('*/api/v1/videos/from-url/preview', async ({ request }) => {
+      const { url } = (await request.json()) as { url: string };
+      db.log.push(`POST preview ${url}`);
+      if (url.includes('private')) {
+        return problem(422, 'VALIDATION_FAILED', 'Video not available', 'This video is private.');
+      }
+      return HttpResponse.json({
+        url,
+        video_id: 'BukNW8GRI5A',
+        title: 'Columbus Crew vs. Aston Villa | Full Match',
+        duration_s: 7613,
+        width: 1920,
+        height: 1080,
+        fps: 60,
+        is_live: false,
+        availability: 'public',
+        thumbnail_url: null,
+      });
+    }),
+    http.post('*/api/v1/videos/from-url', async ({ request }) => {
+      const body = (await request.json()) as {
+        url: string;
+        title: string | null;
+        rights_confirmed: boolean;
+      };
+      if (!body.rights_confirmed)
+        return problem(422, 'VALIDATION_FAILED', 'rights_confirmed must be true');
+      const v = mockVideo({
+        title: body.title ?? 'YouTube video',
+        status: 'ingesting',
+        source_type: 'youtube',
+        source_url: body.url,
+      });
+      db.videos.push(v);
+      db.log.push(`POST from-url ${v.id}`);
+      return HttpResponse.json(out(v), { status: 202 });
+    }),
+    http.post('*/api/v1/videos/uploads', async ({ request }) => {
+      const body = (await request.json()) as {
+        filename: string;
+        size: number;
+        title: string | null;
+      };
+      const v = mockVideo({
+        title: body.title ?? body.filename,
+        status: 'uploading',
+        source_type: 'upload',
+        size_bytes: body.size,
+      });
+      db.videos.push(v);
+      db.log.push(`POST uploads ${v.id}`);
+      const partSize = 16 * 1024 * 1024;
+      const count = Math.max(1, Math.ceil(body.size / partSize));
+      return HttpResponse.json(
+        {
+          video_id: v.id,
+          upload_id: `up-${v.id}`,
+          part_size: partSize,
+          part_count: count,
+          parts: Array.from({ length: Math.min(count, 32) }, (_, i) => ({
+            part_number: i + 1,
+            url: `https://storage.mock/${v.id}/${i + 1}`,
+          })),
+          url_expires_in: 900,
+          video: out(v),
+        },
+        { status: 201 },
+      );
+    }),
+    http.post('*/api/v1/videos/:id/uploads/sign', async ({ params, request }) => {
+      const { part_numbers } = (await request.json()) as { part_numbers: number[] };
+      return HttpResponse.json({
+        parts: part_numbers.map((n) => ({
+          part_number: n,
+          url: `https://storage.mock/${String(params.id)}/${n}`,
+        })),
+        url_expires_in: 900,
+      });
+    }),
+    // Mock object store, cross-origin like R2: browsers preflight the PUT and can only read the ETag
+    // because the bucket CORS rule exposes it (SP-07).
+    http.options(
+      'https://storage.mock/:video/:part',
+      ({ request }) =>
+        new HttpResponse(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': request.headers.get('Origin') ?? '*',
+            'Access-Control-Allow-Methods': 'PUT, GET, HEAD',
+            'Access-Control-Allow-Headers': '*',
+            'Access-Control-Max-Age': '3600',
+          },
+        }),
+    ),
+    http.put('https://storage.mock/:video/:part', ({ params, request }) => {
+      db.log.push(`PUT part ${String(params.part)}`);
+      return new HttpResponse(null, {
+        status: 200,
+        headers: {
+          ETag: `"etag-${String(params.part)}"`,
+          'Access-Control-Allow-Origin': request.headers.get('Origin') ?? '*',
+          'Access-Control-Expose-Headers': 'ETag',
+        },
+      });
+    }),
+    http.post('*/api/v1/videos/:id/uploads/complete', ({ params }) => {
+      const v = find(String(params.id));
+      if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
+      v.status = 'ready';
+      db.log.push(`POST complete ${v.id}`);
+      return HttpResponse.json(out(v));
+    }),
+    http.delete('*/api/v1/videos/:id/uploads', ({ params }) => {
+      db.log.push(`DELETE uploads ${String(params.id)}`);
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.post('*/api/v1/jobs', async ({ request }) => {
+      if (!request.headers.get('Idempotency-Key')) {
+        return problem(400, 'IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
+      }
+      const { video_id } = (await request.json()) as { video_id: string };
+      const v = find(video_id);
+      if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
+      const job = mockJob(v, {
+        status: 'queued',
+        progress: 0,
+        stage: null,
+        created_at: new Date().toISOString(),
+      });
+      db.jobs.push(job);
+      db.log.push(`POST jobs ${v.id}`);
+      return HttpResponse.json(job, { status: 202 });
     }),
     wsHandler,
   ];

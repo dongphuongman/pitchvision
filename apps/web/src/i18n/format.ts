@@ -12,6 +12,23 @@ export function formatNumber(locale: string, value: number, opts?: Intl.NumberFo
   return new Intl.NumberFormat(locale, opts).format(value);
 }
 
+/** 1.2 GB / 18 MB — decimal units like the OS file manager; per second when used as a rate. */
+export function formatBytes(locale: string, bytes: number) {
+  const units = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;
+  let i = 0;
+  let v = Math.max(0, bytes);
+  while (v >= 1000 && i < units.length - 1) {
+    v /= 1000;
+    i += 1;
+  }
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: units[i],
+    unitDisplay: 'short',
+    maximumFractionDigits: v < 10 && i > 0 ? 1 : 0,
+  }).format(v);
+}
+
 export function formatPercent(locale: string, pct: number, fractionDigits = 0) {
   return new Intl.NumberFormat(locale, {
     style: 'percent',

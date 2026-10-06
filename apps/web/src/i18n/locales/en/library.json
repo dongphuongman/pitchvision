@@ -98,13 +98,37 @@
     "youtube": {
       "label": "YouTube URL",
       "placeholder": "https://www.youtube.com/watch?v=…",
-      "help": "Full-match broadcasts work best. We only analyze videos you have the rights to."
+      "help": "Full-match broadcasts work best. We only analyze videos you have the rights to.",
+      "fetch": "Fetch",
+      "invalid": "Paste a youtube.com or youtu.be link."
     },
     "upload": {
       "drop": "Drop a video file here or browse",
-      "formats": "MP4, MOV or MKV · up to {{size}}"
+      "formats": "MP4, MOV, MKV, WebM or AVI · up to {{size}} · {{hours}} h",
+      "remove": "Remove",
+      "autoAnalyze": "Start analysis when upload finishes",
+      "start": "Start upload",
+      "progressLabel": "Upload progress",
+      "progress": "Uploading… {{pct}}% · {{speed}}/s · {{eta}} left",
+      "finishing": "Finishing upload…",
+      "resumed_one": "Resumed: {{count}} part was already uploaded.",
+      "resumed_other": "Resumed: {{count}} parts were already uploaded.",
+      "cancel": "Cancel upload",
+      "confirmCancel": "Click again to cancel",
+      "background": "Continue in background",
+      "retry": "Try again",
+      "savedToast": "“{{title}}” uploaded. Analyze it from the library when you're ready.",
+      "errors": {
+        "format": "{{name}} isn't a supported video format.",
+        "size": "{{name}} is larger than the upload limit.",
+        "duration": "{{name}} is longer than 3 hours."
+      }
     },
     "rights": "I have the rights to analyze this video",
-    "submit": "Analyze"
+    "submit": "Analyze",
+    "soon": "Soon",
+    "titleLabel": "Title",
+    "rightsUpload": "I own or have permission to use this video",
+    "mode": "Standard mode · tracking, teams and tactical map"
   }
 }
