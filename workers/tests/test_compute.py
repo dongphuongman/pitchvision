@@ -177,11 +177,17 @@ def test_local_backend_celery_round_trip(redis_url: str, s3_store: ObjectStore,
         app.send_task(TASK_ON_RESULT, kwargs={"task_id": task_id, "external_id": external_id, **outcome},
                       queue=QUEUE_ORCHESTRATE)  # fmt: skip
 
-    @app.task(name=TASK_RUN_GPU, bind=True)
+    # the real tasks are `shared` Celery tasks (added to every app on finalize): swap in test doubles by name
+    app.finalize()
+    for name in (TASK_RUN_GPU, TASK_ON_RESULT):
+        if name in app.tasks:
+            app.tasks.unregister(name)
+
+    @app.task(name=TASK_RUN_GPU, bind=True, shared=False)
     def run_stage(self: Any, task: dict[str, Any]) -> dict[str, Any]:
         return run_and_report(GpuTask.model_validate(task), str(self.request.id), s3_store, cfg, notify)
 
-    @app.task(name=TASK_ON_RESULT)
+    @app.task(name=TASK_ON_RESULT, shared=False)
     def on_result(**kw: Any) -> None:
         reports.append(kw)
 
