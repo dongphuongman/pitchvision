@@ -1,75 +1,52 @@
 ---
 status: in-progress
-branch: main → origin https://github.com/dongphuongman/pitchvision (private)
-timestamp: 2026-10-06T00:30:00+07:00
-files_modified:
-  - docs/PRD.html
-  - docs/AD.html
-  - docs/UIUX.html
-  - docs/PLAN.html
-  - docs/status.json
-  - docs/update_status.py
-  - docs/prototype/index.html
-  - data/golden/ (segments.txt, dl.sh, build_manifest.py, manifest.json/csv, README.md, sheets/, raw/ 19 mp4)
-  - spikes/ (sp11_detectors.py, sp08_prepare.py, sp08_run.py, sp08_overlay/, sp07_run.py, sp07_upload/, sp02_bench.py, sp03_homography.py, sp04_teams.py, sp05_tracking.py, sp09_sample.py, sp09_classify.py, botsort_gmc.yaml, results/)
+branch: main → origin https://github.com/dongphuongman/pitchvision (private), CI green at 0153d6f
+timestamp: 2026-10-06
 ---
 
-## Working on: PitchVision AI — M1 workspace + SCR-14/15 merged
+# PitchVision AI — handoff
 
-### Summary
+Web SaaS analysing football **broadcast** video: YouTube URL / file upload → detection, team split, tracking,
+tactical map, stats, AI report. Read `README.md` first (layout, commands, rules), then `docs/PLAN.html` §
+"Trạng thái thực hiện" (rendered from `docs/status.json`).
 
-PitchVision AI = web SaaS that analyses football broadcast video (detection, team split, tactical map, tracking, stats, AI report). All planning docs are done (PRD v1.3, AD v1.2, UIUX v1.1, clickable prototype, PLAN v1.2). Spikes were run on the Mac (Apple M4, no NVIDIA) against a 19-match broadcast golden set, and the PO approved the Gate G0 decisions. Next phase is M1 implementation starting 12/10/2026.
+## Where we are (M1, plan 12/10–20/11, alpha 04/12/2026)
+Done and on `main` (Python 855 tests, web 233 tests, CI green incl. 3 Docker images):
+- Phase 0 spikes + Gate G0; SP-07 on real R2; SP-08 rVFC sync; SP-11 detector choice.
+- W1 foundation: uv + pnpm monorepo, import-linter, `packages/schemas`, Alembic + RLS, FastAPI, cv-core runtime/VideoReader, golden eval, web shell, Compose, Dockerfiles, GitHub Actions.
+- W2: identity-svc (auth, orgs, roles, invites, Google OIDC, JWKS), API JWT, presigned multipart upload, YouTube ingest (queue `ingest`), S2 normalise, shot classifier 97.9 %, D-FINE ONNX, keypoint/homography lib, auth/onboarding screens, Terraform R2.
+- W3: jobs API + orchestrator DAG (job_tasks, retries, recovery) + ComputeBackend + WebSocket; S2b segments, S3 teams (SigLIP + spectral), S4 D-FINE + own ByteTrack; Library + sync engine.
+- W4: S5 stitch, optional pitch stage, S7 signed tiles (HMAC), S8 positions via `pv_worker` role, manifest; SCR-11 New analysis (YouTube + resumable upload), SCR-12 settings, upload tray, SCR-13 Processing.
+- W5: SCR-20 workspace (manifest + `/media`), SCR-14 team confirm/manual (team_rerun job), SCR-15 manual calibration (recalibrate job, CPU recompute, new revision).
 
-### Decisions Made
+Contracts: `docs/contracts/identity-api.md`, `docs/contracts/pipeline-stages.md` (stages, keys, derived jobs).
 
-- Broadcast-first: YouTube URL + broadcast file upload now; live RTSP, own cameras (Veo/stand), 9v9/7v7 and Veo/Hudl import → Phase C after 1.0.
-- GPU hybrid (self-host 4090 + cloud RunPod/Lambda via ComputeBackend), international EN-first, Cloudflare R2 storage (MinIO self-host).
-- Perf target: ≤20 min per 90' on 1×RTX 4090 or ≥2×L4; ≥50 FPS per T4; Fast mode stride 2 ≤15 min on L4.
-- New pipeline stage S2b shot segmentation; stats shown with coverage %.
-- Gate G0 (approved 05/10): +2 weeks M1 for calibration → alpha 04/12/2026; +1 week M2 for offline track stitching + ReID → public beta 26/01/2027; model licences into G-LEGAL (deadline 15/01/2027); 1.0 on 26/03/2027.
-- Ultralytics YOLO v8/v11 is AGPL-3.0: either buy Enterprise licence or switch to a permissive detector (RT-DETR Apache / YOLOX MIT). Decide BEFORE M1-CV-04 (week of 19/10).
+## Next (doable on the Mac)
+1. Backend: accept manual calibration after a job failed with HOMOGRAPHY_UNAVAILABLE (now 409 `no_analysis`; web E11 link already exists).
+2. S11 export render + SCR-25 (M1-BE-17), quota minutes (M1-BE-18), in-app + email notifications (M1-BE-19).
+3. SCR-14 E05/E06 (attacking direction, goalkeeper/referee fix) — backend + web.
+4. SCR-01 landing, SCR-40/41/50/51, Playwright flows F1/F3/F4/F8 (M1-FE-14…16).
 
-### Spike results (details in docs/status.json → PLAN.html "Trạng thái thực hiện")
+## Blocked on the PO
+- Keypoint model (tactical map): ~300 golden frames labelled (guide `training/keypoints/README.md`) + NVIDIA GPU (RunPod/4090). Until then every job reports `pitch_calibration = unavailable` (overlay works, map empty) unless calibrated manually.
+- D-FINE fine-tune (M1-CV-04) needs GPU; full E2E (S4 in Docker) needs a GPU box — on the Mac S4 in containers is far too slow.
+- Staging / DNS / email (M1-OPS-05): domain + Resend account.
+- MinIO replacement for self-host: SeaweedFS (used locally now) vs Garage — undecided.
+- G-LEGAL: Ultralytics Enterprise to sign before public beta (YOLOv11-pose keypoints); Objects365 + SoccerNet (research-only) licences.
 
-- SP-01 partial: 19/20 matches × 15 min in data/golden (missing J1 A4xKBpFV9Cw, YouTube bot-check; backup 6Q-q5eeMevY).
-- SP-02 partial: Mac MPS ~9 fps (YOLOv11-m COCO); detection quality fine; NVIDIA/TensorRT run deferred by PO (`spikes/sp02_bench.py --backend engine`).
-- SP-03 FAIL: roboflow/sports pitch-keypoint + RANSAC misaligned on most broadcast frames; self-consistency metric was misleading; use line-alignment metric + ground-truth eval.
-- SP-04 DONE: SigLIP+UMAP+KMeans team split ~98% (visual check), HSV much worse.
-- SP-05 partial/high risk: ByteTrack ~23 IDs/player/90 s, BoT-SORT+GMC ~18; only 15–22% of breaks caused by cuts.
-- SP-09 DONE: wide-shot classifier 99.1% leave-videos-out (GBM), rule 96%; broadcast wide coverage median 71% (min 40%).
-- SP-10 partial: residential IP bot-checked after ~12 GB; needs yt-dlp ≥ 2026.08.19.
-- SP-11 DONE (G-LEGAL input): D-FINE-M obj2coco@640 (Apache-2.0) ≈ YOLOv11-m speed on MPS (~9 fps), better on small players and ball pre-fine-tune (more false balls at conf 0.35). Recommend D-FINE as M1-CV-04 base; Ultralytics Enterprise as fallback. Check Objects365 pretraining-data licence.
-- SP-08 DONE: rVFC + round(mediaTime×25) is frame-exact (1× 100%, seek 40/40) in Chrome; rAF + currentTime is off by 1–4 frames. Safari/Firefox not tested.
-- SP-07 DONE on real R2: bucket `pitchvision-spike` (CORS ExposeHeaders ETag), token Object R/W on that bucket only, expires 2026-11-04, creds in `spikes/sp07_upload/.env` (gitignored). 663 MB: 8 streams ~21 MB/s home uplink, retry + resume pass, md5 exact, test objects deleted.
-- Finding: MinIO images are no longer publicly pullable (Docker Hub/quay denied) → AD "MinIO self-host" needs revisiting (SeaweedFS / Garage).
-- SP-06 blocked (needs RunPod/4090).
+## Decisions (PO, 05–06/10/2026)
+Broadcast-first; GPU hybrid; EN-first; R2 (EU jurisdiction); detector D-FINE (Apache-2.0), Ultralytics Enterprise as fallback; keypoints YOLOv11-pose under Ultralytics Enterprise; object keys storage-class first (`source/…`, `segments/…`) so R2 lifecycle matches; `h_quality` = line alignment; `positions` (compressed hypertable, no RLS) read via `positions_org`, written by `pv_worker` with an org trigger.
 
-### Remaining Work
+## Working rules (user)
+- Reply in Vietnamese ("tao/mày").
+- **Max ONE background subagent at a time** — the Mac (8 GB Docker VM) OOMs. Stop compose stacks when done (`docker compose down`).
+- After each completed step update `docs/status.json` and run `python3 docs/update_status.py`.
+- Never commit `.env`, broadcast footage/frames (`data/golden/raw`, `spikes/results/**/*.jpg`) or weights; never use browser cookies for yt-dlp.
+- Claude must not activate paid subscriptions or read secret keys from the browser — the user does those steps.
 
-1. DONE: PO chose D-FINE (Apache-2.0) for M1-CV-04, Ultralytics Enterprise fallback; AD/PLAN/PRD updated. M1-CV-05 keypoints: PO chose YOLOv11-pose under Ultralytics Enterprise licence (sign before public beta). Open: Objects365 licence check. Also decide self-host storage replacement for MinIO and update AD.
-2. Still open: SP-08 on Safari/Firefox, SP-02/SP-06 on NVIDIA when PO is ready.
-3. DONE (05/10, ahead of 12/10): M1 W1 — 10 PRs merged on main. Checks: `uv run pytest -q` (122), `uv run ruff check packages apps workers eval`, `uv run mypy …`, `uv run lint-imports`, `pnpm -C apps/web lint|typecheck|test --run|build|gen:check`. Compose stack verified healthy (infra/compose/.env is local; host ports moved to 28000/23000/25432/26379 because other projects use the defaults).
-   Notes: `positions` hypertable has no RLS (Timescale compression forbids it) → read via `positions_org` view; api must sign presigned URLs with PV_STORAGE_PUBLIC_ENDPOINT (M1-BE-07); worker CUDA image 8.1 GB (AD estimated 6); no GitHub remote yet so CI never ran.
-3b. DONE (06/10): M1 W2 Mac-doable part — see docs/status.json M1-W2. Contract: docs/contracts/identity-api.md. Object keys: pitchvision_schemas.keys (storage class first). E2E script idea: register→Mailpit→verify→org→upload→RLS→region 409→identity restart→YouTube preview (all passed).
-   Remaining W2: GPU fine-tunes (D-FINE, YOLOv11-pose), label 300 golden frames for keypoints (SoccerNet research-only), M1-OPS-05 needs domain + Resend.
-3f. DONE (06/10): SCR-20 workspace (manifest + /media), SCR-14 teams confirm/manual (backend: swap = exchange name/colour, team_rerun job), SCR-15 manual calibration (backend: recalibrate job, CPU recompute, new revision). Next M1: keypoint model (labels + GPU), GPU E2E, S11 export + SCR-25, quota (M1-BE-18), notifications (M1-BE-19), staging/DNS/email (needs domain + Resend).
-3e. DONE (06/10): M1 W4 server chain (S5 stitch, optional pitch stage, S7 tiles, S8 load-db via pv_worker role, manifest, signed tiles) + web SCR-11/12/13 + upload tray. Next: SCR-20 workspace on real manifest/tiles (M1-FE-12), SCR-14 team confirmation, SCR-15 manual calibration, keypoint model (needs ~300 labelled golden frames + GPU). Fixed: stage tasks fail fast on worker loss; ORT threads split per process.
-3d. DONE (06/10): M1 W3 non-GPU — see docs/status.json M1-W3; contract docs/contracts/pipeline-stages.md. README.md added.
-   Follow-ups: cap ORT intra-op threads per worker process; mark SIGKILLed (WorkerLost) tasks failed immediately instead of waiting the 30 min infer timeout; run full E2E (S4) on a GPU box; compose PV_CPU_CONCURRENCY default 2 (10 OOM-killed the 8 GB Docker VM).
-   USER PREFERENCE: max ONE background subagent at a time — the Mac OOMs; stop compose stacks when done.
-3c. Was: M1 W2 (19/10) — M1-CV-04 D-FINE fine-tune (needs GPU), M1-CV-05 keypoints (licence decision pending), M1-CV-06 shot classifier (start from SP-09 GBM), M1-CV-07 S2 normalise; M1-BE-05..08 (auth, org, storage R2 multipart, YouTube ingest); M1-FE-04..06; M1-OPS-04..06.
-4. M1 W7–W8 calibration tasks M1-CV-18…22 (+ M1-FE-17, M1-BE-23); M2 extra week M2-CV-08/09.
-5. PO: spot-check SP-09 labels (spikes/results/sp09/grids, labels_nonwide.json).
-
-### Notes
-
-- After every completed step, update docs/status.json and run `python3 docs/update_status.py` (user's explicit request).
-- User writes Vietnamese with "tao/mày"; reply in Vietnamese.
-- Spike env: `spikes/.venv` (uv, Python 3.12, torch MPS, ultralytics, transformers, umap, sklearn, sports, supervision). Weights in `spikes/weights/` (roboflow pitch model — spike only, AGPL).
-- data/golden/raw is internal R&D only (copyrighted broadcasts); do not publish.
-- Claude must not activate paid subscriptions or read secret keys from the browser; user does those steps.
-- Do not use the user's browser cookies for yt-dlp without asking.
-- CoreML export fails with torch 2.14 (coremltools) — dropped, not in architecture.
-- OpenCV per-frame seek (cap.set each frame) corrupts tracking results — decode sequentially.
-- Chrome extension tab was 'hidden' (window not visible) → video/rVFC don't run; spikes use headless Chrome via Playwright (`channel=chrome`, throwaway profile).
-- Docs use mermaid from CDN (needs internet); verify in Chrome via `python3 -m http.server` (file:// not allowed by the extension).
+## Local environment notes
+- `infra/compose/.env` (gitignored, chmod 600) uses non-default host ports: web 23000, api 28000, identity 28001, Postgres 25432, Redis 26379 (3000/5432/6379/16379/16380/8001 are taken by other projects). `PV_WEB_URL=http://localhost:23000`, `PV_WORKER_BASE=python:3.12-slim`, `PV_LOCAL_GPU_QUEUE=cpu`, `PV_CPU_CONCURRENCY=2`.
+- Model weights in `~/.cache/pitchvision/models` (D-FINE ONNX, SigLIP ONNX, shot GBM json), mounted into workers via `PV_MODEL_DIR`.
+- R2 spike: bucket `pitchvision-spike`, object-R/W token expiring 2026-11-04, creds in `spikes/sp07_upload/.env` (gitignored).
+- Golden set: `data/golden/raw/*.mp4` (19 matches × 15 min, internal R&D only). SP-09 labels in `spikes/results/sp09/`.
+- Quick checks: `uv run pytest -q`, `uv run ruff check packages apps workers eval`, `uv run lint-imports`, `pnpm web:check`.
