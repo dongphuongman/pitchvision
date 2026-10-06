@@ -8,6 +8,7 @@ import {
   type DragEvent,
   type ReactNode,
 } from 'react';
+import { useOpenUpgrade } from '@/app/useUpgrade';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/errors';
 import {
@@ -258,7 +259,7 @@ function YoutubeTab({
       </div>
 
       {error !== null && (
-        <Banner tone="err">
+        <Banner tone="err" actions={<UpgradeAction error={error} />}>
           {errorMessage}
           {isApiError(error) && error.detail ? ` ${error.detail}` : ''}
         </Banner>
@@ -559,5 +560,22 @@ function UploadTab({
         </Button>
       </div>
     </>
+  );
+}
+
+/** F10: a 402 (quota / plan) offers SCR-41 right where it was blocked. */
+function UpgradeAction({ error }: { error: unknown }) {
+  const { t } = useTranslation('settings');
+  const openUpgrade = useOpenUpgrade();
+  if (!isApiError(error) || (error.code !== 'QUOTA_EXCEEDED' && error.code !== 'PLAN_REQUIRED')) {
+    return null;
+  }
+  return (
+    <Button
+      size="sm"
+      onClick={() => openUpgrade(error.code === 'QUOTA_EXCEEDED' ? 'quota' : 'feature', ['new'])}
+    >
+      {t('upgrade.title')}
+    </Button>
   );
 }

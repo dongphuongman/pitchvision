@@ -2,9 +2,10 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import ForeignKey, Index, MetaData, Text, func, text
-from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 TZ = TIMESTAMP(timezone=True)
@@ -35,6 +36,7 @@ class User(Base):
     last_active_org_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _created()
+    email_prefs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
 
     @property
     def email_verified(self) -> bool:
@@ -83,6 +85,26 @@ class Subscription(Base):
     external_id: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _created()
+
+
+class UpgradeRequest(Base):
+    """SCR-41 waitlist (migration 0003)."""
+
+    __tablename__ = "upgrade_requests"
+    __table_args__ = (Index("upgrade_requests_org_id_idx", "org_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = _pk()
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orgs.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    plan: Mapped[str] = mapped_column(Text, nullable=False)
+    period: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text)
+    owners_notified: Mapped[int] = mapped_column(nullable=False, server_default="0")
+    created_at: Mapped[datetime] = _created()
 
 
 class Invite(Base):

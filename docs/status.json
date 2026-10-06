@@ -101,7 +101,7 @@
       "id": "M1-W6",
       "title": "M1 tuần 6–7 (export, quota, thông báo)",
       "state": "partial",
-      "note": "<strong>Xong:</strong> gói Free/Pro/Team (bảng subscriptions ở identity, claim plan trong token); export S11 MP4 có box/nhãn/bóng/trails, panel sơ đồ sân, watermark gói Free, 1080p chỉ Pro, giữ 7 ngày (M1-BE-17); quota phút theo tháng + GET /usage, chặn 402 khi upload/nhập/tạo job (M1-BE-18); thông báo in-app + email qua identity-svc (M1-BE-19); web SCR-25 modal export, SCR-26 trang Exports, đồng hồ phút G.E06, chuông thông báo SCR-51. Hiệu chỉnh tay sau lỗi HOMOGRAPHY_UNAVAILABLE đã có test. SCR-14 E05 hướng tấn công hiệp 1 (tự đoán từ vị trí thủ môn, người dùng sửa) + E06 sửa đội/vai trò thủ môn & trọng tài (chỉ hiển thị, áp lên overlay, sơ đồ và export). <strong>Kiểm tra:</strong> Python 885 test, web 243 test. <strong>Hạn chế:</strong> 1080p là phóng từ bản 720p; chưa có trang Billing/nâng cấp (SCR-40/41), tuỳ chọn tắt email, thông báo \"thành viên mới\"; email thật cần domain + Resend. <strong>Còn lại M1:</strong> SCR-01/40/41/50, Playwright F1/F3/F4/F8, model keypoint + E2E GPU, staging."
+      "note": "<strong>Xong:</strong> gói Free/Pro/Team (bảng subscriptions ở identity, claim plan trong token); export S11 MP4 có box/nhãn/bóng/trails, panel sơ đồ sân, watermark gói Free, 1080p chỉ Pro, giữ 7 ngày (M1-BE-17); quota phút theo tháng + GET /usage, chặn 402 khi upload/nhập/tạo job (M1-BE-18); thông báo in-app + email qua identity-svc (M1-BE-19); web SCR-25 modal export, SCR-26 trang Exports, đồng hồ phút G.E06, chuông thông báo SCR-51. Hiệu chỉnh tay sau lỗi HOMOGRAPHY_UNAVAILABLE đã có test. SCR-14 E05 hướng tấn công hiệp 1 (tự đoán từ vị trí thủ môn, người dùng sửa) + E06 sửa đội/vai trò thủ môn & trọng tài (chỉ hiển thị, áp lên overlay, sơ đồ và export). Settings SCR-40: hồ sơ (tên, đổi mật khẩu, đăng xuất phiên khác), tổ chức (tên, vùng dữ liệu chỉ đọc), thành viên (mời, đổi quyền, xoá, lời mời chờ), billing (gói, phút đã dùng), tuỳ chọn email thông báo; mục ẩn theo quyền. SCR-41 nâng cấp dạng danh sách chờ (chưa có thanh toán), người không phải Owner có \"Notify owner\"; mở từ đồng hồ phút, export 1080p, lỗi quota 402. <strong>Kiểm tra:</strong> Python 889 test, web 251 test. <strong>Hạn chế:</strong> 1080p là phóng từ bản 720p; chưa có thanh toán thật (Stripe), API keys, xuất/xoá dữ liệu, thông báo \"thành viên mới\"; email thật cần domain + Resend. <strong>Còn lại M1:</strong> SCR-01/50, Playwright F1/F3/F4/F8, model keypoint + E2E GPU, staging."
     }
   ],
   "log": [
@@ -204,6 +204,10 @@
     {
       "date": "2026-10-06",
       "text": "SCR-14 E05/E06: hướng tấn công hiệp 1 (S8 đoán từ thủ môn, PATCH teams), danh sách thủ môn/trọng tài + sửa đội/vai trò (GET/PATCH players, manifest track_overrides áp cho player và export). Python 885, web 243 test."
+    },
+    {
+      "date": "2026-10-06",
+      "text": "SCR-40 Settings (hồ sơ, tổ chức, thành viên, billing, email thông báo) + SCR-41 nâng cấp dạng waitlist; identity thêm PATCH /me, đổi mật khẩu, đăng xuất phiên khác, upgrade-requests (email Owner). Python 889, web 251 test."
     }
   ]
 }

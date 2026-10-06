@@ -97,7 +97,10 @@ export interface RouterContext {
   queryClient: QueryClient;
 }
 
-export type AppDialog = 'shortcuts';
+export type AppDialog = 'shortcuts' | 'upgrade';
+/** SCR-41 `?dialog=upgrade&reason=` — what was blocked (banner text). */
+export type UpgradeReason = 'quota' | 'feature' | 'seats' | 'quality';
+const UPGRADE_REASONS: readonly string[] = ['quota', 'feature', 'seats', 'quality'];
 export type NewAnalysisSource = 'youtube' | 'upload';
 
 interface ReturnToSearch {
@@ -274,8 +277,12 @@ const privacyRoute = createRoute({
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: '_app',
-  validateSearch: (s: Record<string, unknown>): { dialog?: AppDialog } => ({
-    dialog: s.dialog === 'shortcuts' ? 'shortcuts' : undefined,
+  validateSearch: (s: Record<string, unknown>): { dialog?: AppDialog; reason?: UpgradeReason } => ({
+    dialog: s.dialog === 'shortcuts' || s.dialog === 'upgrade' ? s.dialog : undefined,
+    reason:
+      s.dialog === 'upgrade' && typeof s.reason === 'string' && UPGRADE_REASONS.includes(s.reason)
+        ? (s.reason as UpgradeReason)
+        : undefined,
   }),
   beforeLoad: async ({ location }) => {
     const auth = requireSignedIn(location.href);

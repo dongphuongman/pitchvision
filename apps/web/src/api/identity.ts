@@ -22,6 +22,12 @@ export type Org = Schemas['Org'];
 export type InvitePreview = Schemas['InvitePreview'];
 export type RegisterRequest = Schemas['RegisterRequest'];
 export type CreateOrgRequest = Schemas['CreateOrgRequest'];
+export type Member = Schemas['Member'];
+export type Invite = Schemas['Invite'];
+export type EmailPrefs = Schemas['EmailPrefs'];
+export type UpgradeRequest = Schemas['UpgradeRequest'];
+export type UpgradeRequestOut = Schemas['UpgradeRequestOut'];
+export type InviteRole = Schemas['CreateInvitesRequest']['role'];
 
 export const ORG_KINDS: readonly OrgKind[] = [
   'club',
@@ -110,6 +116,72 @@ export const identityApi = {
       body: { name },
     });
     return required(data, 'update org');
+  },
+  async updateMe(body: Schemas['UpdateMeRequest']): Promise<Me> {
+    const { data } = await client.PATCH('/api/v1/me', { body });
+    return required(data, 'update me');
+  },
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await client.POST('/api/v1/auth/password/change', {
+      body: { current_password: currentPassword, new_password: newPassword },
+    });
+  },
+  async signOutOthers(): Promise<void> {
+    await client.POST('/api/v1/auth/sessions/revoke-others');
+  },
+  async getOrg(id: string, signal?: AbortSignal): Promise<Org> {
+    const { data } = await client.GET('/api/v1/orgs/{id}', { params: { path: { id } }, signal });
+    return required(data, 'org');
+  },
+  async members(id: string, signal?: AbortSignal): Promise<Member[]> {
+    const { data } = await client.GET('/api/v1/orgs/{id}/members', {
+      params: { path: { id } },
+      signal,
+    });
+    return required(data, 'members');
+  },
+  async setMemberRole(id: string, userId: string, role: Role): Promise<Member> {
+    const { data } = await client.PATCH('/api/v1/orgs/{id}/members/{user_id}', {
+      params: { path: { id, user_id: userId } },
+      body: { role },
+    });
+    return required(data, 'member');
+  },
+  async removeMember(id: string, userId: string): Promise<void> {
+    await client.DELETE('/api/v1/orgs/{id}/members/{user_id}', {
+      params: { path: { id, user_id: userId } },
+    });
+  },
+  async invites(id: string, signal?: AbortSignal): Promise<Invite[]> {
+    const { data } = await client.GET('/api/v1/orgs/{id}/invites', {
+      params: { path: { id } },
+      signal,
+    });
+    return required(data, 'invites');
+  },
+  async invite(id: string, emails: string[], role: InviteRole, message?: string): Promise<Invite[]> {
+    const { data } = await client.POST('/api/v1/orgs/{id}/invites', {
+      params: { path: { id } },
+      body: { emails, role, ...(message ? { message } : {}) },
+    });
+    return required(data, 'invite');
+  },
+  async resendInvite(id: string, inviteId: string): Promise<void> {
+    await client.POST('/api/v1/orgs/{id}/invites/{invite_id}/resend', {
+      params: { path: { id, invite_id: inviteId } },
+    });
+  },
+  async revokeInvite(id: string, inviteId: string): Promise<void> {
+    await client.DELETE('/api/v1/orgs/{id}/invites/{invite_id}', {
+      params: { path: { id, invite_id: inviteId } },
+    });
+  },
+  async requestUpgrade(id: string, body: UpgradeRequest): Promise<UpgradeRequestOut> {
+    const { data } = await client.POST('/api/v1/orgs/{id}/upgrade-requests', {
+      params: { path: { id } },
+      body,
+    });
+    return required(data, 'upgrade request');
   },
   async getInvite(token: string, signal?: AbortSignal): Promise<InvitePreview> {
     const { data } = await client.GET('/api/v1/invites/{token}', {

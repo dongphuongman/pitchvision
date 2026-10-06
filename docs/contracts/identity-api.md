@@ -52,6 +52,10 @@ API's JWT check (`apps/api`) and the web client. Change it in the same PR as the
 | GET /api/v1/auth/oidc/google/callback | — | 302 to web `/auth/callback#…` | Google-verified email ⇒ email_verified; links to existing user by verified email (see OIDC below) |
 | GET /api/v1/me | — | 200 `Me` | |
 | DELETE /api/v1/me/unverified | — | 204 | "Change it" on SCR-06: deletes an unverified account and clears the cookie; verified → 409 `CONFLICT` |
+| PATCH /api/v1/me | `{name?, email_prefs?: {job_ready?, job_failed?, export_ready?}}` | 200 `Me` | SCR-40 P01 / R03; prefs merge (missing key = on); the internal notification-email route skips opted-out types (`needs_teams` follows `job_ready`, quota always sends) |
+| POST /api/v1/auth/password/change | `{current_password, new_password}` | 204 | SCR-40 P03; wrong current → 401 `INVALID_CREDENTIALS`; revokes every other refresh family (this cookie's stays) |
+| POST /api/v1/auth/sessions/revoke-others | — | 204 | SCR-40 P04; under /auth so the refresh cookie identifies this browser |
+| POST /api/v1/orgs/{id}/upgrade-requests | `{plan: pro\|team, period: monthly\|annual, reason?: quota\|feature\|seats\|quality}` | 202 `{id, plan, period, owners_notified, created_at}` | SCR-41 waitlist while billing is not live; any member; a non-owner's request emails every owner (E07) |
 | POST /api/v1/orgs | `{name, kind, my_role_title?, region}` | 201 `Org` | creator = owner; unverified email → 403 `EMAIL_NOT_VERIFIED`; becomes the user's last active org, so the next refresh (with or without `{org_id}`) lands in it |
 | GET /api/v1/orgs/{id} | — | 200 `Org` | member only; non-members get 404 (all `/orgs/{id}*` routes) |
 | PATCH /api/v1/orgs/{id} | `{name?}` | 200 `Org` | admin+; region is immutable (unknown fields such as `region` → 422; DB trigger as backstop) |
@@ -68,7 +72,7 @@ Shapes:
 - `Session` = `{access_token, token_type:"bearer", expires_in, user: User, memberships: Membership[], active_org_id}` (+ sets cookie)
 - `User` = `{id, name, email, email_verified, created_at}`
 - `Membership` = `{org_id, org_name, role, region}`
-- `Me` = `User & {memberships}`
+- `Me` = `User & {memberships, email_prefs}`
 - `Org` = `{id, name, kind, region, created_at}`; `kind` ∈ `club|academy|media|agency|individual|other`
 - `Member` = `{user_id, name, email, role, joined_at}`; `Invite` = `{id, email, role, expires_at, created_at, invited_by}`
 - `InvitePreview` = `{org_name, inviter_name|null, email, role, region, expired}` (`region` added for SCR-52 "Data stored in EU")

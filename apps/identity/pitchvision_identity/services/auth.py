@@ -21,6 +21,7 @@ from pitchvision_identity.services.sessions import (
     memberships_of,
     open_session,
     revoke_all_for_user,
+    revoke_others,
     revoke_raw,
     unauthenticated,
 )
@@ -187,4 +188,48 @@ async def me(ctx: Ctx, user_id: uuid.UUID) -> schemas.Me:
         email_verified=user.email_verified,
         created_at=user.created_at,
         memberships=[membership_out(m, o) for m, o in ms],
+        email_prefs=email_prefs(user),
     )
+
+
+def email_prefs(user: User) -> dict[schemas.EmailPrefKey, bool]:
+    stored = user.email_prefs or {}
+    return {k: bool(stored.get(k, True)) for k in schemas.EMAIL_PREF_KEYS}  # type: ignore[misc]
+
+
+async def patch_me(ctx: Ctx, user_id: uuid.UUID, body: schemas.MePatchIn) -> schemas.Me:
+    async with ctx.sm() as s, s.begin():
+        user = await s.get(User, user_id, with_for_update=True)
+        if user is None:
+            raise unauthenticated()
+        if body.name is not None:
+            user.name = body.name
+        if body.email_prefs:
+            user.email_prefs = {**(user.email_prefs or {}), **{str(k): v for k, v in body.email_prefs.items()}}
+        user.updated_at = utcnow()
+    return await me(ctx, user_id)
+
+
+async def change_password(ctx: Ctx, user_id: uuid.UUID, body: schemas.PasswordChangeIn, current_raw: str | None
+                          ) -> None:  # fmt: skip
+    """SCR-40 P03: needs the current password (Google-only accounts set one via "forgot password"); every other
+    session is signed out, this one stays."""
+    async with ctx.sm() as s:
+        user = await s.get(User, user_id)
+    if user is None:
+        raise unauthenticated()
+    if not user.password_hash or not await ctx.hasher.verify(user.password_hash, body.current_password):
+        raise ApiError(ErrorCode.INVALID_CREDENTIALS, 401, "Current password is wrong")
+    new_hash = await ctx.hasher.hash(body.new_password)
+    async with ctx.sm() as s, s.begin():
+        row = await s.get(User, user_id, with_for_update=True)
+        if row is None:
+            raise unauthenticated()
+        row.password_hash, row.updated_at = new_hash, utcnow()
+        await revoke_others(s, user_id, current_raw)
+
+
+async def sign_out_others(ctx: Ctx, user_id: uuid.UUID, current_raw: str | None) -> None:
+    """SCR-40 P04."""
+    async with ctx.sm() as s, s.begin():
+        await revoke_others(s, user_id, current_raw)

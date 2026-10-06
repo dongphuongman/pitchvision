@@ -1,12 +1,13 @@
-import { Outlet, useNavigate } from '@tanstack/react-router';
+import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { can } from '@/auth/roles';
 import { useRole } from '@/auth/session';
-import type { AppDialog } from '@/router';
+import type { AppDialog, UpgradeReason } from '@/router';
 import { UploadTray } from '@/features/upload/UploadTray';
 import { useUploadLifecycle } from '@/features/upload/useUploads';
 import { useSearchDialog } from '@/lib/useSearchDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { UpgradeDialog } from './UpgradeDialog';
 import { TopBar } from './TopBar';
 
 function isTypingTarget(el: EventTarget | null): boolean {
@@ -18,6 +19,9 @@ function isTypingTarget(el: EventTarget | null): boolean {
 export function AppShell() {
   const navigate = useNavigate();
   const dialog = useSearchDialog<AppDialog>('dialog');
+  const reason = useRouterState({
+    select: (st) => (st.location.search as { reason?: UpgradeReason }).reason,
+  });
   // N = New analysis (SCR-11) is Editor+ only, like the top-bar button.
   const canCreate = can(useRole(), 'editor');
   useUploadLifecycle();
@@ -49,6 +53,11 @@ export function AppShell() {
         <Outlet />
       </main>
       <ShortcutsDialog open={dialog.value === 'shortcuts'} onOpenChange={dialog.onOpenChange} />
+      <UpgradeDialog
+        open={dialog.value === 'upgrade'}
+        reason={reason}
+        onOpenChange={dialog.onOpenChange}
+      />
       <UploadTray />
     </div>
   );

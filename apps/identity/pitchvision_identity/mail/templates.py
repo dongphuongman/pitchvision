@@ -90,3 +90,13 @@ def notification_email(web_url: str, to: str, name: str, type_: str, path: str, 
               "limit": str(data.get("limit") or "")}
     subject, headline, body, button = (part.format(**values) for part in copy)
     return _msg(to, subject, f"Hi {name},", [headline + ".", body], f"{web_url}{path}", button)
+
+
+def upgrade_request_email(web_url: str, to: str, owner: str, requester: str, org_name: str, plan: str,
+                          reason: str | None) -> EmailMessage:  # fmt: skip
+    """SCR-41 E07 "Notify owner": a member hit a plan limit and asks the owner to upgrade."""
+    why = {"quota": "ran out of this month's analysis minutes", "feature": "needs a feature of a higher plan",
+           "seats": "needs more seats", "quality": "wants 1080p exports"}.get(reason or "", "")
+    lines = [f"{requester} asked to upgrade {org_name} to {plan.capitalize()}" + (f" — they {why}." if why else ".")]
+    return _msg(to, f"{requester} asked to upgrade {org_name}", f"Hi {owner},", lines,
+                f"{web_url}/settings/billing", "Review plans")

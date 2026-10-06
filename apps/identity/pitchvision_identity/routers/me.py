@@ -1,4 +1,5 @@
-"""/api/v1/me: the signed-in user, and SCR-06 "Change it" (delete an unverified account)."""
+"""/api/v1/me: the signed-in user, SCR-06 "Change it" (delete an unverified account), SCR-40 Profile / Preferences
+(PATCH). Password change and "sign out other sessions" live under /auth (they need the refresh cookie)."""
 
 from fastapi import APIRouter, Response, status
 
@@ -21,3 +22,10 @@ async def delete_unverified(user_id: UserId, ctx: AppCtx) -> Response:
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     clear_refresh_cookie(response, ctx)
     return response
+
+
+@router.patch("")
+async def patch_me(body: schemas.MePatchIn, user_id: UserId, ctx: AppCtx) -> schemas.Me:
+    """SCR-40 P01 name, R03 email notifications (`email_prefs`, partial)."""
+    return await svc.patch_me(ctx, user_id, body)
+

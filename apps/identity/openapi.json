@@ -607,6 +607,96 @@
         }
       }
     },
+    "/api/v1/auth/password/change": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Change Password",
+        "description": "SCR-40 P03 (under /auth so the refresh cookie identifies this browser). Wrong current password → 401\nINVALID_CREDENTIALS. Signs out every other session.",
+        "operationId": "change_password_api_v1_auth_password_change_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/sessions/revoke-others": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign Out Others",
+        "description": "SCR-40 P04: sign out of all other sessions (this browser stays signed in).",
+        "operationId": "sign_out_others_api_v1_auth_sessions_revoke_others_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/me": {
       "get": {
         "tags": [
@@ -614,6 +704,61 @@
         ],
         "summary": "Get Me",
         "operationId": "get_me_api_v1_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Patch Me",
+        "description": "SCR-40 P01 name, R03 email notifications (`email_prefs`, partial).",
+        "operationId": "patch_me_api_v1_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MePatchIn"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1339,6 +1484,75 @@
         }
       }
     },
+    "/api/v1/orgs/{org_id}/upgrade-requests": {
+      "post": {
+        "tags": [
+          "orgs"
+        ],
+        "summary": "Request Upgrade",
+        "description": "SCR-41 while billing is not live: join the waitlist for a plan. Any member; a non-owner's request emails\nthe owners (E07 \"Notify owner\").",
+        "operationId": "request_upgrade_api_v1_orgs__org_id__upgrade_requests_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Org Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpgradeRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpgradeRequestOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/invites/{token}": {
       "get": {
         "tags": [
@@ -1805,6 +2019,21 @@
             },
             "type": "array",
             "title": "Memberships"
+          },
+          "email_prefs": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "propertyNames": {
+              "enum": [
+                "job_ready",
+                "job_failed",
+                "export_ready"
+              ]
+            },
+            "type": "object",
+            "title": "Email Prefs",
+            "description": "job_ready / job_failed / export_ready — every key present (default on)"
           }
         },
         "type": "object",
@@ -1817,6 +2046,48 @@
           "memberships"
         ],
         "title": "Me"
+      },
+      "MePatchIn": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email_prefs": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "job_ready",
+                    "job_failed",
+                    "export_ready"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Prefs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MePatchIn",
+        "description": "SCR-40 Profile P01 (name) and Preferences R03 (email notifications; omitted keys unchanged)."
       },
       "Member": {
         "properties": {
@@ -2035,6 +2306,29 @@
         "type": "object",
         "title": "OrgPatchIn",
         "description": "Region is not accepted: it is chosen once at creation (sending it is a 422)."
+      },
+      "PasswordChangeIn": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 10,
+            "title": "New Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeIn"
       },
       "ProblemDetails": {
         "properties": {
@@ -2260,6 +2554,88 @@
           "token"
         ],
         "title": "TokenIn"
+      },
+      "UpgradeRequestIn": {
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "pro",
+              "team"
+            ],
+            "title": "Plan",
+            "default": "pro"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ],
+            "title": "Period",
+            "default": "monthly"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "quota",
+                  "feature",
+                  "seats",
+                  "quality"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UpgradeRequestIn"
+      },
+      "UpgradeRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "pro",
+              "team"
+            ],
+            "title": "Plan"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "owners_notified": {
+            "type": "integer",
+            "title": "Owners Notified",
+            "description": "owners emailed (when the requester is not an owner)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "plan",
+          "period",
+          "owners_notified",
+          "created_at"
+        ],
+        "title": "UpgradeRequestOut"
       },
       "User": {
         "properties": {

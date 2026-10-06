@@ -94,6 +94,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/auth/password/change': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Change Password
+     * @description SCR-40 P03 (under /auth so the refresh cookie identifies this browser). Wrong current password → 401
+     *     INVALID_CREDENTIALS. Signs out every other session.
+     */
+    post: operations['change_password_api_v1_auth_password_change_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/password/forgot': {
     parameters: {
       query?: never;
@@ -169,6 +190,26 @@ export interface paths {
      *     created; otherwise a verification email is sent.
      */
     post: operations['register_api_v1_auth_register_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/sessions/revoke-others': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Sign Out Others
+     * @description SCR-40 P04: sign out of all other sessions (this browser stays signed in).
+     */
+    post: operations['sign_out_others_api_v1_auth_sessions_revoke_others_post'];
     delete?: never;
     options?: never;
     head?: never;
@@ -267,7 +308,11 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    patch?: never;
+    /**
+     * Patch Me
+     * @description SCR-40 P01 name, R03 email notifications (`email_prefs`, partial).
+     */
+    patch: operations['patch_me_api_v1_me_patch'];
     trace?: never;
   };
   '/api/v1/me/unverified': {
@@ -436,6 +481,27 @@ export interface paths {
      * @description Admin+; only owners grant/revoke `owner`; the last owner cannot be demoted (409 LAST_OWNER).
      */
     patch: operations['set_member_role_api_v1_orgs__org_id__members__member_id__patch'];
+    trace?: never;
+  };
+  '/api/v1/orgs/{org_id}/upgrade-requests': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Request Upgrade
+     * @description SCR-41 while billing is not live: join the waitlist for a plan. Any member; a non-owner's request emails
+     *     the owners (E07 "Notify owner").
+     */
+    post: operations['request_upgrade_api_v1_orgs__org_id__upgrade_requests_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   '/healthz': {
@@ -633,6 +699,13 @@ export interface components {
       created_at: string;
       /** Email */
       email: string;
+      /**
+       * Email Prefs
+       * @description job_ready / job_failed / export_ready — every key present (default on)
+       */
+      email_prefs?: {
+        [key: string]: boolean;
+      };
       /** Email Verified */
       email_verified: boolean;
       /**
@@ -695,6 +768,18 @@ export interface components {
        */
       role: 'owner' | 'admin' | 'editor' | 'viewer';
     };
+    /**
+     * MePatchIn
+     * @description SCR-40 Profile P01 (name) and Preferences R03 (email notifications; omitted keys unchanged).
+     */
+    MePatchIn: {
+      /** Email Prefs */
+      email_prefs?: {
+        [key: string]: boolean;
+      } | null;
+      /** Name */
+      name?: string | null;
+    };
     /** Org */
     Org: {
       /**
@@ -744,6 +829,13 @@ export interface components {
     OrgPatchIn: {
       /** Name */
       name?: string | null;
+    };
+    /** PasswordChangeIn */
+    PasswordChangeIn: {
+      /** Current Password */
+      current_password: string;
+      /** New Password */
+      new_password: string;
     };
     /**
      * ProblemDetails
@@ -814,6 +906,48 @@ export interface components {
     TokenIn: {
       /** Token */
       token: string;
+    };
+    /** UpgradeRequestIn */
+    UpgradeRequestIn: {
+      /**
+       * Period
+       * @default monthly
+       * @enum {string}
+       */
+      period: 'monthly' | 'annual';
+      /**
+       * Plan
+       * @default pro
+       * @enum {string}
+       */
+      plan: 'pro' | 'team';
+      /** Reason */
+      reason?: ('quota' | 'feature' | 'seats' | 'quality') | null;
+    };
+    /** UpgradeRequestOut */
+    UpgradeRequestOut: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Owners Notified
+       * @description owners emailed (when the requester is not an owner)
+       */
+      owners_notified: number;
+      /** Period */
+      period: string;
+      /**
+       * Plan
+       * @enum {string}
+       */
+      plan: 'pro' | 'team';
     };
     /** User */
     User: {
@@ -1019,6 +1153,46 @@ export interface operations {
       };
     };
   };
+  change_password_api_v1_auth_password_change_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PasswordChangeIn'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   forgot_password_api_v1_auth_password_forgot_post: {
     parameters: {
       query?: never;
@@ -1182,6 +1356,42 @@ export interface operations {
         content: {
           'application/json': components['schemas']['Session'];
         };
+      };
+    };
+  };
+  sign_out_others_api_v1_auth_sessions_revoke_others_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
@@ -1353,6 +1563,48 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Me'];
+        };
+      };
+    };
+  };
+  patch_me_api_v1_me_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MePatchIn'];
+      };
+    };
     responses: {
       /** @description Client Error */
       '4XX': {
@@ -1829,6 +2081,50 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Member'];
+        };
+      };
+    };
+  };
+  request_upgrade_api_v1_orgs__org_id__upgrade_requests_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpgradeRequestIn'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UpgradeRequestOut'];
         };
       };
     };

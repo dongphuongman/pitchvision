@@ -70,6 +70,40 @@ class OrgPatchIn(_In):
     name: Name | None = None
 
 
+EmailPrefKey = Literal["job_ready", "job_failed", "export_ready"]
+EMAIL_PREF_KEYS: tuple[str, ...] = ("job_ready", "job_failed", "export_ready")
+
+
+class MePatchIn(_In):
+    """SCR-40 Profile P01 (name) and Preferences R03 (email notifications; omitted keys unchanged)."""
+
+    name: Name | None = None
+    email_prefs: dict[EmailPrefKey, bool] | None = None
+
+
+class PasswordChangeIn(_In):
+    current_password: Annotated[str, Field(min_length=1, max_length=256)]
+    new_password: Password
+
+
+UpgradePlan = Literal["pro", "team"]
+UpgradeReason = Literal["quota", "feature", "seats", "quality"]
+
+
+class UpgradeRequestIn(_In):
+    plan: UpgradePlan = "pro"
+    period: Literal["monthly", "annual"] = "monthly"
+    reason: UpgradeReason | None = None
+
+
+class UpgradeRequestOut(BaseModel):
+    id: uuid.UUID
+    plan: UpgradePlan
+    period: str
+    owners_notified: int = Field(description="owners emailed (when the requester is not an owner)")
+    created_at: datetime
+
+
 class MemberPatchIn(_In):
     role: Role
 
@@ -105,6 +139,8 @@ class Membership(BaseModel):
 
 class Me(User):
     memberships: list[Membership]
+    email_prefs: dict[EmailPrefKey, bool] = Field(
+        default_factory=dict, description="job_ready / job_failed / export_ready — every key present (default on)")
 
 
 class Session(BaseModel):

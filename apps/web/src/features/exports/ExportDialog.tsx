@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createExport, exportKeys, type ExportLayers } from '@/api/exports';
 import type { Manifest } from '@/api/types';
 import { usageQuery } from '@/api/usage';
+import { useOpenUpgrade } from '@/app/useUpgrade';
 import { useApiErrorMessage } from '@/api/useApiErrorMessage';
 import { formatTimecode } from '@/i18n/format';
 import type { OverlayLayers } from '@/player/overlay';
@@ -54,6 +55,7 @@ export function ExportDialog({
 }: ExportDialogProps) {
   const { t } = useTranslation('video');
   const navigate = useNavigate();
+  const openUpgrade = useOpenUpgrade();
   const qc = useQueryClient();
   const usage = useQuery({ ...usageQuery, enabled: open });
   const proQuality = (usage.data?.export_max_height ?? 720) >= 1080;
@@ -226,8 +228,7 @@ export function ExportDialog({
             onValueChange={(q) => {
               // E09: 1080p on Free opens the upgrade screen instead.
               if (q === '1080' && !proQuality) {
-                onOpenChange(false);
-                void navigate({ to: '/settings/$section', params: { section: 'billing' } });
+                openUpgrade('quality', ['export']);
                 return;
               }
               setQuality(q);
@@ -242,14 +243,13 @@ export function ExportDialog({
         {watermark && (
           <Banner tone="info">
             {t('exports.dialog.watermark')}{' '}
-            <Link
-              to="/settings/$section"
-              params={{ section: 'billing' }}
-              className="font-semibold text-accent underline-offset-2 hover:underline"
-              onClick={() => onOpenChange(false)}
+            <button
+              type="button"
+              className="rounded-xs font-semibold text-accent underline-offset-2 focus-ring hover:underline"
+              onClick={() => openUpgrade('quality', ['export'])}
             >
               {t('exports.dialog.upgrade')}
-            </Link>
+            </button>
           </Banner>
         )}
         {errorMessage && <Banner tone="err">{errorMessage}</Banner>}

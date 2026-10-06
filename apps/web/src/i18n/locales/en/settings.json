@@ -25,5 +25,122 @@
     "apiUrl": "API endpoint",
     "sameOrigin": "same origin",
     "unavailable": "API unreachable"
-  }
+  },
+  "upgrade": {
+    "title": "Upgrade your plan",
+    "reason": {
+      "quota": "You've used {{used}} of {{limit}} minutes this month.",
+      "feature": "This feature is part of a higher plan.",
+      "seats": "Your plan has no free seats left.",
+      "quality": "1080p exports are part of Pro."
+    },
+    "monthly": "Monthly",
+    "annual": "Annual · save 20%",
+    "period": "Billing period",
+    "plans": {
+      "free": {
+        "name": "Free",
+        "minutes": "120 min/mo",
+        "f1": "720p exports with watermark",
+        "f2": "Tracking + tactical map"
+      },
+      "pro": {
+        "name": "Pro",
+        "minutes": "900 min/mo",
+        "f1": "1080p exports, no watermark",
+        "f2": "AI reports (coming)"
+      },
+      "team": {
+        "name": "Team",
+        "minutes": "Custom minutes",
+        "f1": "SSO · self-host",
+        "f2": "Volume pricing"
+      }
+    },
+    "current": "Current plan",
+    "choosePro": "Choose Pro",
+    "contactSales": "Contact sales",
+    "compare": "Compare all features",
+    "later": "Maybe later",
+    "notOwner": "Only an owner can change the plan. Ask your owner to upgrade.",
+    "notifyOwner": "Notify owner",
+    "ownerNotified": "We emailed your organization's owner.",
+    "waitlistTitle": "You're on the list",
+    "waitlist": "Paid plans open soon. We recorded your request for {{plan}} and will email you when you can switch."
+  },
+  "billing": {
+    "plan": "Plan",
+    "changePlan": "Change plan",
+    "usage": "Analysis minutes this month",
+    "usageValue": "{{used}} of {{limit}} min",
+    "resets": "Resets on {{date}}",
+    "exports": "Exports up to {{height}}p",
+    "watermark": "with a watermark",
+    "noWatermark": "no watermark",
+    "payments": "Payments and invoices arrive with paid plans."
+  },
+  "profile": {
+    "name": "Name",
+    "email": "Email",
+    "emailHelp": "Changing your email is not available yet.",
+    "save": "Save",
+    "saved": "Profile saved",
+    "password": "Password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "newPasswordHelp": "At least 10 characters.",
+    "changePassword": "Change password",
+    "passwordChanged": "Password changed. Other sessions were signed out.",
+    "wrongPassword": "Your current password is wrong.",
+    "sessions": "Sessions",
+    "signOutOthers": "Sign out of all other sessions",
+    "signedOutOthers": "Other sessions signed out"
+  },
+  "organization": {
+    "name": "Organization name",
+    "type": "Type",
+    "region": "Data region",
+    "regionHelp": "Chosen when the organization was created. Data stays in this region and it cannot be changed.",
+    "saved": "Organization saved"
+  },
+  "members": {
+    "invite": "Invite members",
+    "emails": "Email addresses",
+    "emailsHelp": "Separate several addresses with commas or new lines.",
+    "role": "Role",
+    "message": "Message (optional)",
+    "send": "Send invites",
+    "sent": "{{count}} invites sent",
+    "sent_one": "Invite sent",
+    "people": "People",
+    "you": "you",
+    "remove": "Remove",
+    "removeTitle": "Remove {{name}}?",
+    "removeBody": "{{name}} loses access to this organization at once.",
+    "removed": "Member removed",
+    "roleChanged": "Role updated",
+    "pending": "Pending invites",
+    "noPending": "No pending invites.",
+    "expires": "Expires {{date}}",
+    "expired": "Expired",
+    "resend": "Resend",
+    "revoke": "Revoke",
+    "resent": "Invite sent again",
+    "revoked": "Invite revoked",
+    "lastOwner": "The organization needs at least one owner.",
+    "roleFor": "Role of {{name}}"
+  },
+  "notifications": {
+    "title": "Email notifications",
+    "job_ready": "An analysis is ready",
+    "job_failed": "An analysis failed",
+    "export_ready": "An export is ready",
+    "help": "In-app notifications are always on. Plan limit emails can't be turned off.",
+    "saved": "Notification settings saved"
+  },
+  "soon": {
+    "api-keys": "API keys arrive with the Pro plan.",
+    "privacy": "Data export and account deletion are coming. Contact support meanwhile."
+  },
+  "forbidden": "You don't have access to this section."
 }

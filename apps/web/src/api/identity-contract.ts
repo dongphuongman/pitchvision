@@ -73,6 +73,23 @@ export interface paths {
   '/api/v1/me': {
     parameters: NoParams;
     get: Op<NoParams, undefined, { 200: Json<S['Me']> }>;
+    patch: Op<NoParams, JsonBody<S['UpdateMeRequest']>, { 200: Json<S['Me']> }>;
+  };
+  '/api/v1/auth/password/change': {
+    parameters: NoParams;
+    post: Op<NoParams, JsonBody<S['ChangePasswordRequest']>, { 204: NoContent }>;
+  };
+  '/api/v1/auth/sessions/revoke-others': {
+    parameters: NoParams;
+    post: Op<NoParams, undefined, { 204: NoContent }>;
+  };
+  '/api/v1/orgs/{id}/upgrade-requests': {
+    parameters: PathParams<{ id: string }>;
+    post: Op<
+      PathParams<{ id: string }>,
+      JsonBody<S['UpgradeRequest']>,
+      { 202: Json<S['UpgradeRequestOut']> }
+    >;
   };
   '/api/v1/me/unverified': {
     parameters: NoParams;
@@ -158,7 +175,24 @@ export interface components {
       memberships: S['Membership'][];
       active_org_id: string | null;
     };
-    Me: S['User'] & { memberships: S['Membership'][] };
+    Me: S['User'] & { memberships: S['Membership'][]; email_prefs?: S['EmailPrefs'] };
+    /** SCR-40 R03; every key present in responses (default on). */
+    EmailPrefs: { job_ready?: boolean; job_failed?: boolean; export_ready?: boolean };
+    UpdateMeRequest: { name?: string | null; email_prefs?: S['EmailPrefs'] | null };
+    ChangePasswordRequest: { current_password: string; new_password: string };
+    UpgradeRequest: {
+      plan?: 'pro' | 'team';
+      period?: 'monthly' | 'annual';
+      reason?: 'quota' | 'feature' | 'seats' | 'quality' | null;
+    };
+    UpgradeRequestOut: {
+      id: string;
+      plan: 'pro' | 'team';
+      period: string;
+      owners_notified: number;
+      /** Format: date-time */
+      created_at: string;
+    };
     Org: {
       id: string;
       name: string;

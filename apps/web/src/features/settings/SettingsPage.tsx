@@ -2,10 +2,40 @@ import { getRouteApi, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Page, PageHeader } from '@/app/Page';
 import { cn } from '@/lib/cn';
-import { Card } from '@/ui';
+import { can } from '@/auth/roles';
+import { useRole } from '@/auth/session';
+import { Banner, Card } from '@/ui';
 import { AboutSection } from './AboutSection';
+import { BillingSection } from './BillingSection';
+import { MembersSection } from './MembersSection';
+import { OrganizationSection } from './OrganizationSection';
 import { PreferencesSection } from './PreferencesSection';
-import { SETTINGS_SECTIONS } from './sections';
+import { ProfileSection } from './ProfileSection';
+import { SECTION_ROLE, SETTINGS_SECTIONS, type SettingsSection } from './sections';
+
+function Body({ section }: { section: SettingsSection }) {
+  const { t } = useTranslation('settings');
+  switch (section) {
+    case 'profile':
+      return <ProfileSection />;
+    case 'organization':
+      return <OrganizationSection />;
+    case 'members':
+      return <MembersSection />;
+    case 'billing':
+      return <BillingSection />;
+    case 'preferences':
+      return <PreferencesSection />;
+    case 'about':
+      return <AboutSection />;
+    default:
+      return (
+        <Card>
+          <p className="m-0 text-fg-2">{t(`soon.${section}`)}</p>
+        </Card>
+      );
+  }
+}
 
 const route = getRouteApi('/_app/settings/$section');
 
@@ -13,13 +43,16 @@ const route = getRouteApi('/_app/settings/$section');
 export function SettingsPage() {
   const { section } = route.useParams();
   const { t } = useTranslation('settings');
+  const role = useRole();
+  const visible = SETTINGS_SECTIONS.filter((s) => can(role, SECTION_ROLE[s]));
+  const allowed = visible.includes(section);
 
   return (
     <Page>
       <PageHeader title={t('title')} />
       <div className="grid gap-8 md:grid-cols-[230px_1fr]">
         <nav aria-label={t('nav')} className="flex flex-col gap-0.5">
-          {SETTINGS_SECTIONS.map((s) => (
+          {visible.map((s) => (
             <Link
               key={s}
               to="/settings/$section"
@@ -36,15 +69,7 @@ export function SettingsPage() {
         </nav>
         <section className="flex max-w-[760px] flex-col gap-[18px]">
           <h2>{t(`sections.${section}`)}</h2>
-          {section === 'preferences' ? (
-            <PreferencesSection />
-          ) : section === 'about' ? (
-            <AboutSection />
-          ) : (
-            <Card>
-              <p className="m-0 text-fg-2">{t('placeholder')}</p>
-            </Card>
-          )}
+          {allowed ? <Body section={section} /> : <Banner tone="warn">{t('forbidden')}</Banner>}
         </section>
       </div>
     </Page>

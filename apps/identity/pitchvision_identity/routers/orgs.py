@@ -77,3 +77,11 @@ async def resend_invite(org_id: uuid.UUID, invite_id: uuid.UUID, user_id: UserId
 async def revoke_invite(org_id: uuid.UUID, invite_id: uuid.UUID, user_id: UserId, ctx: AppCtx) -> Response:
     await invite_svc.revoke(ctx, user_id, org_id, invite_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{org_id}/upgrade-requests", status_code=202)
+async def request_upgrade(org_id: uuid.UUID, body: schemas.UpgradeRequestIn, user_id: UserId, ctx: AppCtx
+                          ) -> schemas.UpgradeRequestOut:  # fmt: skip
+    """SCR-41 while billing is not live: join the waitlist for a plan. Any member; a non-owner's request emails
+    the owners (E07 "Notify owner")."""
+    return await svc.request_upgrade(ctx, user_id, org_id, body)

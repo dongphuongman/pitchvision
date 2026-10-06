@@ -22,6 +22,9 @@ from pitchvision_identity.errors import ApiError
 from pitchvision_identity.mail.templates import notification_email
 
 router = APIRouter(prefix="/internal/v1", include_in_schema=False)
+# notification type → users.email_prefs key (SCR-40 R03); types without a key (quota) always send
+PREF_OF = {"job_ready": "job_ready", "needs_teams": "job_ready", "job_failed": "job_failed",
+           "export_ready": "export_ready"}
 _bearer = HTTPBearer(auto_error=False)
 
 
@@ -57,6 +60,9 @@ async def notification_email_route(body: NotificationEmailIn, request: Request, 
         return EmailOutcome(sent=False, reason="not_member")
     if not user.email_verified:
         return EmailOutcome(sent=False, reason="unverified")
+    pref = PREF_OF.get(body.type)
+    if pref is not None and (user.email_prefs or {}).get(pref) is False:
+        return EmailOutcome(sent=False, reason="opted_out")
     msg = notification_email(ctx.settings.web_url, user.email, user.name, body.type, body.path, body.video_title,
                              body.data)  # fmt: skip
     if msg is None:

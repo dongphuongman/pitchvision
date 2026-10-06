@@ -73,6 +73,18 @@ async def revoke_all_for_user(s: AsyncSession, user_id: uuid.UUID) -> None:
     )
 
 
+async def revoke_others(s: AsyncSession, user_id: uuid.UUID, current_raw: str | None) -> None:
+    """Revoke every refresh family of the user except the one of the presented cookie."""
+    keep = None
+    if current_raw:
+        keep = await s.scalar(select(RefreshToken.family_id).where(RefreshToken.token_hash == hash_token(current_raw),
+                                                                    RefreshToken.user_id == user_id))  # fmt: skip
+    stmt = update(RefreshToken).where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
+    if keep is not None:
+        stmt = stmt.where(RefreshToken.family_id != keep)
+    await s.execute(stmt.values(revoked_at=utcnow()))
+
+
 async def revoke_raw(s: AsyncSession, raw: str | None, user_id: uuid.UUID | None = None) -> None:
     """Revoke the family of a presented refresh token (optionally only if it belongs to user_id)."""
     if not raw:

@@ -6,9 +6,9 @@ from pitchvision_schemas import ErrorCode
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pitchvision_identity import schemas
+from pitchvision_identity import mail, schemas
 from pitchvision_identity.context import Ctx
-from pitchvision_identity.db.models import Membership, Org, User
+from pitchvision_identity.db.models import Membership, Org, UpgradeRequest, User
 from pitchvision_identity.errors import ApiError
 from pitchvision_identity.schemas import ROLE_RANK
 
@@ -139,3 +139,26 @@ async def remove(ctx: Ctx, actor_id: uuid.UUID, org_id: uuid.UUID, target_id: uu
         if target.role == "owner" and await _other_owners(s, org_id, target_id) == 0:
             raise _last_owner()
         await s.delete(target)
+
+
+async def request_upgrade(ctx: Ctx, user_id: uuid.UUID, org_id: uuid.UUID, body: schemas.UpgradeRequestIn
+                          ) -> schemas.UpgradeRequestOut:  # fmt: skip
+    """SCR-41 waitlist (no billing yet): record the request; a non-owner's request emails every owner (E07)."""
+    async with ctx.sm() as s, s.begin():
+        me = await require_member(s, org_id, user_id)
+        org = await s.get(Org, org_id)
+        user = await s.get(User, user_id)
+        owners = [] if me.role == "owner" else list((await s.execute(
+            select(User).join(Membership, Membership.user_id == User.id)
+            .where(Membership.org_id == org_id, Membership.role == "owner"))).scalars())  # fmt: skip
+        row = UpgradeRequest(org_id=org_id, user_id=user_id, plan=body.plan, period=body.period, reason=body.reason,
+                             owners_notified=len(owners))  # fmt: skip
+        s.add(row)
+        await s.flush()
+        out = schemas.UpgradeRequestOut(id=row.id, plan=body.plan, period=body.period,
+                                        owners_notified=len(owners), created_at=row.created_at)  # fmt: skip
+    for o in owners:
+        msg = mail.upgrade_request_email(ctx.settings.web_url, o.email, o.name, user.name if user else "A member",
+                                         org.name if org else "your organization", body.plan, body.reason)  # fmt: skip
+        await mail.send_quietly(ctx.mailer, msg)
+    return out

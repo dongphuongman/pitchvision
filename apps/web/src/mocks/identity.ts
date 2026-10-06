@@ -22,6 +22,7 @@ export interface MockUser {
   password: string;
   email_verified: boolean;
   created_at: string;
+  email_prefs?: { job_ready?: boolean; job_failed?: boolean; export_ready?: boolean };
 }
 
 export interface MockInvite {
@@ -31,6 +32,8 @@ export interface MockInvite {
   role: Role;
   inviter_name: string;
   expired: boolean;
+  id?: string;
+  revoked?: boolean;
 }
 
 export interface MockDb {
@@ -46,6 +49,8 @@ export interface MockDb {
   cookie: { userId: string; activeOrgId: string | null } | null;
   /** Access tokens the server now rejects with 401 (simulates expiry). */
   rejectedTokens: Set<string>;
+  /** SCR-41 waitlist requests. */
+  upgradeRequests: { org_id: string; user_id: string; plan: string; reason: string | null }[];
   /** Request log for assertions: "POST /api/v1/auth/refresh {\"org_id\":\"…\"}". */
   log: string[];
   seq: number;
@@ -63,6 +68,7 @@ export function createMockDb(partial: Partial<MockDb> = {}): MockDb {
     verifyTokens: {},
     cookie: null,
     rejectedTokens: new Set(),
+    upgradeRequests: [],
     log: [],
     seq: 0,
     ...partial,
@@ -148,8 +154,28 @@ async function jsonBody<T>(request: Request): Promise<Partial<T>> {
   }
 }
 
+const RANK: Record<Role, number> = { viewer: 0, editor: 1, admin: 2, owner: 3 };
+
+function rankOf(db: MockDb, orgId: string, userId: string): number {
+  const m = db.memberships.find((x) => x.org_id === orgId && x.user_id === userId);
+  return m ? RANK[m.role] : -1;
+}
+
+function ownersOf(db: MockDb, orgId: string): number {
+  return db.memberships.filter((m) => m.org_id === orgId && m.role === 'owner').length;
+}
+
 /** Handlers for every identity endpoint in the contract (matched on any origin). */
 export function identityHandlers(db: MockDb): HttpHandler[] {
+  const meOf = (user: MockUser) => ({
+    ...publicUser(user),
+    memberships: membershipsOf(db, user.id),
+    email_prefs: {
+      job_ready: user.email_prefs?.job_ready ?? true,
+      job_failed: user.email_prefs?.job_failed ?? true,
+      export_ready: user.email_prefs?.export_ready ?? true,
+    },
+  });
   const log = async (request: Request) => {
     const body = await request.clone().text();
     db.log.push(`${request.method} ${new URL(request.url).pathname}${body ? ` ${body}` : ''}`);
@@ -245,7 +271,179 @@ export function identityHandlers(db: MockDb): HttpHandler[] {
     http.get('*/api/v1/me', ({ request }) => {
       const user = authUser(db, request);
       if (!user) return problem(401, 'UNAUTHENTICATED');
-      return HttpResponse.json({ ...publicUser(user), memberships: membershipsOf(db, user.id) });
+      return HttpResponse.json(meOf(user));
+    }),
+
+    http.patch('*/api/v1/me', async ({ request }) => {
+      await log(request);
+      const user = authUser(db, request);
+      if (!user) return problem(401, 'UNAUTHENTICATED');
+      const body = await jsonBody<{ name: string; email_prefs: MockUser['email_prefs'] }>(request);
+      if (body.name !== undefined) {
+        const name = body.name.trim();
+        if (!name) return problem(422, 'VALIDATION_FAILED');
+        user.name = name;
+      }
+      if (body.email_prefs) user.email_prefs = { ...user.email_prefs, ...body.email_prefs };
+      return HttpResponse.json(meOf(user));
+    }),
+
+    http.post('*/api/v1/auth/password/change', async ({ request }) => {
+      await log(request);
+      const user = authUser(db, request);
+      if (!user) return problem(401, 'UNAUTHENTICATED');
+      const body = await jsonBody<{ current_password: string; new_password: string }>(request);
+      if (body.current_password !== user.password) return problem(401, 'INVALID_CREDENTIALS');
+      if ((body.new_password ?? '').length < 10) return problem(422, 'VALIDATION_FAILED');
+      user.password = body.new_password ?? user.password;
+      return new HttpResponse(null, { status: 204 });
+    }),
+
+    http.post('*/api/v1/auth/sessions/revoke-others', async ({ request }) => {
+      await log(request);
+      if (!authUser(db, request)) return problem(401, 'UNAUTHENTICATED');
+      return new HttpResponse(null, { status: 204 });
+    }),
+
+    http.get<{ id: string }>('*/api/v1/orgs/:id/members', ({ request, params }) => {
+      const user = authUser(db, request);
+      if (!user) return problem(401, 'UNAUTHENTICATED');
+      if (rankOf(db, params.id, user.id) < 2) return problem(403, 'FORBIDDEN');
+      return HttpResponse.json(
+        db.memberships
+          .filter((m) => m.org_id === params.id)
+          .flatMap((m) => {
+            const u = db.users.find((x) => x.id === m.user_id);
+            return u
+              ? [{ user_id: u.id, name: u.name, email: u.email, role: m.role, joined_at: NOW }]
+              : [];
+          }),
+      );
+    }),
+
+    http.patch<{ id: string; userId: string }>(
+      '*/api/v1/orgs/:id/members/:userId',
+      async ({ request, params }) => {
+        await log(request);
+        const user = authUser(db, request);
+        if (!user) return problem(401, 'UNAUTHENTICATED');
+        const m = db.memberships.find((x) => x.org_id === params.id && x.user_id === params.userId);
+        if (!m) return problem(404, 'NOT_FOUND');
+        const body = await jsonBody<{ role: Role }>(request);
+        if (!body.role) return problem(422, 'VALIDATION_FAILED');
+        if (m.role === 'owner' && body.role !== 'owner' && ownersOf(db, params.id) <= 1) {
+          return problem(409, 'LAST_OWNER');
+        }
+        m.role = body.role;
+        const u = db.users.find((x) => x.id === m.user_id);
+        return HttpResponse.json({
+          user_id: m.user_id,
+          name: u?.name ?? '',
+          email: u?.email ?? '',
+          role: m.role,
+          joined_at: NOW,
+        });
+      },
+    ),
+
+    http.delete<{ id: string; userId: string }>(
+      '*/api/v1/orgs/:id/members/:userId',
+      async ({ request, params }) => {
+        await log(request);
+        if (!authUser(db, request)) return problem(401, 'UNAUTHENTICATED');
+        const m = db.memberships.find((x) => x.org_id === params.id && x.user_id === params.userId);
+        if (!m) return problem(404, 'NOT_FOUND');
+        if (m.role === 'owner' && ownersOf(db, params.id) <= 1) return problem(409, 'LAST_OWNER');
+        db.memberships = db.memberships.filter((x) => x !== m);
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
+
+    http.get<{ id: string }>('*/api/v1/orgs/:id/invites', ({ request, params }) => {
+      if (!authUser(db, request)) return problem(401, 'UNAUTHENTICATED');
+      return HttpResponse.json(
+        db.invites
+          .filter((i) => i.org_id === params.id && !i.revoked)
+          .map((i) => ({
+            id: i.id ?? i.token,
+            email: i.email,
+            role: i.role,
+            expires_at: i.expired ? '2026-01-01T00:00:00Z' : '2099-01-01T00:00:00Z',
+            created_at: NOW,
+            invited_by: null,
+          })),
+      );
+    }),
+
+    http.post<{ id: string }>('*/api/v1/orgs/:id/invites', async ({ request, params }) => {
+      await log(request);
+      const user = authUser(db, request);
+      if (!user) return problem(401, 'UNAUTHENTICATED');
+      const body = await jsonBody<{ emails: string[]; role: Role }>(request);
+      const out = (body.emails ?? []).map((email) => {
+        db.seq += 1;
+        const inv: MockInvite = {
+          id: `inv-${String(db.seq)}`,
+          token: `tok-${String(db.seq)}`,
+          org_id: params.id,
+          email,
+          role: body.role ?? 'viewer',
+          inviter_name: user.name,
+          expired: false,
+        };
+        db.invites.push(inv);
+        return {
+          id: inv.id,
+          email,
+          role: inv.role,
+          expires_at: '2099-01-01T00:00:00Z',
+          created_at: NOW,
+          invited_by: user.id,
+        };
+      });
+      return HttpResponse.json(out, { status: 201 });
+    }),
+
+    http.post<{ id: string; inviteId: string }>(
+      '*/api/v1/orgs/:id/invites/:inviteId/resend',
+      async ({ request }) => {
+        await log(request);
+        return new HttpResponse(null, { status: 202 });
+      },
+    ),
+
+    http.delete<{ id: string; inviteId: string }>(
+      '*/api/v1/orgs/:id/invites/:inviteId',
+      async ({ request, params }) => {
+        await log(request);
+        const inv = db.invites.find((i) => (i.id ?? i.token) === params.inviteId);
+        if (inv) inv.revoked = true;
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
+
+    http.post<{ id: string }>('*/api/v1/orgs/:id/upgrade-requests', async ({ request, params }) => {
+      await log(request);
+      const user = authUser(db, request);
+      if (!user) return problem(401, 'UNAUTHENTICATED');
+      const body = await jsonBody<{ plan: string; period: string; reason: string | null }>(request);
+      const owner = rankOf(db, params.id, user.id) === 3;
+      db.upgradeRequests.push({
+        org_id: params.id,
+        user_id: user.id,
+        plan: body.plan ?? 'pro',
+        reason: body.reason ?? null,
+      });
+      return HttpResponse.json(
+        {
+          id: `up-${String(db.upgradeRequests.length)}`,
+          plan: body.plan ?? 'pro',
+          period: body.period ?? 'monthly',
+          owners_notified: owner ? 0 : ownersOf(db, params.id),
+          created_at: NOW,
+        },
+        { status: 202 },
+      );
     }),
 
     http.delete('*/api/v1/me/unverified', async ({ request }) => {

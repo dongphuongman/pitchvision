@@ -164,3 +164,19 @@ async def google_callback(
         set_refresh_cookie(resp, ctx, issued.refresh_token)
     resp.delete_cookie(OIDC_COOKIE, path=OIDC_COOKIE_PATH, secure=ctx.settings.cookie_secure, httponly=True)
     return resp
+
+
+@router.post("/password/change", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(body: schemas.PasswordChangeIn, request: Request, user_id: UserId, ctx: AppCtx
+                          ) -> Response:  # fmt: skip
+    """SCR-40 P03 (under /auth so the refresh cookie identifies this browser). Wrong current password → 401
+    INVALID_CREDENTIALS. Signs out every other session."""
+    await svc.change_password(ctx, user_id, body, refresh_cookie(request))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/sessions/revoke-others", status_code=status.HTTP_204_NO_CONTENT)
+async def sign_out_others(request: Request, user_id: UserId, ctx: AppCtx) -> Response:
+    """SCR-40 P04: sign out of all other sessions (this browser stays signed in)."""
+    await svc.sign_out_others(ctx, user_id, refresh_cookie(request))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

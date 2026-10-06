@@ -9,7 +9,7 @@ from pitchvision_identity.mail.senders import (
     make_sender,
     send_quietly,
 )
-from pitchvision_identity.mail.templates import invite_email, reset_email, verify_email
+from pitchvision_identity.mail.templates import invite_email, reset_email, upgrade_request_email, verify_email
 
 __all__ = [
     "ConsoleEmailSender",
@@ -21,5 +21,6 @@ __all__ = [
     "make_sender",
     "reset_email",
     "send_quietly",
+    "upgrade_request_email",
     "verify_email",
 ]
