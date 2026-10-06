@@ -6,7 +6,7 @@ Trusts `X-Dev-Org` (+ optional `X-Dev-User`, `X-Dev-Role`) ONLY when PV_ENV=loca
 
 import uuid
 
-from fastapi import Request
+from starlette.requests import HTTPConnection
 
 from pitchvision_api.auth.jwt import unauthenticated
 from pitchvision_api.auth.principal import Principal, Role
@@ -18,7 +18,7 @@ DEV_ROLE_HEADER = "X-Dev-Role"
 DEV_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
 
-def dev_principal(request: Request, settings: Settings) -> Principal | None:
+def dev_principal(request: HTTPConnection, settings: Settings) -> Principal | None:
     """Principal from the dev headers, or None when the stub is off or no X-Dev-Org header was sent."""
     if not (settings.env == "local" and settings.dev_auth):
         return None

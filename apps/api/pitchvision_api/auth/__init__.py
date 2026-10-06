@@ -3,7 +3,7 @@
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, WebSocket
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pitchvision_schemas import ErrorCode
 
@@ -23,6 +23,7 @@ __all__ = [
     "Role",
     "current_principal",
     "require_role",
+    "websocket_principal",
 ]
 
 _bearer = HTTPBearer(auto_error=False, description="identity-svc access token (RS256, 15 min)")
@@ -38,6 +39,17 @@ async def current_principal(
         raise unauthenticated("Send `Authorization: Bearer <access token>`.")
     jwks: JwksClient = request.app.state.jwks
     return await verify_access_token(credentials.credentials, settings, jwks)
+
+
+async def websocket_principal(websocket: WebSocket, token: str | None) -> Principal:
+    """Same verification as REST; the token comes in `?token=` because browsers can't set WS headers (AD §10.3)."""
+    settings: Settings = websocket.app.state.settings
+    if (dev := dev_principal(websocket, settings)) is not None:
+        return dev
+    if not token:
+        raise unauthenticated("Pass the access token as `?token=`.")
+    jwks: JwksClient = websocket.app.state.jwks
+    return await verify_access_token(token, settings, jwks)
 
 
 def require_role(minimum: Role | str) -> Callable[..., Awaitable[Principal]]:

@@ -3,7 +3,7 @@ import re
 import uuid
 
 from starlette.datastructures import MutableHeaders
-from starlette.requests import Request
+from starlette.requests import HTTPConnection, Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -24,7 +24,7 @@ class RequestIdMiddleware:
         if scope["type"] not in ("http", "websocket"):
             await self.app(scope, receive, send)
             return
-        incoming = Request(scope).headers.get(REQUEST_ID_HEADER, "")
+        incoming = HTTPConnection(scope).headers.get(REQUEST_ID_HEADER, "")  # Request() asserts type == http
         rid = incoming if _VALID.match(incoming) else uuid.uuid4().hex
         scope.setdefault("state", {})["request_id"] = rid
 

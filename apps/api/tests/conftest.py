@@ -123,6 +123,39 @@ def migrated(pg: Db) -> Db:
     return pg
 
 
+# ---------------------------------------------------------------- Redis (WebSocket fan-out)
+@pytest.fixture(scope="session")
+def redis_url() -> Iterator[str]:
+    """PV_TEST_REDIS_URL or a throwaway redis:7-alpine container."""
+    if url := os.environ.get("PV_TEST_REDIS_URL"):
+        yield url
+        return
+    if reason := _docker_ok():
+        pytest.skip(f"Redis tests need Docker or PV_TEST_REDIS_URL — {reason}")
+    import redis
+
+    port = _free_port()
+    name = f"pv-api-redis-{uuid.uuid4().hex[:8]}"
+    run = subprocess.run(["docker", "run", "-d", "--rm", "--name", name, "-p", f"127.0.0.1:{port}:6379",
+                          "redis:7-alpine"], capture_output=True, text=True, timeout=300)  # fmt: skip
+    if run.returncode != 0:
+        pytest.skip(f"could not start redis: {run.stderr.strip()[:300]}")
+    try:
+        client = redis.Redis(host="127.0.0.1", port=port, socket_connect_timeout=1)
+        deadline = time.monotonic() + 30
+        while True:
+            try:
+                client.ping()
+                break
+            except redis.ConnectionError:
+                if time.monotonic() > deadline:
+                    raise
+                time.sleep(0.3)
+        yield f"redis://127.0.0.1:{port}/0"
+    finally:
+        subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=60)
+
+
 # ---------------------------------------------------------------- S3 (SeaweedFS, same image as compose)
 S3_IMAGE = os.environ.get("PV_TEST_S3_IMAGE", "chrislusf/seaweedfs:4.48")
 S3_KEY, S3_SECRET, S3_BUCKET = "pvtest", "pvtest-secret-123", "pv-test-data"

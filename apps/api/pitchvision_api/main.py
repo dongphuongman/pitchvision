@@ -12,7 +12,8 @@ from pitchvision_api.auth import DEV_ORG_HEADER, DEV_ROLE_HEADER, DEV_USER_HEADE
 from pitchvision_api.db import make_engine, make_sessionmaker
 from pitchvision_api.errors import PROBLEM_JSON, ProblemDetails, install_error_handlers
 from pitchvision_api.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
-from pitchvision_api.routers import health, ingest, jobs, meta, videos
+from pitchvision_api.routers import health, ingest, jobs, meta, videos, ws
+from pitchvision_api.services.events import EventHub
 from pitchvision_api.services.idempotency import IDEMPOTENCY_HEADER, REPLAYED_HEADER, install_idempotency
 from pitchvision_api.services.storage import Storage
 from pitchvision_api.services.tasks import CeleryTaskQueue
@@ -29,6 +30,7 @@ def api_router() -> APIRouter:
     router.include_router(ingest.router)
     router.include_router(videos.router)
     router.include_router(jobs.router)
+    router.include_router(ws.router)  # WebSocket /api/v1/ws (not in OpenAPI; protocol in routers/ws.py)
     return router
 
 
@@ -39,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
+        await app.state.events.close()
         await engine.dispose()
 
     app = FastAPI(
@@ -54,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.sessionmaker = make_sessionmaker(engine)
     app.state.storage = Storage.from_settings(settings)
     app.state.tasks = CeleryTaskQueue(settings.redis_url)  # lazy: no broker connection until first send
+    app.state.events = EventHub(settings.redis_url)  # lazy: Redis pub/sub opens with the first WS subscription
     app.state.jwks = JwksClient(settings.jwks_url, timeout_s=settings.jwks_timeout_s, ttl_s=settings.jwks_cache_ttl_s)
 
     install_error_handlers(app)
