@@ -14,6 +14,22 @@
     "placeholder": "Video, tactical map and timeline arrive with the sync engine (M1-FE-08 – M1-FE-12).",
     "position": "Position {{time}}"
   },
+  "player": {
+    "timeline": "Timeline",
+    "skipToLive": "Skip to next live action",
+    "notLive": "{{shot}} — no tracking data",
+    "frameInfo": "fps {{fps}} · frame {{frame}} / {{total}}",
+    "approximate": "Approximate sync",
+    "approximateHint": "This browser can't report exact video frames; overlays may be 1–4 frames off.",
+    "map": "Tactical map",
+    "mapLowConfidence": "Low confidence",
+    "mapNotAvailable": "Not available — {{shot}}",
+    "play": "Play",
+    "pause": "Pause",
+    "prevFrame": "Previous frame",
+    "nextFrame": "Next frame",
+    "speed": "Playback speed"
+  },
   "exports": {
     "title": "Exports",
     "empty": "No exports yet. Export a clip or data from an analyzed match."

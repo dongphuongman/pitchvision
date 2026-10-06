@@ -410,6 +410,12 @@ const devRoutes = import.meta.env.DEV
         path: '/__ui',
         component: lazyRouteComponent(() => import('@/dev/UiGallery')),
       }),
+      // Sync-engine bench: local video + synthetic manifest/tiles (M1-FE-08).
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/__player',
+        component: lazyRouteComponent(() => import('@/dev/PlayerDevPage')),
+      }),
     ]
   : [];
 
