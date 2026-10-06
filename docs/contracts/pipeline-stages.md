@@ -156,6 +156,9 @@ parent_job_id, inherit, team_seeds, calibration, correction_id` survive progress
 and the job; the recalibrate job's tiles go to `keys.tile_key(org, video, NEW job, revision, n)` and the new manifest
 carries that revision. Tile keys stay write-once. Until the new manifest is written (last step, job → done) the API
 keeps serving the previous `done` job's manifest + tiles; a failed / cancelled recalibration leaves them live.
+The next `POST /calibration` takes the newest **done** job as parent, so after a recalibrate that failed
+`HOMOGRAPHY_UNAVAILABLE` (SCR-13 E11 → SCR-15) the user simply calibrates again; `409 no_analysis` only when the
+video has never had a finished analysis (an `analyze` job never fails on the pitch: S5 reports `unavailable`).
 Team renames / colours / swaps (`PATCH /teams`) never touch tiles: tiles and positions carry the CLUSTER (`team`
 0 / 1), the manifest's `teams` (from the `teams` table) maps cluster → name / colour, so **a swap exchanges name +
 colour between the cluster-0 and cluster-1 rows** and the player re-colours on the next manifest fetch. No revision

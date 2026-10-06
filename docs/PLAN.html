@@ -171,6 +171,7 @@
   </table>
   <h3>Nhật ký</h3>
   <ul>
+      <li><code>2026-10-06</code> Hiệu chỉnh sân sau lỗi HOMOGRAPHY_UNAVAILABLE (SCR-13 E11): backend đã đúng — job recalibrate lỗi giữ nguyên phân tích cũ, lần hiệu chỉnh tiếp lấy job done gần nhất làm parent; thêm test API + ghi chú hợp đồng.</li>
       <li><code>2026-10-06</code> Workspace SCR-20, SCR-14 xác nhận đội, SCR-15 hiệu chỉnh sân (web + backend) đã merge và push. Python 855 test, web 233 test.</li>
       <li><code>2026-10-06</code> M1 W4 (server) + màn hình SCR-11/12/13 đã merge: chuỗi S5→S7/S8→manifest chạy tới done, tile ký HMAC, role pv_worker cho positions; upload multipart có resume trên web. Còn workspace thật và model keypoint.</li>
       <li><code>2026-10-06</code> M1 W3 (phần không cần GPU) đã merge: jobs + orchestrator + WebSocket, S2b/S3/S4 v1, Library + sync engine. E2E Compose chạy thật tới S3; S4 quá chậm trên CPU trong Docker Mac — cần máy GPU để chạy hết. Thêm README.md.</li>

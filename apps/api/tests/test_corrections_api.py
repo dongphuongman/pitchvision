@@ -268,6 +268,36 @@ async def test_calibration_starts_recalibrate_job(client: httpx.AsyncClient, mig
     assert (await _rows(migrated, org, Video, id=vid))[0].revision == 1  # the refused request rolled back
 
 
+async def test_calibration_after_failed_recalibration(client: httpx.AsyncClient, migrated: Db, tasks: FakeTasks
+                                                      ) -> None:  # fmt: skip
+    """SCR-13 E11: a recalibrate job that failed HOMOGRAPHY_UNAVAILABLE leaves the analysis live, so the user can
+    calibrate again; the new job's parent is the last DONE job, never the failed one."""
+    org = uuid.uuid4()
+    vid, parent = await _analysed(migrated, org)
+
+    async def failed(s: Any) -> uuid.UUID:
+        v = await s.get(Video, vid)
+        v.revision = 1  # the failed attempt had bumped it
+        j = Job(video_id=vid, org_id=org, image_tag="t", config=PipelineConfig().model_dump(mode="json"),
+                status="failed", detail={"kind": "recalibrate", "parent_job_id": str(parent)},
+                error={"code": "HOMOGRAPHY_UNAVAILABLE", "retryable": False, "detail": None},
+                finished_at=datetime.now(UTC))  # fmt: skip
+        s.add(j)
+        await s.flush()
+        jid: uuid.UUID = j.id
+        return jid
+
+    await _exec(migrated, org, failed)
+    url = f"/api/v1/results/{vid}/calibration"
+    st = (await client.get(url, headers=who(org, "viewer"))).json()
+    assert st["job_id"] == str(parent) and st["pitch_calibration"] == "degraded" and st["active_job"] is None
+    r = await client.post(url, json={"points": _pts(), "scope": "shot"}, headers=idem(org))
+    assert r.status_code == 202, r.text
+    body = r.json()
+    assert body["revision"] == 2 and body["job"]["parent_job_id"] == str(parent)
+    assert tasks.sent[-1][0] == TASK_START_JOB
+
+
 async def test_calibration_frame_url(client: httpx.AsyncClient, migrated: Db, s3: S3, tasks: FakeTasks) -> None:
     org = uuid.uuid4()
     vid, _ = await _analysed(migrated, org)
