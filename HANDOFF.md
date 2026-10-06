@@ -14,7 +14,7 @@ files_modified:
   - spikes/ (sp11_detectors.py, sp08_prepare.py, sp08_run.py, sp08_overlay/, sp07_run.py, sp07_upload/, sp02_bench.py, sp03_homography.py, sp04_teams.py, sp05_tracking.py, sp09_sample.py, sp09_classify.py, botsort_gmc.yaml, results/)
 ---
 
-## Working on: PitchVision AI — M1 W2 (Mac-doable part) done
+## Working on: PitchVision AI — M1 W3 (non-GPU part) merged
 
 ### Summary
 
@@ -52,6 +52,9 @@ PitchVision AI = web SaaS that analyses football broadcast video (detection, tea
    Notes: `positions` hypertable has no RLS (Timescale compression forbids it) → read via `positions_org` view; api must sign presigned URLs with PV_STORAGE_PUBLIC_ENDPOINT (M1-BE-07); worker CUDA image 8.1 GB (AD estimated 6); no GitHub remote yet so CI never ran.
 3b. DONE (06/10): M1 W2 Mac-doable part — see docs/status.json M1-W2. Contract: docs/contracts/identity-api.md. Object keys: pitchvision_schemas.keys (storage class first). E2E script idea: register→Mailpit→verify→org→upload→RLS→region 409→identity restart→YouTube preview (all passed).
    Remaining W2: GPU fine-tunes (D-FINE, YOLOv11-pose), label 300 golden frames for keypoints (SoccerNet research-only), M1-OPS-05 needs domain + Resend.
+3d. DONE (06/10): M1 W3 non-GPU — see docs/status.json M1-W3; contract docs/contracts/pipeline-stages.md. README.md added.
+   Follow-ups: cap ORT intra-op threads per worker process; mark SIGKILLed (WorkerLost) tasks failed immediately instead of waiting the 30 min infer timeout; run full E2E (S4) on a GPU box; compose PV_CPU_CONCURRENCY default 2 (10 OOM-killed the 8 GB Docker VM).
+   USER PREFERENCE: max ONE background subagent at a time — the Mac OOMs; stop compose stacks when done.
 3c. Was: M1 W2 (19/10) — M1-CV-04 D-FINE fine-tune (needs GPU), M1-CV-05 keypoints (licence decision pending), M1-CV-06 shot classifier (start from SP-09 GBM), M1-CV-07 S2 normalise; M1-BE-05..08 (auth, org, storage R2 multipart, YouTube ingest); M1-FE-04..06; M1-OPS-04..06.
 4. M1 W7–W8 calibration tasks M1-CV-18…22 (+ M1-FE-17, M1-BE-23); M2 extra week M2-CV-08/09.
 5. PO: spot-check SP-09 labels (spikes/results/sp09/grids, labels_nonwide.json).
