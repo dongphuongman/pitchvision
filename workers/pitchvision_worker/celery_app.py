@@ -8,8 +8,11 @@ One image, three Celery roles, one queue each:
 - ``ingest``      — ingest-worker: YouTube probe/download (S1). Own queue so it can run on a host with a
                     different egress IP (M1-OPS-06, SP-10: datacenter IPs untested against bot-checks).
 
-W1 skeleton: only the queues and a ``ping`` task exist so containers start and can be
-health-checked. Pipeline tasks land with the M1-BE/M1-CV PRs.
+Task names (the contract — the API publishes by name only):
+- ``orchestrate.*``   orchestrator (pitchvision_worker.orchestrator.tasks)
+- ``cpu.run_stage``   CpuTask executor (S2 normalise)
+- ``gpu.run_stage``   GpuTask executor, queue ``PV_LOCAL_GPU_QUEUE`` (pitchvision_worker.compute.tasks)
+- ``ingest.*``        S1 (pitchvision_worker.tasks)
 """
 
 from __future__ import annotations
@@ -30,6 +33,13 @@ QUEUES: tuple[str, ...] = (QUEUE_ORCHESTRATE, QUEUE_CPU, QUEUE_GPU, QUEUE_INGEST
 # download on a slow egress), or a second worker starts the same download.
 VISIBILITY_TIMEOUT_S = 6 * 3600
 
+TASK_START_JOB = "orchestrate.start_job"
+TASK_ADVANCE = "orchestrate.advance"
+TASK_CANCEL_JOB = "orchestrate.cancel_job"
+TASK_ON_RESULT = "orchestrate.on_task_result"
+TASK_VIDEO_READY = "orchestrate.video_ready"
+TASK_SWEEP = "orchestrate.sweep"
+
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 
 
@@ -39,13 +49,23 @@ def redis_url(env: Mapping[str, str] | None = None) -> str:
     return env.get("PV_REDIS_URL") or DEFAULT_REDIS_URL
 
 
+def _sweep_interval_s() -> float:
+    return float(os.environ.get("PV_SWEEP_INTERVAL_S") or 30)
+
+
 def create_app(broker_url: str | None = None) -> Celery:
     url = broker_url or redis_url()
-    app = Celery("pitchvision_worker", broker=url, backend=url, include=["pitchvision_worker.tasks"])
+    include = ["pitchvision_worker.tasks", "pitchvision_worker.compute.tasks"]
+    app = Celery("pitchvision_worker", broker=url, backend=url, include=include)
     app.conf.update(
         task_queues=[Queue(name) for name in QUEUES],
         task_default_queue=QUEUE_CPU,
-        task_routes={"ingest.*": {"queue": QUEUE_INGEST}},
+        task_routes={"ingest.*": {"queue": QUEUE_INGEST}, "orchestrate.*": {"queue": QUEUE_ORCHESTRATE},
+                     "cpu.*": {"queue": QUEUE_CPU}},  # gpu.run_stage: queue chosen per call (PV_LOCAL_GPU_QUEUE)
+        # the orchestrator's restart/periodic recovery (run by the orchestrator worker's embedded beat)
+        beat_schedule={"orchestrate-sweep": {"task": TASK_SWEEP, "schedule": _sweep_interval_s(),
+                                             "options": {"queue": QUEUE_ORCHESTRATE, "expires": _sweep_interval_s()}}},
+        task_track_started=True,  # LocalBackend.status() distinguishes queued from running
         broker_transport_options={"visibility_timeout": VISIBILITY_TIMEOUT_S},
         task_serializer="json",
         result_serializer="json",

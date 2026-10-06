@@ -44,3 +44,51 @@ def upload_file(client: Any, bucket: str, key: str, path: Path, content_type: st
     cfg = TransferConfig(multipart_threshold=PART_SIZE, multipart_chunksize=PART_SIZE, max_concurrency=4)
     client.upload_file(str(path), bucket, key, ExtraArgs={"ContentType": content_type}, Config=cfg)
     return int(client.head_object(Bucket=bucket, Key=key)["ContentLength"])
+
+
+class ObjectStore:
+    """The few object operations the pipeline needs (stages never see S3: the task layer moves files)."""
+
+    def __init__(self, client: Any, bucket: str) -> None:
+        self.client, self.bucket = client, bucket
+
+    @classmethod
+    def from_config(cls, cfg: WorkerConfig) -> ObjectStore:
+        return cls(s3_client(cfg), cfg.storage_bucket)
+
+    def exists(self, key: str) -> bool:
+        from botocore.exceptions import ClientError
+
+        try:
+            self.client.head_object(Bucket=self.bucket, Key=key)
+            return True
+        except ClientError as e:
+            if str(e.response.get("Error", {}).get("Code")) in ("404", "NoSuchKey", "NotFound"):
+                return False
+            raise
+
+    def get_bytes(self, key: str) -> bytes:
+        body: bytes = self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+        return body
+
+    def put_bytes(self, key: str, data: bytes, content_type: str = "application/json") -> None:
+        self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
+
+    def download(self, key: str, path: Path) -> Path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.client.download_file(self.bucket, key, str(path))
+        return path
+
+    def upload(self, key: str, path: Path) -> int:
+        return upload_file(self.client, self.bucket, key, path, content_type(path))
+
+    def copy(self, src: str, dst: str) -> None:
+        self.client.copy_object(Bucket=self.bucket, Key=dst, CopySource={"Bucket": self.bucket, "Key": src})
+
+
+_TYPES = {".mp4": "video/mp4", ".json": "application/json", ".parquet": "application/vnd.apache.parquet",
+          ".jpg": "image/jpeg", ".png": "image/png"}  # fmt: skip
+
+
+def content_type(path: Path) -> str:
+    return _TYPES.get(path.suffix.lower(), "application/octet-stream")

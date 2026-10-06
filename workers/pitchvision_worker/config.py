@@ -19,6 +19,12 @@ class WorkerConfig:
     storage_access_key: str | None
     storage_secret_key: str | None
     max_video_duration_s: int
+    # --- pipeline (M1-BE-10/11) ---
+    image_tag: str = "dev"  # PV_IMAGE_TAG: tasks for another tag are refused (AD §7 deterministic results)
+    local_gpu_queue: str = "gpu"  # PV_LOCAL_GPU_QUEUE: `cpu` on a CPU-only box runs the GPU stages slowly
+    compute_backends: tuple[str, ...] = ("local",)  # PV_COMPUTE_BACKENDS, priority order (AD §7.1)
+    max_inflight_segments: int = 16  # PV_MAX_INFLIGHT_SEGMENTS per job (capacity also caps it)
+    sweep_interval_s: float = 30.0  # PV_SWEEP_INTERVAL_S: orchestrator recovery sweep period
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> WorkerConfig:
@@ -33,6 +39,13 @@ class WorkerConfig:
             storage_access_key=e.get("PV_STORAGE_ACCESS_KEY") or None,
             storage_secret_key=e.get("PV_STORAGE_SECRET_KEY") or None,
             max_video_duration_s=int(e.get("PV_MAX_VIDEO_DURATION_S") or 3 * 3600),
+            image_tag=e.get("PV_IMAGE_TAG") or "dev",
+            local_gpu_queue=e.get("PV_LOCAL_GPU_QUEUE") or "gpu",
+            compute_backends=tuple(
+                b.strip() for b in (e.get("PV_COMPUTE_BACKENDS") or "local").split(",") if b.strip()
+            ),
+            max_inflight_segments=int(e.get("PV_MAX_INFLIGHT_SEGMENTS") or 16),
+            sweep_interval_s=float(e.get("PV_SWEEP_INTERVAL_S") or 30),
         )
 
 
