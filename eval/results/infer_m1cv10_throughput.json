@@ -1,0 +1,48 @@
+{
+ "format": "pv-infer-bench/v1",
+ "machine": "arm64 macOS-26.5.2-arm64-arm-64bit",
+ "video": "MZjaWGwbtEc",
+ "segment": {
+  "index": 0,
+  "t0_ms": 60000,
+  "t1_ms": 180000
+ },
+ "stride": 1,
+ "embedder_provider": "ort_cpu",
+ "runs": {
+  "ort_cpu": {
+   "active_provider": "ort_cpu",
+   "frames": 3000,
+   "fps_end_to_end": 5.9,
+   "fps_detect_only": 8.0,
+   "fps_without_team_vote": 7.9,
+   "vote_crops": 2019,
+   "ms_per_vote_crop": 64.0,
+   "timings_s": {
+    "decode_and_misc": 0.698,
+    "detect": 373.391,
+    "track_mask_crops": 4.985,
+    "team_vote": 129.22,
+    "write": 0.037,
+    "total": 508.411
+   }
+  },
+  "ort_coreml": {
+   "active_provider": "ort_coreml",
+   "frames": 3000,
+   "fps_end_to_end": 9.28,
+   "fps_detect_only": 15.6,
+   "fps_without_team_vote": 14.9,
+   "vote_crops": 2019,
+   "ms_per_vote_crop": 60.6,
+   "timings_s": {
+    "decode_and_misc": 1.204,
+    "detect": 192.718,
+    "track_mask_crops": 6.827,
+    "team_vote": 122.437,
+    "write": 0.04,
+    "total": 323.262
+   }
+  }
+ }
+}

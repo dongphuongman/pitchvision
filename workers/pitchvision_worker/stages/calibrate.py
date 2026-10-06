@@ -5,9 +5,10 @@
 
 1. ``n_frames`` (default 48) frames spread over the ``config.analyze_shot_types`` shots, ≥ 1 s from cuts;
 2. D-FINE persons → player candidates (feet on the grass mask, plausible size) → torso crops;
-3. SigLIP-base embeddings → PCA → KMeans(2) → outlier radius (referees / goalkeepers → team -1);
+3. SigLIP-base embeddings → team model (spectral split + whitened-LDA predictor, ``cv_core.teams.model``) →
+   outlier radius (team -1);
 4. ``TeamSeparationFailed`` (→ ``TEAM_SEPARATION_FAILED``) on too few crops, an imbalanced split or a low
-   silhouette; ``NoWideShots`` (→ ``NO_WIDE_SHOTS``) when the timeline has no analysable footage.
+   cross-validated Fisher ratio; ``NoWideShots`` (→ ``NO_WIDE_SHOTS``) when the timeline has no analysable footage.
 
 The task layer uploads both files under ``keys.job_results_prefix(...) + "models/"``.
 """
@@ -107,9 +108,9 @@ def run_calibrate(normalized: Path, timeline: ShotTimeline, out_dir: Path, confi
     grid = _write_grid(out / SAMPLES_NAME, rows)
     timings = {"decode": t_decode, "detect": t_detect, "embed": t_embed, "fit": t_fit,
                "total": time.perf_counter() - t_all}
-    log.info("S3 %s: %d frames, %d crops, sizes %s, silhouette %.2f, outliers %.0f%% in %.1fs", normalized.name,
-             len(frames), len(samples), model.stats["cluster_sizes"], model.stats["silhouette"],
-             100 * model.stats["outlier_share"], timings["total"])
+    log.info("S3 %s: %d frames, %d crops, sizes %s, split %s, cv-Fisher %.1f, outliers %.0f%% in %.1fs",
+             normalized.name, len(frames), len(samples), model.stats["cluster_sizes"], model.stats["split"],
+             model.stats["cv_fisher"], 100 * model.stats["outlier_share"], timings["total"])
     return CalibrateOutput(team_model=path, samples=grid, frames=len(frames), crops=len(samples),
                            stats=dict(model.stats), timings_s={k: round(v, 3) for k, v in timings.items()})
 
