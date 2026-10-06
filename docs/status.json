@@ -220,6 +220,10 @@
     {
       "date": "2026-10-06",
       "text": "Smoke test Compose trên Mac với clip broadcast thật 20 s: đăng ký → xác minh email (Mailpit) → org → upload multipart (SeaweedFS) → job chạy hết S2→S4 (CPU, ~9 phút)→manifest → export MP4 (5 s) → tải về → thông báo in-app + email. Sửa: task của job đã huỷ vẫn chạy sau khi worker khởi động lại; vệt bóng nối thẳng khi detection nhảy; export 1080p đọc từ file gốc; x264/OpenCV chia lõi theo tiến trình."
+    },
+    {
+      "date": "2026-10-06",
+      "text": "Sửa CI web đỏ (Vitest quét nhầm spec Playwright, ESLint quét thư mục báo cáo). Lưu HANDOFF cho phiên mới: việc tiếp theo là Data & privacy, thông báo thành viên mới, mobile, chuẩn bị staging."
     }
   ]
 }

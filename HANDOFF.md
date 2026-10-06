@@ -1,6 +1,7 @@
 ---
 status: in-progress
-branch: main → origin https://github.com/dongphuongman/pitchvision (private), CI green at 1d79b8b (pushed)
+branch: main → origin https://github.com/dongphuongman/pitchvision (private), everything pushed; CI was red from 5a2a6f8
+  (Vitest picked up the Playwright specs) — fixed in the commit that wrote this handoff: check the run is green first
 timestamp: 2026-10-06
 ---
 
@@ -11,7 +12,7 @@ tactical map, stats, AI report. Read `README.md` first (layout, commands, rules)
 "Trạng thái thực hiện" (rendered from `docs/status.json`).
 
 ## Where we are (M1, plan 12/10–20/11, alpha 04/12/2026)
-Done and on `main` (Python 889 tests, web 256 tests, CI green incl. 3 Docker images):
+Done and on `main` (Python 892 tests, web 256 tests + 4 Playwright flows; Docker images built in CI):
 - Phase 0 spikes + Gate G0; SP-07 on real R2; SP-08 rVFC sync; SP-11 detector choice.
 - W1 foundation: uv + pnpm monorepo, import-linter, `packages/schemas`, Alembic + RLS, FastAPI, cv-core runtime/VideoReader, golden eval, web shell, Compose, Dockerfiles, GitHub Actions.
 - W2: identity-svc (auth, orgs, roles, invites, Google OIDC, JWKS), API JWT, presigned multipart upload, YouTube ingest (queue `ingest`), S2 normalise, shot classifier 97.9 %, D-FINE ONNX, keypoint/homography lib, auth/onboarding screens, Terraform R2.
@@ -40,11 +41,19 @@ Contracts: `docs/contracts/identity-api.md` (plans, quota), `docs/contracts/pipe
 derived jobs, exports, notifications).
 
 ## Next (doable on the Mac)
-1. Local email check:
-   Add `PV_INTERNAL_TOKEN` to `infra/compose/.env` to get notification emails in Mailpit locally.
-2. Later: Stripe (SCR-41 Choose Pro,
-   B03 portal), API keys (Pro), data export / account deletion (SCR-40 privacy).
-3. Follow-ups: "member joined" notification; data export / account deletion.
+1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
+2. SCR-40 Data & privacy: export all data (GDPR, emailed link) + delete account / delete org (DLG-08).
+3. "Member joined" notification (identity event → regional notifications), SCR-40 R02 default analysis settings,
+   O03 saved team names / colours.
+4. Mobile layouts < 768 px for the screens UIUX lists (Library, Processing, Workspace view-only, Exports, Settings).
+5. Staging prep without a domain (M1-OPS-07/08): deploy scripts, Sentry, health checks.
+6. Later (needs PO): Stripe (SCR-41 Choose Pro, B03 portal), API keys (Pro).
+
+Compose on the Mac: `cd infra/compose && docker compose up -d --build`, web at http://localhost:23000, Mailpit at
+http://localhost:8025. A 20 s clip takes ~9 min on CPU (S4 ~7 min). Before a run, make sure no old job is still
+active (`SELECT id, status FROM jobs WHERE status NOT IN ('done','failed','cancelled')`). Smoke script used on
+2026-10-06 was a throwaway in the session scratchpad (register → Mailpit verify → upload → job → export); recreate
+from the steps above if needed. Always `docker compose down` afterwards (8 GB VM).
 
 ## Blocked on the PO
 - Keypoint model (tactical map): ~300 golden frames labelled (guide `training/keypoints/README.md`) + NVIDIA GPU (RunPod/4090). Until then every job reports `pitch_calibration = unavailable` (overlay works, map empty) unless calibrated manually.

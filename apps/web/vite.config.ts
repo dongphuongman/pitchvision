@@ -28,6 +28,7 @@ export default defineConfig(({ command }) => ({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'], // e2e/*.spec.ts belong to Playwright (pnpm e2e)
     css: false,
     restoreMocks: true,
     // Full-app flows (router + lazy chunks + MSW + user-event typing) run longer than 5 s
