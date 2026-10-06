@@ -31,6 +31,7 @@ import cv2
 import numpy as np
 import pyarrow.compute as pc
 from cv_core.io.parquet import read_tracks
+from cv_core.runtime.model import default_intra_op_threads
 from pitchvision_schemas import ExportSpec, ObjCls, load_pitch_template
 
 log = logging.getLogger(__name__)
@@ -319,6 +320,11 @@ def render(spec: ExportSpec, video_url: str, tracks_path: Path, out_path: Path, 
     """Render ``spec`` to ``out_path``. ``on_progress(pct)`` is called every ~2 s; returning False aborts
     (RenderCancelled). Raises RenderError (VIDEO_UNREADABLE when nothing could be decoded, EXPORT_FAILED else)."""
     exe = ffmpeg or shutil.which("ffmpeg") or "ffmpeg"
+    # Share the cores like the ONNX stages (entrypoint sets PITCHVISION_ORT_THREADS from --concurrency): x264 and
+    # OpenCV otherwise each start one thread per core in every worker process.
+    threads = default_intra_op_threads()
+    if threads:
+        cv2.setNumThreads(threads)
     f0, f1 = frame_range(spec)
     n = f1 - f0
     out_h = spec.out_height
@@ -334,6 +340,7 @@ def render(spec: ExportSpec, video_url: str, tracks_path: Path, out_path: Path, 
     enc_cmd = [exe, *common, "-y", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{painter.width}x{out_h}",
                "-r", str(spec.fps), "-i", "pipe:0", "-t", f"{dur_s:.3f}", *url_in,
                "-map", "0:v:0", "-map", "1:a:0?", "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
+               *(["-threads", str(threads)] if threads else []),
                "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-shortest", "-movflags", "+faststart",
                str(out_path)]  # fmt: skip
     t_start = time.monotonic()

@@ -20,6 +20,8 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
     ...devices['Desktop Chrome'],
+    // PV_E2E_SLOWMO=400 pnpm e2e --headed: watch the flows step by step
+    launchOptions: { slowMo: Number(process.env.PV_E2E_SLOWMO ?? 0) },
   },
   webServer: {
     command: `pnpm exec vite --port ${PORT} --strictPort`,
