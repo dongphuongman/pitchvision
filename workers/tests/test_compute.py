@@ -11,10 +11,10 @@ from typing import Any
 import pytest
 from conftest import S3_BUCKET, s3_test_client
 from pipeline_fakes import WIDE, MemoryStore
-from pitchvision_schemas import ErrorCode, GpuTask, PipelineConfig
+from pitchvision_schemas import CpuTask, ErrorCode, GpuTask, PipelineConfig, Segment
 from pitchvision_worker.celery_app import QUEUE_ORCHESTRATE, TASK_ON_RESULT, create_app
 from pitchvision_worker.compute import stages as stage_registry
-from pitchvision_worker.compute.base import CpuTask, StageFailure, StageTask, classify, success_key
+from pitchvision_worker.compute.base import StageFailure, StageTask, classify, success_key
 from pitchvision_worker.compute.executor import execute
 from pitchvision_worker.compute.local import TASK_RUN_CPU, TASK_RUN_GPU, LocalGpuBackend
 from pitchvision_worker.compute.router import BackendRouter
@@ -203,3 +203,28 @@ def test_local_backend_celery_round_trip(redis_url: str, s3_store: ObjectStore,
     assert status == "done" and calls == ["j:shots"]
     assert reports and reports[0]["task_id"] == "j:shots" and reports[0]["external_id"] == handle.external_id
     assert reports[0]["ok"] is True and s3_store.exists(success_key(PREFIX))
+
+
+def test_infer_adapter_takes_the_segment_from_the_task(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    seen: list[Segment] = []
+
+    def run_infer(normalized: Path, segment: Segment, team_model: Path, out_dir: Path, config: PipelineConfig) -> dict:
+        seen.append(segment)
+        return {"frames": 3}
+
+    monkeypatch.setattr(stage_registry, "contract_fn", lambda module, name: run_infer)
+    seg = Segment(index=7, t0_ms=840_000, t1_ms=960_000)
+    task = GpuTask(task_id=GpuTask.make_id("j", "infer", 7), stage="infer", image_tag=TAG, output_prefix="p/",
+                   config=PipelineConfig(), segment=seg)  # fmt: skip
+    inputs = {"normalized": tmp_path / "n.mp4", "team_model": tmp_path / "t.json"}
+    out = stage_registry.STAGES["infer"](task, inputs, tmp_path)
+    assert seen == [seg] and out.result == {"frames": 3, "segment": seg.model_dump()}
+
+    # a payload queued before GpuTask.segment existed (segments.json input + index in the task id) still resolves
+    legacy = task.model_copy(update={"segment": None})
+    (tmp_path / "segments.json").write_text(json.dumps({"segments": [seg.model_dump()]}))
+    stage_registry.STAGES["infer"](legacy, inputs | {"segments": tmp_path / "segments.json"}, tmp_path)
+    assert seen[-1] == seg
+    with pytest.raises(StageFailure) as e:
+        stage_registry.STAGES["infer"](legacy, inputs, tmp_path)
+    assert e.value.code is ErrorCode.INTERNAL and not e.value.retryable

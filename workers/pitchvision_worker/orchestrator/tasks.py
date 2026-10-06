@@ -2,7 +2,8 @@
 
 - ``orchestrate.start_job(job_id, org_id?)``   API, on create and retry. Published before the API commits: a job not
                                                visible yet is retried for a few seconds.
-- ``orchestrate.cancel_job(job_id, org_id?)``  API, on cancel: revokes dispatched tasks.
+- ``orchestrate.cancel_job(job_id, org_id?)``  API, on cancel (POST /jobs/{id}/cancel, DELETE /videos/{id}): revokes
+                                               dispatched tasks and publishes the WS ``cancelled`` event.
 - ``orchestrate.advance(job_id, org_id)``      retry-backoff timers.
 - ``orchestrate.on_task_result(task_id, …)``   executor → orchestrator fast path.
 - ``orchestrate.video_ready(video_id, org_id)`` ingest worker: a YouTube download finished (or failed).
@@ -98,7 +99,7 @@ def cancel_job(self: Task, job_id: str, org_id: str | None = None, waits: int = 
     d = deps()
     jid = uuid.UUID(job_id)
     org = _org(jid, org_id, d)
-    status = engine.advance(jid, org, d) if org else "missing"
+    status = engine.advance(jid, org, d, announce_cancel=True) if org else "missing"
     if status != "cancelled" and waits < ROW_WAIT_TRIES:  # the API's cancel may not be committed yet
         raise self.retry(kwargs={"job_id": job_id, "org_id": org_id, "waits": waits + 1}, countdown=ROW_WAIT_S,
                          max_retries=None)  # fmt: skip

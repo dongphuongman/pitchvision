@@ -114,8 +114,8 @@ def test_gpu_task_carries_its_segment_and_cpu_task_lives_in_schemas():
     t = GpuTask(task_id=GpuTask.make_id("j", "infer", 3), stage="infer", image_tag="x", output_prefix="p/",
                 config=PipelineConfig(), segment=seg)  # fmt: skip
     assert GpuTask.model_validate(t.model_dump(mode="json")).segment == seg
-    assert GpuTask(task_id="j:shots", stage="shots", image_tag="x", output_prefix="p/", config=PipelineConfig()).segment \
-        is None
+    whole = GpuTask(task_id="j:shots", stage="shots", image_tag="x", output_prefix="p/", config=PipelineConfig())
+    assert whole.segment is None
     cpu = CpuTask(task_id=CpuTask.make_id("j", "normalize"), stage="normalize", image_tag="x", output_prefix="p/",
                   outputs={"normalized": "media/…/normalized.mp4"}, config=PipelineConfig())  # fmt: skip
     assert cpu.task_id == "j:normalize" and cpu.timeout_s == 3600

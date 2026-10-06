@@ -16,10 +16,10 @@ and the **stage functions** (`workers/pitchvision_worker/stages/*.py`, built on 
 |---|---|---|---|---|
 | ingesting | S1 ingest (YouTube) / wait for upload `ready` | `ingest.*` (exists) | queue `ingest` | URL → `keys.source_key` |
 | calibrating | S2 normalise | `normalize.run_normalize(original, out_dir, config) -> NormalizeOutput` (exists) | cpu | source → `keys.normalized_key`, probe fields into `videos` |
-| calibrating | S2b shots | `shots.run_shots(normalized, config) -> ShotTimeline` (exists) | gpu (light) | normalized → table `shots` + `media/…/shots.json` |
+| calibrating | S2b shots | `shots.run_shots(normalized, config) -> ShotTimeline` (exists) | gpu (light) | normalized → table `shots` + `keys.shots_key` (`media/…/shots.json`) |
 | calibrating | segment plan | `segments.plan_segments(timeline, duration_ms, config) -> list[Segment]` | cpu (in orchestrator) | ShotTimeline → segments (main_wide only, cut on shot boundaries, merged up to `segment_target_s`) |
 | calibrating | S3 calibrate | `calibrate.run_calibrate(normalized, timeline, out_dir, config) -> CalibrateOutput` | gpu | → `results/…/jobs/{job}/models/team_model.json` (+ sample crops grid) |
-| inferring | S4 infer (fan-out per segment) | `infer.run_infer(normalized, segment, team_model, out_dir, config) -> InferOutput` | gpu | → `keys.segment_prefix(...)/detections.parquet` + `_SUCCESS` |
+| inferring | S4 infer (fan-out per segment) | `infer.run_infer(normalized, segment, team_model, out_dir, config) -> InferOutput` | gpu | `GpuTask.segment` + inputs `normalized`, `team_model` → `keys.segment_prefix(...)/detections.parquet` + `_SUCCESS` |
 | postprocessing | S5 stitch, S7 tiles, S8 load-db | stubs in W3 (W4 tasks M1-CV-13, M1-BE-13/14) | cpu | — |
 | done | — | — | — | — |
 
@@ -33,12 +33,18 @@ homography lands in W4) · ZSTD. Schema + writer live in `cv_core.io.parquet` wi
 
 ## GPU dispatch (AD §7)
 - Orchestrator never calls a GPU stage directly: it builds a `GpuTask` (stage ∈ shots/calibrate/infer, inputs = object
-  keys, output_prefix, config, image_tag) and calls `ComputeBackend.submit`.
+  keys, output_prefix, config, image_tag; for `infer` also `segment: Segment` — the plan lives in the `plan` job_task
+  payload, there is no `segments.json` object) and calls `ComputeBackend.submit`. S2 normalise is a `CpuTask`
+  (stage `normalize`, `outputs = {"normalized": keys.normalized_key}`) on the local `cpu` queue. Both models live in
+  `pitchvision_schemas.compute`.
 - `LocalGpuBackend` sends Celery task `gpu.run_stage` (payload = `GpuTask.model_dump()`) to queue `PV_LOCAL_GPU_QUEUE`
   (default `gpu`; set `cpu` on a Mac / CPU-only compose so the same pipeline runs end-to-end slowly).
 - `RunPodBackend` is W5 (M1-BE / RunPod); keep the interface ready.
 
 ## Progress & events
 - Redis pub/sub channel `job:{job_id}`; messages are `pitchvision_schemas.ws` `ProgressEvent` / `CompletedEvent` /
-  `FailedEvent` JSON. The API WebSocket fans them out (topic `job:{id}`).
+  `FailedEvent` / `CancelledEvent` JSON. The API WebSocket fans them out (topic `job:{id}`); `cancelled` is published
+  by `orchestrate.cancel_job` (API: POST /jobs/{id}/cancel and DELETE /videos/{id}).
+- The socket's own control frames (`subscribed`, `unsubscribed`, `ping`, `pong`, `error`) are part of the same
+  `ServerEvent` union (exported JSON Schema `ws_server_event`).
 - Per-segment retries: 3 attempts, backoff 30 s / 2 min / 5 min; other segments continue (AD §16).

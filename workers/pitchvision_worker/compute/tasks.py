@@ -14,10 +14,10 @@ from typing import Any
 
 from celery import Task
 from celery.exceptions import SoftTimeLimitExceeded
-from pitchvision_schemas import ErrorCode, GpuTask
+from pitchvision_schemas import CpuTask, ErrorCode, GpuTask
 
 from pitchvision_worker.celery_app import QUEUE_ORCHESTRATE, TASK_ON_RESULT, app
-from pitchvision_worker.compute.base import CpuTask, StageFailure, StageTask, classify
+from pitchvision_worker.compute.base import StageFailure, StageTask, classify
 from pitchvision_worker.compute.executor import execute
 from pitchvision_worker.compute.local import TASK_RUN_CPU, TASK_RUN_GPU
 from pitchvision_worker.config import WorkerConfig

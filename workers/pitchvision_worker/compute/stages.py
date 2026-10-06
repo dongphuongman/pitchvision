@@ -33,8 +33,7 @@ class StageOutput:
 StageFn = Callable[[StageTask, dict[str, Path], Path], StageOutput]
 SegmentPlanner = Callable[[ShotTimeline, int, PipelineConfig], list[Segment]]
 
-SHOTS_FILE = "shots.json"
-SEGMENTS_FILE = "segments.json"
+SHOTS_FILE = "shots.json"  # under the shots task output_prefix; copied to keys.shots_key once planned
 
 
 def contract_fn(module: str, name: str) -> Callable[..., Any]:
@@ -66,7 +65,7 @@ def jsonable(obj: Any) -> Any:
 
 
 def segment_index(task_id: str) -> int:
-    """GpuTask.make_id(job, "infer", 17) → 17."""
+    """GpuTask.make_id(job, "infer", 17) → 17 (legacy payloads only; new tasks carry GpuTask.segment)."""
     return int(task_id.rsplit(":", 1)[1])
 
 
@@ -99,10 +98,21 @@ def _calibrate(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> Stage
 
 def _infer(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
     run_infer = contract_fn("infer", "run_infer")
-    segment = load_segment(inputs["segments"], segment_index(task.task_id))
+    segment = task_segment(task, inputs)
     out = run_infer(inputs["normalized"], segment, inputs["team_model"], out_dir, task.config)
     result = jsonable(out) if out is not None else {}
     return StageOutput((result if isinstance(result, dict) else {"output": result}) | {"segment": segment.model_dump()})
+
+
+def task_segment(task: StageTask, inputs: dict[str, Path]) -> Segment:
+    """The S4 segment carried by the GpuTask. Tasks queued before GpuTask.segment existed (W3 dev only) carried
+    the plan as input ``segments`` + the index in the task id; they still resolve."""
+    segment = getattr(task, "segment", None)
+    if isinstance(segment, Segment):
+        return segment
+    if "segments" in inputs:
+        return load_segment(inputs["segments"], segment_index(task.task_id))
+    raise StageFailure(ErrorCode.INTERNAL, f"{task.task_id}: infer task without a segment", retryable=False)
 
 
 def load_segment(segments_json: Path, index: int) -> Segment:

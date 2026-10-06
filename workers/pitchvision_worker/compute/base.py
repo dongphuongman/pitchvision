@@ -7,33 +7,14 @@ survives lost messages and restarts, observed through ``status`` + the ``_SUCCES
 
 from __future__ import annotations
 
-from typing import Any, Literal, Protocol, TypeAlias
+from typing import Any, Protocol, TypeAlias
 
-from pitchvision_schemas import Capacity, ErrorCode, GpuTask, PipelineConfig, TaskHandle, TaskStatus
-from pydantic import BaseModel, ConfigDict, Field
+from pitchvision_schemas import Capacity, CpuTask, ErrorCode, GpuTask, TaskHandle, TaskStatus
 
 SUCCESS_MARKER = "_SUCCESS"
 
 
-class CpuTask(BaseModel):
-    """CPU-queue twin of GpuTask (AD §10.4 "GpuTask / CpuTask") for stages that never need a GPU.
-
-    TODO(schemas): move next to GpuTask in pitchvision_schemas.compute (contract change, see report).
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    task_id: str
-    stage: Literal["normalize"]
-    image_tag: str
-    inputs: dict[str, str] = Field(default_factory=dict, description="name → object key")
-    outputs: dict[str, str] = Field(default_factory=dict, description="name → exact key for outputs outside the prefix")
-    output_prefix: str
-    config: PipelineConfig
-    timeout_s: int = 3600
-
-
-StageTask: TypeAlias = GpuTask | CpuTask  # noqa: UP040 (pydantic/isinstance-friendly)
+StageTask: TypeAlias = GpuTask | CpuTask  # noqa: UP040 (pydantic/isinstance-friendly); both in pitchvision_schemas.compute
 
 
 def success_key(output_prefix: str) -> str:
@@ -66,7 +47,7 @@ class StageFailure(Exception):
     def from_dict(cls, d: dict[str, Any] | None) -> StageFailure:
         d = d or {}
         try:
-            code = ErrorCode(d.get("code"))
+            code = ErrorCode(str(d.get("code")))
         except ValueError:
             code = ErrorCode.INTERNAL
         return cls(code, str(d.get("detail") or ""), bool(d.get("retryable", True)))

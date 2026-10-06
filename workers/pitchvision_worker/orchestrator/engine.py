@@ -30,14 +30,24 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, NoReturn
 
-from pitchvision_schemas import ErrorCode, GpuTask, JobStatus, PipelineConfig, ShotTimeline, TaskHandle, keys
+from pitchvision_schemas import (
+    CpuTask,
+    ErrorCode,
+    GpuTask,
+    JobStatus,
+    PipelineConfig,
+    Segment,
+    ShotTimeline,
+    TaskHandle,
+    keys,
+)
 from pitchvision_schemas.jobs import can_transition
 from sqlalchemy import Connection, Engine
 
 from pitchvision_worker import events
-from pitchvision_worker.compute.base import CpuTask, StageFailure, StageTask, classify, success_key
+from pitchvision_worker.compute.base import StageFailure, StageTask, classify, success_key
 from pitchvision_worker.compute.router import BackendRouter
-from pitchvision_worker.compute.stages import PLANNERS, SEGMENTS_FILE, SHOTS_FILE, SegmentPlanner
+from pitchvision_worker.compute.stages import PLANNERS, SHOTS_FILE, SegmentPlanner
 from pitchvision_worker.orchestrator import store
 from pitchvision_worker.repository import org_tx
 from pitchvision_worker.storage import ObjectStore
@@ -89,8 +99,14 @@ class Deps:
     planners: Mapping[str, SegmentPlanner] = field(default_factory=lambda: PLANNERS)
 
 
-def advance(job_id: uuid.UUID, org_id: uuid.UUID, deps: Deps, report: Report | None = None) -> str:
-    """One step; returns the job status afterwards ("missing" if the job isn't visible to this org)."""
+def advance(job_id: uuid.UUID, org_id: uuid.UUID, deps: Deps, report: Report | None = None, *,
+            announce_cancel: bool = False) -> str:  # fmt: skip
+    """One step; returns the job status afterwards ("missing" if the job isn't visible to this org).
+
+    ``announce_cancel`` (``orchestrate.cancel_job``, sent by the API's cancel / video-delete path): publish the WS
+    ``cancelled`` event once the job is seen cancelled. The sweep never announces, so the event is sent once per
+    cancel request (subscribers that join later get ``subscribed {status: cancelled}`` + a cancelled snapshot).
+    """
     with org_tx(deps.engine, org_id) as conn:
         job = store.lock_job(conn, job_id)
         if job is None:
@@ -99,6 +115,8 @@ def advance(job_id: uuid.UUID, org_id: uuid.UUID, deps: Deps, report: Report | N
         if report is not None:
             run.record(report)
         run.drive()
+        if announce_cancel and run.status == JobStatus.cancelled:
+            run.events.append(events.cancelled(run.id, run.video_id))
     for ev in run.events:  # after commit: a client never sees an event for state that rolled back
         events.publish(deps.redis, ev)
     if run.wake_in is not None:
@@ -218,7 +236,7 @@ class _Run:
             return True
         timeline = ShotTimeline.model_validate_json(self.deps.store.get_bytes(self._prefix(SHOTS) + SHOTS_FILE))
         n = store.replace_shots(self.conn, self.org, self.video_id, timeline)
-        self.deps.store.copy(self._prefix(SHOTS) + SHOTS_FILE, _media_shots_key(str(self.org), str(self.video_id)))
+        self.deps.store.copy(self._prefix(SHOTS) + SHOTS_FILE, keys.shots_key(str(self.org), str(self.video_id)))
         pct = round(100 * timeline.coverage(), 2)
         store.update_job(self.conn, self.id, coverage={"main_wide_pct": pct})
         if pct <= 0:
@@ -235,7 +253,6 @@ class _Run:
             self._task_failed(row, StageFailure(ErrorCode.NO_WIDE_SHOTS, "no analysable segment", retryable=False))
             self._fail_job(self._task_failure(PLAN))
         plan = {"segments": [s.model_dump() for s in segments], "main_wide_pct": pct, "shots": n}
-        self.deps.store.put_bytes(self.results + SEGMENTS_FILE, json.dumps({"segments": plan["segments"]}).encode())
         self._task_done(row, plan)
         log.info("job %s: %d shots, main_wide %.1f%%, %d segment(s)", self.id, n, pct, len(segments))
         return True
@@ -310,7 +327,7 @@ class _Run:
         normalized = keys.normalized_key(org, vid)
         common: dict[str, Any] = {"image_tag": self.job["image_tag"], "config": self.config}
         if key == NORMALIZE:
-            return CpuTask(task_id=GpuTask.make_id(job, NORMALIZE), stage="normalize", output_prefix=self._prefix(key),
+            return CpuTask(task_id=CpuTask.make_id(job, NORMALIZE), stage="normalize", output_prefix=self._prefix(key),
                            inputs={"source": self._source_key()}, outputs={"normalized": normalized},
                            timeout_s=TIMEOUT_S[NORMALIZE], **common)  # fmt: skip
         if key == SHOTS:
@@ -321,10 +338,16 @@ class _Run:
             return GpuTask(task_id=GpuTask.make_id(job, CALIBRATE), stage="calibrate", output_prefix=self._prefix(key),
                            inputs=inputs, timeout_s=TIMEOUT_S[CALIBRATE], **common)  # fmt: skip
         index = int(key.split(":")[1])
-        inputs = {"normalized": normalized, "team_model": self._prefix(CALIBRATE) + "team_model.json",
-                  "segments": self.results + SEGMENTS_FILE}  # fmt: skip
+        inputs = {"normalized": normalized, "team_model": self._prefix(CALIBRATE) + "team_model.json"}
         return GpuTask(task_id=GpuTask.make_id(job, "infer", index), stage="infer", output_prefix=self._prefix(key),
-                       inputs=inputs, timeout_s=TIMEOUT_S["infer"], **common)  # fmt: skip
+                       inputs=inputs, segment=self._segment(index), timeout_s=TIMEOUT_S["infer"],
+                       **common)  # fmt: skip
+
+    def _segment(self, index: int) -> Segment:
+        for raw in self._segments():
+            if raw["index"] == index:
+                return Segment.model_validate(raw)
+        raise RuntimeError(f"job {self.id}: segment {index} is not in the plan")
 
     def _prefix(self, key: str) -> str:
         if key == CALIBRATE:
@@ -451,7 +474,3 @@ class _Run:
             return None if remaining > 0 else 0
         return int(sum(took) / len(took) * remaining / max(1, running))
 
-
-def _media_shots_key(org_id: str, video_id: str) -> str:
-    """media/orgs/{org}/videos/{video}/shots.json — TODO(schemas): keys.shots_key (see report)."""
-    return keys.manifest_key(org_id, video_id).rsplit("/", 1)[0] + "/shots.json"

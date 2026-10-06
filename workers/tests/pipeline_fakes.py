@@ -16,7 +16,7 @@ from typing import Any
 
 from pitchvision_schemas import Capacity, PipelineConfig, Segment, Shot, ShotTimeline, ShotType, TaskHandle, TaskStatus
 from pitchvision_worker.compute.base import StageTask
-from pitchvision_worker.compute.stages import SHOTS_FILE, StageOutput, segment_index
+from pitchvision_worker.compute.stages import SHOTS_FILE, StageOutput, task_segment
 
 
 class MemoryStore:
@@ -132,8 +132,9 @@ class DevFakeStages:
         return StageOutput({"teams": 2})
 
     def infer(self, task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
-        i = segment_index(task.task_id)
-        self._run(f"infer:{i:03d}")
+        segment = task_segment(task, inputs)  # GpuTask.segment (the orchestrator no longer ships segments.json)
+        assert "segments" not in inputs and task.task_id.endswith(f":{segment.index:03d}")
+        self._run(f"infer:{segment.index:03d}")
         assert inputs["team_model"].read_text() == json.dumps({"teams": 2})
         (out_dir / "detections.parquet").write_bytes(b"PAR1-fake")
         return StageOutput({"frames": 10})

@@ -11,8 +11,9 @@ import logging
 from collections.abc import Mapping, Sequence
 
 from celery import Celery
+from pitchvision_schemas import CpuTask
 
-from pitchvision_worker.compute.base import ComputeBackend, CpuTask, StageTask
+from pitchvision_worker.compute.base import ComputeBackend, StageTask
 from pitchvision_worker.compute.local import LocalCpuBackend, LocalGpuBackend
 from pitchvision_worker.compute.runpod import RunPodBackend
 from pitchvision_worker.config import WorkerConfig

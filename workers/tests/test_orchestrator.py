@@ -133,7 +133,9 @@ def test_full_dag_to_done(h: Harness) -> None:
     # S2b persisted: shots rows + media shots.json; S2 probe went into videos
     assert h.sql("SELECT count(*) FROM shots WHERE video_id = :v")[0][0] == 2
     org, vid, job_id = str(h.org), str(h.video_id), str(h.job_id)
-    assert keys.manifest_key(org, vid).replace("manifest.json", "shots.json") in h.store.objects
+    assert keys.shots_key(org, vid) in h.store.objects
+    # S4 tasks carry their segment (no segments.json side channel)
+    assert not any(k.endswith("segments.json") for k in h.store.objects)
     assert float(h.sql("SELECT fps FROM videos WHERE id = :v")[0][0]) == 50.0
     # outputs per contract
     assert keys.segment_prefix(org, vid, job_id, 3) + "detections.parquet" in h.store.objects
@@ -292,6 +294,23 @@ def test_cancel_revokes_dispatched_and_stops(h: Harness) -> None:
     assert all(r["status"] == "failed" for k, r in h.tasks().items() if k.startswith("infer:"))
     assert (h.job_id, h.org) not in repository.active_jobs(h.db)
     assert h.advance() == "cancelled" and h.backend.submitted == []
+    # the sweep never announces; orchestrate.cancel_job (API cancel / video delete) publishes `cancelled` once
+    assert "cancelled" not in [m["type"] for _, m in h.redis.published]
+    assert eng.advance(h.job_id, h.org, h.deps(), announce_cancel=True) == "cancelled"
+    assert h.redis.published[-1][1] == {"topic": f"job:{h.job_id}", "type": "cancelled",
+                                        "data": {"video_id": str(h.video_id)}}  # fmt: skip
+
+
+def test_infer_tasks_carry_their_segment(h: Harness) -> None:
+    h.setup()
+    h.advance()
+    h.run_submitted(skip_stages=("infer",))
+    infer = sorted((t for _, t in h.backend.submitted), key=lambda t: t.task_id)
+    assert [t.segment.index for t in infer] == [0, 1, 2, 3]  # type: ignore[union-attr]
+    assert [(t.segment.t0_ms, t.segment.t1_ms) for t in infer][:2] == [(0, 120_000), (120_000, 240_000)]  # type: ignore[union-attr]
+    assert all(set(t.inputs) == {"normalized", "team_model"} for t in infer)
+    payload = infer[0].model_dump(mode="json")  # what LocalBackend ships to gpu.run_stage
+    assert type(infer[0]).model_validate(payload).segment == infer[0].segment
 
 
 def test_youtube_job_waits_for_ingest(h: Harness) -> None:
