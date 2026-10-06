@@ -1,7 +1,7 @@
 """PipelineConfig — everything a job needs to be reproducible (stored in jobs.config)."""
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class PipelineConfig(BaseModel):
@@ -19,3 +19,19 @@ class PipelineConfig(BaseModel):
     min_shot_ms: int = 1000                    # shorter shots are merged into neighbours
     segment_target_s: int = 120                # segments are cut on shot boundaries, merged up to ~120 s
     format: Literal["11v11"] = "11v11"         # 9v9/7v7 → Phase C
+
+
+class Segment(BaseModel):
+    """A unit of S4 work: half-open [t0_ms, t1_ms) on the normalized timeline, inside main_wide shots."""
+
+    model_config = ConfigDict(frozen=True)
+
+    index: int = Field(..., ge=0)
+    t0_ms: int = Field(..., ge=0)
+    t1_ms: int
+
+    @model_validator(mode="after")
+    def _ordered(self) -> "Segment":
+        if self.t1_ms <= self.t0_ms:
+            raise ValueError("t1_ms must be > t0_ms")
+        return self

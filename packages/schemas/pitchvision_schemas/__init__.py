@@ -7,7 +7,7 @@ from pitchvision_schemas.errors import ErrorCode, Problem
 from pitchvision_schemas.jobs import JOB_TRANSITIONS, JobStatus, can_transition
 from pitchvision_schemas.keys import tile_key
 from pitchvision_schemas.manifest import Coverage, Manifest, PitchCalibration, TeamInfo
-from pitchvision_schemas.pipeline import PipelineConfig
+from pitchvision_schemas.pipeline import PipelineConfig, Segment
 from pitchvision_schemas.shots import Shot, ShotTimeline, ShotType
 from pitchvision_schemas.tiles import TILE_MS, ObjCls, Tile, TileFrame, tile_no_for
 from pitchvision_schemas.ws import ClientOp, CompletedEvent, FailedEvent, ProgressData, ProgressEvent, ServerEvent
@@ -30,6 +30,7 @@ __all__ = [
     "Manifest",
     "ObjCls",
     "PipelineConfig",
+    "Segment",
     "PitchCalibration",
     "Problem",
     "ProgressData",
