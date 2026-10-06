@@ -11,6 +11,7 @@ One image, three Celery roles, one queue each:
 Task names (the contract — the API publishes by name only):
 - ``orchestrate.*``   orchestrator (pitchvision_worker.orchestrator.tasks)
 - ``cpu.run_stage``   CpuTask executor (S2 normalise)
+- ``cpu.delete_video_objects``  video erasure: every object under keys.video_prefixes (pitchvision_worker.erasure)
 - ``gpu.run_stage``   GpuTask executor, queue ``PV_LOCAL_GPU_QUEUE`` (pitchvision_worker.compute.tasks)
 - ``ingest.*``        S1 (pitchvision_worker.tasks)
 """
@@ -55,7 +56,8 @@ def _sweep_interval_s() -> float:
 
 def create_app(broker_url: str | None = None) -> Celery:
     url = broker_url or redis_url()
-    include = ["pitchvision_worker.tasks", "pitchvision_worker.compute.tasks", "pitchvision_worker.orchestrator.tasks"]
+    include = ["pitchvision_worker.tasks", "pitchvision_worker.compute.tasks", "pitchvision_worker.orchestrator.tasks",
+               "pitchvision_worker.erasure"]
     app = Celery("pitchvision_worker", broker=url, backend=url, include=include)
     app.conf.update(
         task_queues=[Queue(name) for name in QUEUES],
