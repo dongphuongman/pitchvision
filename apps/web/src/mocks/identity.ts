@@ -198,6 +198,7 @@ export function identityHandlers(db: MockDb): HttpHandler[] {
         email_verified: invite?.email === email,
       });
       db.users.push(user);
+      db.verifyTokens[`verify-${user.id}`] = user.id; // the "email link" (dev / e2e: /verify-email?token=verify-<id>)
       if (invite && invite.email === email) {
         db.memberships.push({ user_id: user.id, org_id: invite.org_id, role: invite.role });
         return HttpResponse.json(sessionFor(db, user.id, invite.org_id), { status: 201 });

@@ -85,10 +85,10 @@ export function NewAnalysisDialog() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const summary = <ModeSummary settings={settings} onEdit={() => setAdvancedOpen(true)} />;
 
-  const openProcessing = (videoId: string) => {
-    dialog.close();
-    void navigate({ to: '/videos/$videoId/processing', params: { videoId } });
-  };
+  // Replace the `?new=` entry instead of closing first: close() may go back in history, which
+  // would land after this navigation and undo it (found by e2e F3 / F4).
+  const openProcessing = (videoId: string) =>
+    void navigate({ to: '/videos/$videoId/processing', params: { videoId }, replace: true });
 
   return (
     <Dialog

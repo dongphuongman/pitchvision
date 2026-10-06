@@ -123,6 +123,32 @@ jobs:
       - name: build
         run: pnpm -C apps/web build
 
+  e2e:
+    name: e2e (Playwright F1 / F3 / F4 / F8, mock API)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm -C apps/web exec playwright install --with-deps chromium
+      - name: e2e
+        run: pnpm -C apps/web e2e
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 7
+
   # ---------------------------------------------------------------- compose
   compose:
     name: compose config

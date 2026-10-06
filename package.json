@@ -9,6 +9,7 @@
     "web:dev": "pnpm -C apps/web dev",
     "web:build": "pnpm -C apps/web build",
     "web:gen": "pnpm -C apps/web gen",
-    "web:check": "pnpm -C apps/web gen:check && pnpm -C apps/web lint && pnpm -C apps/web typecheck && pnpm -C apps/web test --run && pnpm -C apps/web build"
+    "web:check": "pnpm -C apps/web gen:check && pnpm -C apps/web lint && pnpm -C apps/web typecheck && pnpm -C apps/web test --run && pnpm -C apps/web build",
+    "web:e2e": "pnpm -C apps/web e2e"
   }
 }

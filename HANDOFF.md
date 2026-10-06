@@ -29,7 +29,8 @@ Done and on `main` (Python 889 tests, web 256 tests, CI green incl. 3 Docker ima
   members, billing, email notification toggles; sections hidden by role) + SCR-41 upgrade as a waitlist
   (identity `PATCH /me`, `/auth/password/change`, `/auth/sessions/revoke-others`, `/orgs/{id}/upgrade-requests`
   — a non-owner's request emails the owners); opened from the minutes meter, 1080p export, quota 402; SCR-01
-  landing at `/` (signed-in → library; Choose Pro → sign-up `plan=pro` → SCR-41 after onboarding); SCR-50 /403.
+  landing at `/` (signed-in → library; Choose Pro → sign-up `plan=pro` → SCR-41 after onboarding); SCR-50 /403;
+  Playwright e2e F1 / F3 / F4 / F8 against the dev server in mock-API mode (`pnpm web:e2e`, CI job `e2e`).
 
 Contracts: `docs/contracts/identity-api.md` (plans, quota), `docs/contracts/pipeline-stages.md` (stages, keys,
 derived jobs, exports, notifications).
@@ -37,7 +38,7 @@ derived jobs, exports, notifications).
 ## Next (doable on the Mac)
 1. Local email check:
    Add `PV_INTERNAL_TOKEN` to `infra/compose/.env` to get notification emails in Mailpit locally.
-2. Playwright flows F1/F3/F4/F8 (M1-FE-16). Later: Stripe (SCR-41 Choose Pro,
+2. Later: Stripe (SCR-41 Choose Pro,
    B03 portal), API keys (Pro), data export / account deletion (SCR-40 privacy).
 3. Export follow-ups: 1080p from source.mp4 (now an upscale of the 720p copy); "member joined" notification.
 
@@ -63,4 +64,4 @@ Broadcast-first; GPU hybrid; EN-first; R2 (EU jurisdiction); detector D-FINE (Ap
 - Model weights in `~/.cache/pitchvision/models` (D-FINE ONNX, SigLIP ONNX, shot GBM json), mounted into workers via `PV_MODEL_DIR`.
 - R2 spike: bucket `pitchvision-spike`, object-R/W token expiring 2026-11-04, creds in `spikes/sp07_upload/.env` (gitignored).
 - Golden set: `data/golden/raw/*.mp4` (19 matches × 15 min, internal R&D only). SP-09 labels in `spikes/results/sp09/`.
-- Quick checks: `uv run pytest -q`, `uv run ruff check packages apps workers eval`, `uv run lint-imports`, `pnpm web:check`.
+- Quick checks: `uv run pytest -q`, `uv run ruff check packages apps workers eval`, `uv run lint-imports`, `pnpm web:check`, `pnpm web:e2e`.

@@ -41,10 +41,15 @@ export async function startMockApi(): Promise<void> {
   const videos = demoVideoDb();
   const worker = setupWorker(
     ...identityHandlers(db),
-    ...videoHandlers(videos, { simulate: { tickMs: 1500 } }),
+    ...videoHandlers(videos, {
+      simulate: { tickMs: Number(import.meta.env.VITE_MOCK_TICK_MS) || 1500 },
+    }),
     ...resultsHandlers(videos),
     ...playerHandlers(),
-    ...accountHandlers(createAccount({ exportTicks: 5 }), videos),
+    ...accountHandlers(
+      createAccount({ exportTicks: Number(import.meta.env.VITE_MOCK_EXPORT_TICKS) || 5 }),
+      videos,
+    ),
     http.get('*/api/v1/meta', () => HttpResponse.json({ version: 'mock', schema_version: 1 })),
   );
   await worker.start({ onUnhandledFrame: 'bypass' });
