@@ -228,3 +228,12 @@ def test_infer_adapter_takes_the_segment_from_the_task(monkeypatch: pytest.Monke
     with pytest.raises(StageFailure) as e:
         stage_registry.STAGES["infer"](legacy, inputs, tmp_path)
     assert e.value.code is ErrorCode.INTERNAL and not e.value.retryable
+
+
+def test_stage_of_a_finished_job_is_skipped(s3_store: Any) -> None:
+    reports: list[Any] = []
+    cfg = WorkerConfig.from_env({})
+    out = run_and_report(gpu_task(), "ext-9", s3_store, cfg, notify=lambda *a: reports.append(a),
+                         job_status=lambda job, _cfg: "cancelled")  # fmt: skip
+    assert out["ok"] is False and out["skipped"] is True and "cancelled" in out["error"]["detail"]
+    assert reports and reports[0][2] is out
