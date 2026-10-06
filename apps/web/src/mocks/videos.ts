@@ -2,6 +2,7 @@ import { http, HttpResponse, ws, type WebSocketHandler } from 'msw';
 import { toLatestJob, type Job, type LatestJob, type PitchCalibration } from '@/api/jobs';
 import type { WsControlMessage, WsJobEvent, WsServerEvent } from '@/api/types';
 import type { Video } from '@/api/videos';
+import type { ManualCalibration } from '@/api/corrections';
 import { mockManifest } from './player';
 
 /**
@@ -25,10 +26,30 @@ export interface MockVideoDb {
   log: string[];
   /** Live sockets → subscribed topics. */
   sockets: Map<WsClient, Set<string>>;
+  /** SCR-14 teams per video (created on first read from MOCK_TEAMS, unconfirmed). */
+  teams: Map<string, MockTeam[]>;
+  /** SCR-15 latest manual calibration per video. */
+  calibrations: Map<string, ManualCalibration>;
+}
+
+export interface MockTeam {
+  id: string;
+  cluster: number;
+  name: string;
+  color: string;
+  confirmed: boolean;
 }
 
 export function createVideoDb(partial: Partial<MockVideoDb> = {}): MockVideoDb {
-  return { videos: [], jobs: [], log: [], sockets: new Map(), ...partial };
+  return {
+    videos: [],
+    jobs: [],
+    log: [],
+    sockets: new Map(),
+    teams: new Map(),
+    calibrations: new Map(),
+    ...partial,
+  };
 }
 
 let seq = 0;
@@ -91,7 +112,7 @@ export function mockLatestJob(job: MockJob): LatestJob {
   };
 }
 
-const RUNNING_JOB: readonly Job['status'][] = [
+export const RUNNING_JOB: readonly Job['status'][] = [
   'queued',
   'ingesting',
   'calibrating',
@@ -309,7 +330,18 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
       if (!v || !done) return problem(404, 'NOT_FOUND', 'No finished analysis');
       const m = mockManifest({ videoId: v.id, durationMs: v.duration_ms ?? 60_000 });
       const status = done.pitch_calibration ?? 'ok';
-      return HttpResponse.json({ ...m, job_id: done.id, pitch: { ...m.pitch, status } });
+      const teams = db.teams.get(v.id)?.map(({ cluster, name, color, confirmed }) => ({
+        cluster,
+        name,
+        color,
+        confirmed,
+      }));
+      return HttpResponse.json({
+        ...m,
+        job_id: done.id,
+        teams: teams ?? m.teams,
+        pitch: { ...m.pitch, status },
+      });
     }),
     http.get('*/api/v1/results/:id/media', ({ params }) => {
       const v = find(String(params.id));

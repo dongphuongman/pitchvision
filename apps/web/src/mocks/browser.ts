@@ -3,6 +3,7 @@ import { setupWorker } from 'msw/browser';
 import { identityHandlers, type MockDb } from './identity';
 import { demoDb, demoVideoDb } from './seed';
 import { playerHandlers } from './player';
+import { resultsHandlers } from './results';
 import { videoHandlers } from './videos';
 
 /**
@@ -36,9 +37,11 @@ function persistCookie(db: MockDb): void {
 export async function startMockApi(): Promise<void> {
   const db = demoDb();
   persistCookie(db);
+  const videos = demoVideoDb();
   const worker = setupWorker(
     ...identityHandlers(db),
-    ...videoHandlers(demoVideoDb(), { simulate: { tickMs: 1500 } }),
+    ...videoHandlers(videos, { simulate: { tickMs: 1500 } }),
+    ...resultsHandlers(videos),
     ...playerHandlers(),
     http.get('*/api/v1/meta', () => HttpResponse.json({ version: 'mock', schema_version: 1 })),
   );

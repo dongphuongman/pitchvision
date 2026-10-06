@@ -74,10 +74,12 @@ const WorkspacePage = lazyRouteComponent(
   () => import('@/features/video/WorkspacePage'),
   'WorkspacePage',
 );
+const TeamsPage = lazyRouteComponent(() => import('@/features/teams/TeamsPage'), 'TeamsPage');
 
 /*
  * Code-based route tree (no codegen step). Route ids used with getRouteApi():
- *   /_app/library, /_app/videos/$videoId/$tab, /_app/settings/$section, /signin …
+ *   /_app/library, /_app/videos/$videoId/$tab, /_app/videos/$videoId/teams,
+ *   /_app/settings/$section, /signin …
  * Phase C screens (Live) are intentionally absent.
  *
  * Auth rules (UIUX §3.1, SCR-02 E05):
@@ -355,6 +357,25 @@ const processingRoute = createRoute({
   component: ProcessingPage,
 });
 
+export type TeamsMode = 'confirm' | 'manual';
+
+function seconds(v: unknown): number | undefined {
+  const t = typeof v === 'number' ? v : Number(v);
+  return v !== undefined && v !== '' && Number.isFinite(t) && t >= 0 ? t : undefined;
+}
+
+// SCR-14 Team confirmation: /videos/:id/teams?mode=confirm|manual&return_to=.
+// Static segments outrank the `/$tab` param route, so `teams` / `calibrate` are never tabs.
+const teamsRoute = createRoute({
+  getParentRoute: () => videoRoute,
+  path: '/teams',
+  validateSearch: (s: Record<string, unknown>): ReturnToSearch & { mode?: TeamsMode } => ({
+    ...returnToSearch(s),
+    mode: s.mode === 'manual' ? 'manual' : undefined,
+  }),
+  component: TeamsPage,
+});
+
 // SCR-20 Analysis workspace: /videos/:id/:tab?t=<seconds>.
 const workspaceRoute = createRoute({
   getParentRoute: () => videoRoute,
@@ -366,10 +387,7 @@ const workspaceRoute = createRoute({
     },
     stringify: (p: { tab: WorkspaceTab }) => ({ tab: p.tab }),
   },
-  validateSearch: (s: Record<string, unknown>): { t?: number } => {
-    const t = typeof s.t === 'number' ? s.t : Number(s.t);
-    return { t: Number.isFinite(t) && t >= 0 ? t : undefined };
-  },
+  validateSearch: (s: Record<string, unknown>): { t?: number } => ({ t: seconds(s.t) }),
   component: WorkspacePage,
 });
 
@@ -434,7 +452,7 @@ export const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     libraryRoute,
     newRoute,
-    videoRoute.addChildren([videoIndexRoute, processingRoute, workspaceRoute]),
+    videoRoute.addChildren([videoIndexRoute, processingRoute, teamsRoute, workspaceRoute]),
     exportsRoute,
     settingsIndexRoute,
     settingsRoute,

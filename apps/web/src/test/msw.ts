@@ -3,6 +3,7 @@ import { resetWsClientForTests } from '@/api/ws';
 import { resetPendingDeletesForTests } from '@/features/library/pendingDeletes';
 import { resetUploadsForTests } from '@/features/upload/useUploads';
 import { createMockDb, identityHandlers, type MockDb } from '@/mocks/identity';
+import { resultsHandlers } from '@/mocks/results';
 import { createVideoDb, videoHandlers, type MockVideoDb } from '@/mocks/videos';
 
 /**
@@ -22,7 +23,11 @@ export function setupIdentityMock() {
   beforeEach(() => {
     state.db = createMockDb();
     state.videos = createVideoDb();
-    server.resetHandlers(...identityHandlers(state.db), ...videoHandlers(state.videos));
+    server.resetHandlers(
+      ...identityHandlers(state.db),
+      ...videoHandlers(state.videos),
+      ...resultsHandlers(state.videos),
+    );
   });
   afterEach(() => {
     resetWsClientForTests();
