@@ -2,7 +2,32 @@
   "processing": {
     "title": "Processing",
     "body": "Analysis runs in the background — you can leave this page and we'll notify you when it's ready.",
-    "progress": "Analysis progress"
+    "progress": "Analysis progress",
+    "steps": "Analysis steps",
+    "backToLibrary": "Back to library",
+    "step": {
+      "upload": "Upload",
+      "upload_youtube": "Download",
+      "prepare": "Prepare",
+      "teams": "Detect teams",
+      "analyze": "Analyze",
+      "finalize": "Finalize"
+    },
+    "queued": "Waiting for a free worker…",
+    "fps": "{{fps}} fps",
+    "eta": "about {{time}} left",
+    "segments": "Segments",
+    "segmentsLabel": "{{done}} of {{total}} segments analyzed",
+    "cancel": "Cancel analysis",
+    "confirmCancel": "Click again to cancel",
+    "cancelled": "This analysis was cancelled.",
+    "failed": "Analysis failed.",
+    "failedAt": "Analysis failed at “{{step}}”.",
+    "progressSaved": "Your progress is saved — retry continues from there.",
+    "notAnalyzed": "This video hasn't been analyzed yet.",
+    "waitingSource": "Waiting for the video to finish uploading or downloading…",
+    "start": "Start analysis",
+    "retry": "Retry"
   },
   "workspace": {
     "crumb": "Library",
