@@ -1,5 +1,43 @@
 {
   "$defs": {
+    "CancelledData": {
+      "properties": {
+        "video_id": {
+          "title": "Video Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "video_id"
+      ],
+      "title": "CancelledData",
+      "type": "object"
+    },
+    "CancelledEvent": {
+      "description": "The job was cancelled (POST /jobs/{id}/cancel or the video was deleted); no further events follow.",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/CancelledData"
+        },
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        },
+        "type": {
+          "const": "cancelled",
+          "default": "cancelled",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic",
+        "type",
+        "data"
+      ],
+      "title": "CancelledEvent",
+      "type": "object"
+    },
     "CompletedData": {
       "properties": {
         "video_id": {
@@ -66,6 +104,64 @@
       "title": "ErrorCode",
       "type": "string"
     },
+    "ErrorData": {
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode",
+          "description": "VALIDATION_FAILED \u00b7 NOT_FOUND (unknown job or another org's) \u00b7 RATE_LIMITED"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "ErrorData",
+      "type": "object"
+    },
+    "ErrorMessage": {
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/ErrorData"
+        },
+        "topic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the topic the failed op referred to, if any",
+          "title": "Topic"
+        },
+        "type": {
+          "const": "error",
+          "default": "error",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "topic",
+        "data"
+      ],
+      "title": "ErrorMessage",
+      "type": "object"
+    },
     "FailedData": {
       "properties": {
         "code": {
@@ -105,6 +201,57 @@
         "data"
       ],
       "title": "FailedEvent",
+      "type": "object"
+    },
+    "JobStatus": {
+      "enum": [
+        "queued",
+        "ingesting",
+        "calibrating",
+        "inferring",
+        "postprocessing",
+        "done",
+        "failed",
+        "cancelled"
+      ],
+      "title": "JobStatus",
+      "type": "string"
+    },
+    "PingMessage": {
+      "description": "Server heartbeat every HEARTBEAT_S seconds.",
+      "properties": {
+        "ts": {
+          "description": "server time, Unix seconds",
+          "title": "Ts",
+          "type": "integer"
+        },
+        "type": {
+          "const": "ping",
+          "default": "ping",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "ts"
+      ],
+      "title": "PingMessage",
+      "type": "object"
+    },
+    "PongMessage": {
+      "properties": {
+        "type": {
+          "const": "pong",
+          "default": "pong",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "PongMessage",
       "type": "object"
     },
     "ProgressData": {
@@ -208,13 +355,75 @@
       ],
       "title": "SegmentCounts",
       "type": "object"
+    },
+    "SubscribedData": {
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/JobStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "SubscribedData",
+      "type": "object"
+    },
+    "SubscribedMessage": {
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/SubscribedData"
+        },
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        },
+        "type": {
+          "const": "subscribed",
+          "default": "subscribed",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic",
+        "type",
+        "data"
+      ],
+      "title": "SubscribedMessage",
+      "type": "object"
+    },
+    "UnsubscribedMessage": {
+      "properties": {
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        },
+        "type": {
+          "const": "unsubscribed",
+          "default": "unsubscribed",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic",
+        "type"
+      ],
+      "title": "UnsubscribedMessage",
+      "type": "object"
     }
   },
   "discriminator": {
     "mapping": {
+      "cancelled": "#/$defs/CancelledEvent",
       "completed": "#/$defs/CompletedEvent",
+      "error": "#/$defs/ErrorMessage",
       "failed": "#/$defs/FailedEvent",
-      "progress": "#/$defs/ProgressEvent"
+      "ping": "#/$defs/PingMessage",
+      "pong": "#/$defs/PongMessage",
+      "progress": "#/$defs/ProgressEvent",
+      "subscribed": "#/$defs/SubscribedMessage",
+      "unsubscribed": "#/$defs/UnsubscribedMessage"
     },
     "propertyName": "type"
   },
@@ -227,6 +436,24 @@
     },
     {
       "$ref": "#/$defs/FailedEvent"
+    },
+    {
+      "$ref": "#/$defs/CancelledEvent"
+    },
+    {
+      "$ref": "#/$defs/SubscribedMessage"
+    },
+    {
+      "$ref": "#/$defs/UnsubscribedMessage"
+    },
+    {
+      "$ref": "#/$defs/PingMessage"
+    },
+    {
+      "$ref": "#/$defs/PongMessage"
+    },
+    {
+      "$ref": "#/$defs/ErrorMessage"
     }
   ]
 }

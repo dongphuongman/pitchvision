@@ -28,6 +28,11 @@ def manifest_key(org_id: str, video_id: str) -> str:
     return _video("media", org_id, video_id) + "manifest.json"
 
 
+def shots_key(org_id: str, video_id: str) -> str:
+    """S2b ShotTimeline JSON of the video's latest analysis (the DB `shots` table holds the same rows)."""
+    return _video("media", org_id, video_id) + "shots.json"
+
+
 def segment_prefix(org_id: str, video_id: str, job_id: str, segment: int) -> str:
     """S4 raw output (detections/homography/embeddings parquet + _SUCCESS) — expires after 180 days."""
     return _video("segments", org_id, video_id) + f"jobs/{job_id}/{segment:03d}/"

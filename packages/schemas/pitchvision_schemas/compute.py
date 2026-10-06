@@ -1,28 +1,53 @@
-"""ComputeBackend payloads (AD §7). Inputs/outputs are object keys; no shared filesystem."""
+"""ComputeBackend payloads (AD §7, §10.4 "GpuTask / CpuTask"). Inputs/outputs are object keys; no shared filesystem."""
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from pitchvision_schemas.pipeline import PipelineConfig
+from pitchvision_schemas.pipeline import PipelineConfig, Segment
 
 GpuStage = Literal["calibrate", "infer", "ocr", "render", "shots"]
+CpuStage = Literal["normalize"]
 TaskStatus = Literal["queued", "running", "done", "failed"]
+
+
+def make_task_id(job_id: str, stage: str, segment: int | None = None) -> str:
+    return f"{job_id}:{stage}:{segment:03d}" if segment is not None else f"{job_id}:{stage}"
 
 
 class GpuTask(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    task_id: str = Field(..., description='idempotency key = f"{job_id}:{stage}:{segment}"')
+    task_id: str = Field(..., description='idempotency key = f"{job_id}:{stage}:{segment:03d}" (segment: infer only)')
     stage: GpuStage
     image_tag: str = Field(..., description="must match across backends (deterministic results)")
     inputs: dict[str, str] = Field(default_factory=dict, description="name → object key")
     output_prefix: str
     config: PipelineConfig
+    segment: Segment | None = Field(None, description="the S4 unit of work (stage infer); None for whole-video stages")
     timeout_s: int = 1800
 
     @staticmethod
     def make_id(job_id: str, stage: str, segment: int | None = None) -> str:
-        return f"{job_id}:{stage}:{segment:03d}" if segment is not None else f"{job_id}:{stage}"
+        return make_task_id(job_id, stage, segment)
+
+
+class CpuTask(BaseModel):
+    """CPU-queue twin of GpuTask for stages that never need a GPU (S2 normalise); always runs on the local cpu queue."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: str
+    stage: CpuStage
+    image_tag: str
+    inputs: dict[str, str] = Field(default_factory=dict, description="name → object key")
+    outputs: dict[str, str] = Field(default_factory=dict, description="name → exact key for outputs outside the prefix")
+    output_prefix: str
+    config: PipelineConfig
+    timeout_s: int = 3600
+
+    @staticmethod
+    def make_id(job_id: str, stage: str) -> str:
+        return make_task_id(job_id, stage)
 
 
 class TaskHandle(BaseModel):
