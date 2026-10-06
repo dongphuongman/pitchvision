@@ -16,6 +16,7 @@
     "IDEMPOTENCY_KEY_REQUIRED": "The request could not be processed. Please try again.",
     "IDEMPOTENCY_KEY_REUSED": "The request could not be processed. Please try again.",
     "QUOTA_EXCEEDED": "You've used all analysis minutes for this period.",
+    "PLAN_REQUIRED": "This option needs a higher plan.",
     "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
     "INTERNAL": "Something went wrong on our side.",
     "VIDEO_UNREADABLE": "We couldn't read this video file.",
@@ -23,6 +24,7 @@
     "TEAM_SEPARATION_FAILED": "We couldn't tell the two teams apart.",
     "HOMOGRAPHY_UNAVAILABLE": "We couldn't map the pitch for this video.",
     "INGEST_FAILED": "We couldn't import this video.",
+    "EXPORT_FAILED": "We couldn't create this export.",
     "NETWORK_ERROR": "Can't reach PitchVision. Check your connection.",
     "UNKNOWN": "Something went wrong."
   }

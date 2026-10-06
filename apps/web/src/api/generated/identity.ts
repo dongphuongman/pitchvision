@@ -490,6 +490,7 @@ export interface components {
       | 'IDEMPOTENCY_KEY_REQUIRED'
       | 'IDEMPOTENCY_KEY_REUSED'
       | 'QUOTA_EXCEEDED'
+      | 'PLAN_REQUIRED'
       | 'RATE_LIMITED'
       | 'INTERNAL'
       | 'EMAIL_TAKEN'
@@ -503,7 +504,8 @@ export interface components {
       | 'NO_WIDE_SHOTS'
       | 'TEAM_SEPARATION_FAILED'
       | 'HOMOGRAPHY_UNAVAILABLE'
-      | 'INGEST_FAILED';
+      | 'INGEST_FAILED'
+      | 'EXPORT_FAILED';
     /** FieldError */
     FieldError: {
       /** Loc */

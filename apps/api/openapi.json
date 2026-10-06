@@ -1876,6 +1876,460 @@
         }
       }
     },
+    "/api/v1/exports": {
+      "post": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Create Export",
+        "description": "Render the video's latest finished analysis as an MP4 (SCR-25). Requires `Idempotency-Key`.\nRange omitted = full match. 402 PLAN_REQUIRED (`reason: export_quality`): 1080p needs Pro. 409 `no_analysis`.\n422 `reason`: `range` (outside the video), `no_pitch_map` (layout `video_map` without pitch calibration).\nFree plan exports carry a watermark (`watermark: true`).",
+        "operationId": "create_export_api_v1_exports_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required. Unique per request.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Required. Unique per request."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "List Exports",
+        "description": "SCR-26, newest first. `status`: all · active (queued / running) · done. A done export past `expires_at`\nreads `expired` (file deleted).",
+        "operationId": "list_exports_api_v1_exports_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "active",
+                "done"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/{export_id}": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Get Export",
+        "operationId": "get_export_api_v1_exports__export_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Delete Export",
+        "description": "Remove from the list (stops it if active); the file is deleted by the worker's purge.",
+        "operationId": "delete_export_api_v1_exports__export_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/{export_id}/download": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Download Export",
+        "description": "Presigned download URL (attachment, `PV_PRESIGN_TTL_S`, 15 min). 409 `not_ready`; 410 `expired`.",
+        "operationId": "download_export_api_v1_exports__export_id__download_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportDownload"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/{export_id}/cancel": {
+      "post": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Cancel Export",
+        "description": "Stop a queued / running export (409 `finished` otherwise).",
+        "operationId": "cancel_export_api_v1_exports__export_id__cancel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/{export_id}/retry": {
+      "post": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Retry Export",
+        "description": "Render a failed / cancelled export again with the same settings (409 `not_retryable` otherwise).",
+        "operationId": "retry_export_api_v1_exports__export_id__retry_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/tiles/{video_id}/{job_id}/r{revision}/{tile_no}.json.gz": {
       "get": {
         "tags": [
@@ -2242,6 +2696,7 @@
           "IDEMPOTENCY_KEY_REQUIRED",
           "IDEMPOTENCY_KEY_REUSED",
           "QUOTA_EXCEEDED",
+          "PLAN_REQUIRED",
           "RATE_LIMITED",
           "INTERNAL",
           "EMAIL_TAKEN",
@@ -2255,9 +2710,330 @@
           "NO_WIDE_SHOTS",
           "TEAM_SEPARATION_FAILED",
           "HOMOGRAPHY_UNAVAILABLE",
-          "INGEST_FAILED"
+          "INGEST_FAILED",
+          "EXPORT_FAILED"
         ],
         "title": "ErrorCode"
+      },
+      "ExportCreate": {
+        "properties": {
+          "video_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Video Id"
+          },
+          "kind": {
+            "type": "string",
+            "const": "video",
+            "title": "Kind",
+            "default": "video"
+          },
+          "from_ms": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Ms",
+            "description": "Range start; omitted = start of the video (Full match)"
+          },
+          "to_ms": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Ms",
+            "description": "Range end (exclusive); omitted = end of the video"
+          },
+          "layers": {
+            "$ref": "#/components/schemas/ExportLayers",
+            "default": {
+              "boxes": true,
+              "labels": true,
+              "conf": false,
+              "ball": true,
+              "trails": false
+            }
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "video",
+              "video_map"
+            ],
+            "title": "Layout",
+            "default": "video"
+          },
+          "quality": {
+            "type": "integer",
+            "enum": [
+              720,
+              1080
+            ],
+            "title": "Quality",
+            "default": 720
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "video_id"
+        ],
+        "title": "ExportCreate"
+      },
+      "ExportDownload": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "filename",
+          "expires_in"
+        ],
+        "title": "ExportDownload"
+      },
+      "ExportLayers": {
+        "properties": {
+          "boxes": {
+            "type": "boolean",
+            "title": "Boxes",
+            "default": true
+          },
+          "labels": {
+            "type": "boolean",
+            "title": "Labels",
+            "default": true
+          },
+          "conf": {
+            "type": "boolean",
+            "title": "Conf",
+            "default": false
+          },
+          "ball": {
+            "type": "boolean",
+            "title": "Ball",
+            "default": true
+          },
+          "trails": {
+            "type": "boolean",
+            "title": "Trails",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ExportLayers",
+        "description": "SCR-25 E07 — defaults follow the workspace's overlay toggles (web)."
+      },
+      "ExportList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExportOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ExportList"
+      },
+      "ExportOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "video_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Video Id"
+          },
+          "video_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Title"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed",
+              "cancelled",
+              "expired"
+            ],
+            "title": "Status"
+          },
+          "progress": {
+            "type": "number",
+            "title": "Progress"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "from_ms": {
+            "type": "integer",
+            "title": "From Ms"
+          },
+          "to_ms": {
+            "type": "integer",
+            "title": "To Ms"
+          },
+          "layout": {
+            "type": "string",
+            "title": "Layout"
+          },
+          "quality": {
+            "type": "integer",
+            "title": "Quality"
+          },
+          "watermark": {
+            "type": "boolean",
+            "title": "Watermark"
+          },
+          "layers": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Layers"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "video_id",
+          "kind",
+          "status",
+          "progress",
+          "filename",
+          "size_bytes",
+          "from_ms",
+          "to_ms",
+          "layout",
+          "quality",
+          "watermark",
+          "layers",
+          "error",
+          "created_by",
+          "created_at",
+          "finished_at",
+          "expires_at"
+        ],
+        "title": "ExportOut"
       },
       "FieldError": {
         "properties": {

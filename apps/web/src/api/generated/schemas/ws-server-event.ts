@@ -33,6 +33,7 @@ export type ErrorCode =
   | 'IDEMPOTENCY_KEY_REQUIRED'
   | 'IDEMPOTENCY_KEY_REUSED'
   | 'QUOTA_EXCEEDED'
+  | 'PLAN_REQUIRED'
   | 'RATE_LIMITED'
   | 'INTERNAL'
   | 'EMAIL_TAKEN'
@@ -46,7 +47,8 @@ export type ErrorCode =
   | 'NO_WIDE_SHOTS'
   | 'TEAM_SEPARATION_FAILED'
   | 'HOMOGRAPHY_UNAVAILABLE'
-  | 'INGEST_FAILED';
+  | 'INGEST_FAILED'
+  | 'EXPORT_FAILED';
 export type Retryable = boolean;
 export type Topic2 = string;
 export type Type2 = 'failed';
@@ -85,6 +87,7 @@ export type ErrorCode1 =
   | 'IDEMPOTENCY_KEY_REQUIRED'
   | 'IDEMPOTENCY_KEY_REUSED'
   | 'QUOTA_EXCEEDED'
+  | 'PLAN_REQUIRED'
   | 'RATE_LIMITED'
   | 'INTERNAL'
   | 'EMAIL_TAKEN'
@@ -98,7 +101,8 @@ export type ErrorCode1 =
   | 'NO_WIDE_SHOTS'
   | 'TEAM_SEPARATION_FAILED'
   | 'HOMOGRAPHY_UNAVAILABLE'
-  | 'INGEST_FAILED';
+  | 'INGEST_FAILED'
+  | 'EXPORT_FAILED';
 export type Detail = string | null;
 /**
  * the topic the failed op referred to, if any

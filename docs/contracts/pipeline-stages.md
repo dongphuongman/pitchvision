@@ -190,6 +190,26 @@ API (all under `/api/v1/results/{video_id}`, problem+json, RLS; writes editor+, 
 `{job, correction_id, revision}`), `GET /calibration/frame?t_ms=`, `GET /media` (presigned normalized.mp4,
 `PV_MEDIA_URL_TTL_S` 6 h); plus `GET /api/v1/results/pitch-template`.
 
+## Exports — S11 render (M1-BE-17, SCR-25 / SCR-26)
+Outside the job DAG. `POST /api/v1/exports` (Idempotency-Key; any member) freezes a
+`pitchvision_schemas.ExportSpec` in `exports.spec` — latest done job + revision, range `[from_ms, to_ms)` (omitted =
+full match), layers (boxes / labels / conf / ball / trails), layout `video` | `video_map` (refused with 422
+`no_pitch_map` when pitch calibration is `unavailable`), `out_height` 720 | 1080 (1080 → 402 `PLAN_REQUIRED` on
+Free), `watermark` + `ttl_days` from the plan (`pitchvision_schemas.plans`), team names / colours from the teams
+table — and publishes `cpu.render_export {export_id, org_id}`.
+
+Worker (`pitchvision_worker.exports` + `export_render`): guarded `queued → running`; ffmpeg decodes normalized.mp4
+(presigned, input-seek) at the output size, frames are painted with OpenCV like the web overlay and piped to libx264
+(yuv420p, CRF 21, faststart) with the range's audio; output frame `i` = normalized frame `f0 + i` (`f0 = ⌈from_ms ·
+fps / 1000⌉`). `progress` + `heartbeat_at` every ~2 s, guarded on `running` — a cancel / delete stops the render
+and nothing is uploaded. Output `keys.export_key(org, video, export_id, "mp4")`; `done` sets `expires_at = now +
+ttl_days`. Errors → `exports.error {code: VIDEO_UNREADABLE | EXPORT_FAILED | INTERNAL, retryable, detail}`; no
+automatic retry (SCR-26 Retry re-queues the same row). `cpu.sweep_exports` (beat, `PV_EXPORT_SWEEP_S`, 10 min) fails
+`running` rows without a heartbeat for 10 min (retryable) and deletes files of expired / deleted exports
+(`object_key → NULL`). API reads: `GET /exports?status=all|active|done&cursor` (done past `expires_at` reads
+`expired`), `GET /exports/{id}/download` (presigned attachment, 15 min; 409 `not_ready`, 410 `expired`), `POST
+…/cancel`, `POST …/retry`, `DELETE` (requester or editor+). Limitation: 1080p upscales the 720p normalized copy.
+
 ## Video deletion (AD §14)
 `DELETE /api/v1/videos/{id}` cancels the active job (→ `orchestrate.cancel_job`), soft-deletes the row and enqueues
 `cpu.delete_video_objects(org_id, video_id)` (`pitchvision_worker.erasure`): every object under

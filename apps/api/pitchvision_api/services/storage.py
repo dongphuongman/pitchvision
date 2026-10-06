@@ -171,12 +171,14 @@ class Storage:
         finally:
             obj.body.close()
 
-    def presign_get(self, key: str, ttl_s: int | None = None) -> str:
-        return str(
-            self.presigner.generate_presigned_url(
-                "get_object", Params={"Bucket": self.bucket, "Key": key}, ExpiresIn=ttl_s or self.presign_ttl_s
-            )
-        )
+    def presign_get(self, key: str, ttl_s: int | None = None, download_name: str | None = None) -> str:
+        """``download_name``: served as an attachment with that file name (SCR-26 download)."""
+        params: dict[str, str] = {"Bucket": self.bucket, "Key": key}
+        if download_name:
+            safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in download_name)[:120] or "download"
+            params["ResponseContentDisposition"] = f'attachment; filename="{safe}"'
+        return str(self.presigner.generate_presigned_url("get_object", Params=params,
+                                                         ExpiresIn=ttl_s or self.presign_ttl_s))  # fmt: skip
 
 
 STORAGE_ERRORS = (ClientError, BotoCoreError)

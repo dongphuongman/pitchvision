@@ -310,3 +310,37 @@ positions_org = Table(
     *(Column(c.name, c.type) for c in Position.__table__.columns),
     comment="security-barrier view: positions WHERE org_id = app.org_id (the API's only access path)",
 )
+
+
+class Export(Base):
+    """0005: SCR-25 / SCR-26 export requests (spec = pitchvision_schemas.ExportSpec)."""
+
+    __tablename__ = "exports"
+    __table_args__ = (
+        _video_fk(),
+        CheckConstraint("kind IN ('video')"),
+        CheckConstraint("status IN ('queued', 'running', 'done', 'failed', 'cancelled')"),
+        CheckConstraint("progress BETWEEN 0 AND 100"),
+        Index("ix_exports_org_created", "org_id", "created_at", "id"),
+        Index("ix_exports_purge", "expires_at", postgresql_where=text("object_key IS NOT NULL")),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, server_default=GEN_UUID)
+    org_id: Mapped[uuid.UUID]
+    video_id: Mapped[uuid.UUID]
+    kind: Mapped[str] = mapped_column(server_default="video")
+    status: Mapped[str] = mapped_column(server_default="queued")
+    progress: Mapped[Decimal] = mapped_column(Numeric(5, 2), server_default="0")
+    spec: Mapped[dict[str, Any]]
+    filename: Mapped[str]
+    object_key: Mapped[str | None]
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    error: Mapped[dict[str, Any] | None]
+    attempts: Mapped[int] = mapped_column(server_default="0")
+    created_by: Mapped[uuid.UUID | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    started_at: Mapped[datetime | None]
+    heartbeat_at: Mapped[datetime | None]
+    finished_at: Mapped[datetime | None]
+    expires_at: Mapped[datetime | None]
+    deleted_at: Mapped[datetime | None]

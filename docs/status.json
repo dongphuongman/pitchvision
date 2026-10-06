@@ -178,6 +178,10 @@
     {
       "date": "2026-10-06",
       "text": "Hiệu chỉnh sân sau lỗi HOMOGRAPHY_UNAVAILABLE (SCR-13 E11): backend đã đúng — job recalibrate lỗi giữ nguyên phân tích cũ, lần hiệu chỉnh tiếp lấy job done gần nhất làm parent; thêm test API + ghi chú hợp đồng."
+    },
+    {
+      "date": "2026-10-06",
+      "text": "M1-BE-17 export S11 (backend): bảng exports + API (tạo/danh sách/huỷ/thử lại/xoá/tải về presigned 15 phút), worker render MP4 H.264 (box/nhãn/bóng/trails, panel sơ đồ sân, watermark gói Free, 1080p chỉ Pro, hết hạn 7 ngày + sweep dọn file). Thêm gói Free/Pro/Team (subscriptions, claim plan). Python 873 test."
     }
   ]
 }

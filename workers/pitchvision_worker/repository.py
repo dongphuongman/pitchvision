@@ -8,7 +8,7 @@ like the API, so a worker bug can't touch another org's rows. Ingest updates are
 `status = 'ingesting'` so a redelivered task or a user who deleted the video in the meantime is a no-op.
 S8 result rows (positions / teams / players) are written by ``pitchvision_worker.results_db``.
 
-Columns mirror apps/api migrations 0001–0004 (the API owns the schema). Job queries live in
+Columns mirror apps/api migrations 0001–0005 (the API owns the schema). Job queries live in
 pitchvision_worker.orchestrator.store; cross-org lookups go through the SECURITY DEFINER helpers below.
 """
 
@@ -131,6 +131,30 @@ players = Table(
     Column("team_id", UUID(as_uuid=True)),
     Column("role", Text),
     Column("confirmed", Boolean, nullable=False, server_default=text("false")),
+)
+
+exports = Table(  # 0005 (SCR-25 / SCR-26); rendered by pitchvision_worker.exports
+    "exports",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("org_id", UUID(as_uuid=True), nullable=False),
+    Column("video_id", UUID(as_uuid=True), nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("status", Text, nullable=False),
+    Column("progress", Numeric(5, 2), nullable=False),
+    Column("spec", JSONB, nullable=False),
+    Column("filename", Text, nullable=False),
+    Column("object_key", Text),
+    Column("size_bytes", BigInteger),
+    Column("error", JSONB),
+    Column("attempts", Integer, nullable=False),
+    Column("created_by", UUID(as_uuid=True)),
+    Column("created_at", TZ),
+    Column("started_at", TZ),
+    Column("heartbeat_at", TZ),
+    Column("finished_at", TZ),
+    Column("expires_at", TZ),
+    Column("deleted_at", TZ),
 )
 
 

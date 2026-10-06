@@ -28,6 +28,7 @@ const SERVER_CODE_MAP: Record<ServerErrorCode, true> = {
   IDEMPOTENCY_KEY_REQUIRED: true,
   IDEMPOTENCY_KEY_REUSED: true,
   QUOTA_EXCEEDED: true,
+  PLAN_REQUIRED: true,
   RATE_LIMITED: true,
   INTERNAL: true,
   EMAIL_TAKEN: true,
@@ -42,6 +43,7 @@ const SERVER_CODE_MAP: Record<ServerErrorCode, true> = {
   TEAM_SEPARATION_FAILED: true,
   HOMOGRAPHY_UNAVAILABLE: true,
   INGEST_FAILED: true,
+  EXPORT_FAILED: true,
 };
 const SERVER_CODES: ReadonlySet<string> = new Set(Object.keys(SERVER_CODE_MAP));
 

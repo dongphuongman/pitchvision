@@ -41,6 +41,7 @@ TASK_CANCEL_JOB = "orchestrate.cancel_job"
 TASK_ON_RESULT = "orchestrate.on_task_result"
 TASK_VIDEO_READY = "orchestrate.video_ready"
 TASK_SWEEP = "orchestrate.sweep"
+TASK_SWEEP_EXPORTS = "cpu.sweep_exports"
 
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 
@@ -55,10 +56,14 @@ def _sweep_interval_s() -> float:
     return float(os.environ.get("PV_SWEEP_INTERVAL_S") or 30)
 
 
+def _export_sweep_s() -> float:
+    return float(os.environ.get("PV_EXPORT_SWEEP_S") or 600)
+
+
 def create_app(broker_url: str | None = None) -> Celery:
     url = broker_url or redis_url()
     include = ["pitchvision_worker.tasks", "pitchvision_worker.compute.tasks", "pitchvision_worker.orchestrator.tasks",
-               "pitchvision_worker.erasure", "pitchvision_worker.frames"]
+               "pitchvision_worker.erasure", "pitchvision_worker.frames", "pitchvision_worker.exports"]
     app = Celery("pitchvision_worker", broker=url, backend=url, include=include)
     app.conf.update(
         task_queues=[Queue(name) for name in QUEUES],
@@ -67,7 +72,10 @@ def create_app(broker_url: str | None = None) -> Celery:
                      "cpu.*": {"queue": QUEUE_CPU}},  # gpu.run_stage: queue chosen per call (PV_LOCAL_GPU_QUEUE)
         # the orchestrator's restart/periodic recovery (run by the orchestrator worker's embedded beat)
         beat_schedule={"orchestrate-sweep": {"task": TASK_SWEEP, "schedule": _sweep_interval_s(),
-                                             "options": {"queue": QUEUE_ORCHESTRATE, "expires": _sweep_interval_s()}}},
+                                             "options": {"queue": QUEUE_ORCHESTRATE, "expires": _sweep_interval_s()}},
+                       # exports: fail renders whose worker died, delete expired / deleted files
+                       "exports-sweep": {"task": TASK_SWEEP_EXPORTS, "schedule": _export_sweep_s(),
+                                         "options": {"queue": QUEUE_CPU, "expires": _export_sweep_s()}}},
         task_track_started=True,  # LocalBackend.status() distinguishes queued from running
         broker_transport_options={"visibility_timeout": VISIBILITY_TIMEOUT_S},
         task_serializer="json",

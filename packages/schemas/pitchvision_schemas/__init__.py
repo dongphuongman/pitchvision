@@ -4,6 +4,15 @@ A change here is a contract change: API, workers and the web client must agree o
 """
 from pitchvision_schemas.compute import Capacity, CpuStage, CpuTask, GpuStage, GpuTask, TaskHandle, TaskStatus
 from pitchvision_schemas.errors import ErrorCode, Problem
+from pitchvision_schemas.exports import (
+    EXPORT_HEIGHTS,
+    TERMINAL_EXPORT,
+    ExportKind,
+    ExportLayers,
+    ExportLayout,
+    ExportSpec,
+    ExportStatus,
+)
 from pitchvision_schemas.jobs import JOB_KINDS, JOB_TRANSITIONS, JobKind, JobStatus, can_transition
 from pitchvision_schemas.keys import shots_key, tile_key
 from pitchvision_schemas.manifest import Coverage, Manifest, PitchCalibration, PitchStatus, TeamInfo
@@ -37,10 +46,12 @@ from pitchvision_schemas.ws import (
 SCHEMA_VERSION = 1
 
 __all__ = [
+    "EXPORT_HEIGHTS",
     "JOB_KINDS",
     "JOB_TRANSITIONS",
     "PLAN_LIMITS",
     "SCHEMA_VERSION",
+    "TERMINAL_EXPORT",
     "TILE_MS",
     "CancelledEvent",
     "Capacity",
@@ -52,6 +63,11 @@ __all__ = [
     "CpuTask",
     "ErrorCode",
     "ErrorMessage",
+    "ExportKind",
+    "ExportLayers",
+    "ExportLayout",
+    "ExportSpec",
+    "ExportStatus",
     "FailedEvent",
     "GpuStage",
     "GpuTask",

@@ -10,6 +10,8 @@ Task contract (implemented in workers/pitchvision_worker/tasks.py):
                            pitchvision_schemas.keys.video_prefixes once the videos row is `deleted` (AD §14 erasure)
 - `cpu.extract_frame`      queue `cpu`, kwargs {org_id, video_id, t_ms} → {"ok": true, "key", "t_ms"} |
                            {"ok": false, "reason": no_video | out_of_range | ffmpeg}; JPEG at keys.frame_key (cached)
+- `cpu.render_export`      queue `cpu`, kwargs {export_id, org_id} → S11: renders exports.spec, uploads to
+                           keys.export_key and updates the exports row (status, progress, object_key, expires_at)
 """
 
 import asyncio
@@ -31,6 +33,7 @@ TASK_CANCEL_JOB = "orchestrate.cancel_job"
 QUEUE_CPU = "cpu"
 TASK_DELETE_VIDEO_OBJECTS = "cpu.delete_video_objects"
 TASK_EXTRACT_FRAME = "cpu.extract_frame"
+TASK_RENDER_EXPORT = "cpu.render_export"
 
 
 class TaskUnavailable(Exception):
