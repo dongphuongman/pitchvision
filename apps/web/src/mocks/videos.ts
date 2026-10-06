@@ -2,6 +2,7 @@ import { http, HttpResponse, ws, type WebSocketHandler } from 'msw';
 import { toLatestJob, type Job, type LatestJob, type PitchCalibration } from '@/api/jobs';
 import type { WsControlMessage, WsJobEvent, WsServerEvent } from '@/api/types';
 import type { Video } from '@/api/videos';
+import { mockManifest } from './player';
 
 /**
  * In-memory videos + jobs API and the `/api/v1/ws` socket (AD §10.3), shaped like
@@ -298,6 +299,28 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
       db.log.push(`POST /api/v1/jobs/${job.id}/cancel`);
       cancel(job);
       return HttpResponse.json(job);
+    }),
+    // ---------------------------------------------------------------- SCR-20 (M1-FE-12)
+    http.get('*/api/v1/results/:id/manifest', ({ params }) => {
+      const v = find(String(params.id));
+      const done = v ? jobsOf(v.id).find((j) => j.status === 'done') : undefined;
+      if (!v || !done) return problem(404, 'NOT_FOUND', 'No finished analysis');
+      const m = mockManifest({ videoId: v.id, durationMs: v.duration_ms ?? 60_000 });
+      const status = done.pitch_calibration ?? 'ok';
+      return HttpResponse.json({ ...m, job_id: done.id, pitch: { ...m.pitch, status } });
+    }),
+    http.get('*/api/v1/results/:id/media', ({ params }) => {
+      const v = find(String(params.id));
+      if (!v || !jobsOf(v.id).some((j) => j.status === 'done')) {
+        return problem(404, 'NOT_FOUND', 'Not normalized yet');
+      }
+      return HttpResponse.json({
+        video_url: `https://storage.mock/${v.id}/normalized.mp4`,
+        expires_in: 21600,
+        fps: 25,
+        width: 1280,
+        height: 720,
+      });
     }),
     // ---------------------------------------------------------------- SCR-11 (M1-FE-09)
     http.post('*/api/v1/videos/from-url/preview', async ({ request }) => {

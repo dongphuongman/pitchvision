@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import type { Manifest } from '@/api/types';
 import { msForFrame } from './frames';
-import { OverlayRenderer, teamColorMap } from './overlay';
+import { DEFAULT_LAYERS, OverlayRenderer, teamColorMap, type OverlayLayers } from './overlay';
 import { PlaybackClock, type ClockState } from './PlaybackClock';
 import { shotAt } from './shots';
 import { TacticalMapRenderer, type MapLabels } from './tacticalMap';
@@ -63,6 +63,8 @@ export interface SyncEngineOptions {
   overlayCanvas: HTMLCanvasElement | null;
   mapCanvas: HTMLCanvasElement | null;
   mapLabels: MapLabels;
+  /** E13 layer toggles; changing them repaints without rebuilding the engine. */
+  layers?: OverlayLayers;
   fetch?: typeof fetch;
   decoder?: () => TileDecoder;
 }
@@ -76,6 +78,10 @@ export function useSyncEngine(opts: SyncEngineOptions) {
   const { manifest, video, overlayCanvas, mapCanvas, mapLabels } = opts;
   const clock = usePlaybackClock(video, manifest?.fps ?? 25);
   const store = useTileStore(manifest, { fetch: opts.fetch, decoder: opts.decoder });
+  const overlayRef = useRef<OverlayRenderer | null>(null);
+  const redrawRef = useRef<(() => void) | null>(null);
+  const layers = opts.layers ?? DEFAULT_LAYERS;
+  const layersRef = useRef(layers);
 
   useEffect(() => {
     if (!clock || !store || !manifest || !video) return;
@@ -87,6 +93,7 @@ export function useSyncEngine(opts: SyncEngineOptions) {
           teamColors,
         })
       : null;
+    if (overlay) overlay.layers = layersRef.current; // a rebuilt engine keeps the user's toggles
     const map = mapCanvas
       ? new TacticalMapRenderer(mapCanvas, { teamColors, labels: mapLabels })
       : null;
@@ -100,6 +107,8 @@ export function useSyncEngine(opts: SyncEngineOptions) {
       overlay?.render(lookup.frame, lookup.loaded ? shot : undefined);
       map?.render(lookup.frame, shot === 'main_wide' && !lookup.loaded ? undefined : shot);
     };
+    overlayRef.current = overlay;
+    redrawRef.current = draw;
     const offClock = clock.subscribe(draw);
     const offSeek = clock.onSeek((f) => store.seek(f));
     const offTile = store.onTile((tileNo) => {
@@ -112,8 +121,17 @@ export function useSyncEngine(opts: SyncEngineOptions) {
       offTile();
       overlay?.dispose();
       map?.dispose();
+      overlayRef.current = null;
+      redrawRef.current = null;
     };
   }, [clock, store, manifest, video, overlayCanvas, mapCanvas, mapLabels]);
+
+  // Layers live outside the effect above so toggling them doesn't tear down renderers / tiles.
+  useEffect(() => {
+    layersRef.current = layers;
+    if (overlayRef.current) overlayRef.current.layers = layers;
+    redrawRef.current?.();
+  }, [layers]);
 
   return { clock, store };
 }

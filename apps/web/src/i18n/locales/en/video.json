@@ -37,7 +37,22 @@
       "overview": "Overview"
     },
     "placeholder": "Video, tactical map and timeline arrive with the sync engine (M1-FE-08 – M1-FE-12).",
-    "position": "Position {{time}}"
+    "position": "Position {{time}}",
+    "openProcessing": "Open processing",
+    "notReady": "Results aren't ready yet — the analysis is still running or hasn't started.",
+    "pitchDegraded": "Pitch quality is low in parts of this match, so some map positions are hidden.",
+    "pitchUnavailable": "The pitch couldn't be mapped for this match: boxes are shown on the video, but the tactical map is empty.",
+    "frameInfo": "fps {{fps}} · frame {{frame}} / {{total}}",
+    "approximateSync": "approximate sync (browser without frame callbacks)",
+    "teamUnconfirmed": "(not confirmed)",
+    "quality": "Wide-angle coverage {{coverage}}% · Pitch mapping: {{pitch}}",
+    "pitch": {
+      "ok": "good",
+      "degraded": "partly low",
+      "manual": "manual calibration",
+      "unavailable": "not available"
+    },
+    "statsSoon": "Match statistics arrive with M3."
   },
   "player": {
     "timeline": "Timeline",
@@ -53,7 +68,16 @@
     "pause": "Pause",
     "prevFrame": "Previous frame",
     "nextFrame": "Next frame",
-    "speed": "Playback speed"
+    "speed": "Playback speed",
+    "fullscreen": "Fullscreen",
+    "layers": "Layers",
+    "layer": {
+      "boxes": "Boxes",
+      "labels": "Labels",
+      "conf": "Confidence",
+      "ball": "Ball"
+    },
+    "tacticalMap": "Tactical map"
   },
   "exports": {
     "title": "Exports",
