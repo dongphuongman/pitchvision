@@ -54,3 +54,22 @@ models:
     classes: [main_wide, non_wide]
     requires: []
     eval: eval/results/shots_m1cv06_samples_colour.json  # 87.5 % — below the 95 % exit criterion: fallback only
+
+  - name: siglip-base-p16-224
+    version: "2026.10.06"
+    kind: embedder
+    file: siglip-base-p16-224.onnx
+    sha256: c18deb124a8e00ea70573c47d429e0b4cb13716a379c96625978426393747aff
+    bytes: 371734454
+    source: https://huggingface.co/google/siglip-base-patch16-224
+    licence: Apache-2.0 (code + weights)
+    build: uv run --project training python training/export_siglip_onnx.py   # vision tower only, opset 17, dynamic batch
+    card: models/siglip-base-p16-224.md
+    input:
+      pixel_values: {dtype: float32, shape: [N, 3, 224, 224], layout: NCHW, colour: RGB, resize: "bicubic 224x224",
+                     normalize: "(x/255 - 0.5) / 0.5"}
+    output:
+      pooler_output: {dtype: float32, shape: [N, 768]}
+    preprocess: cv_core.teams.embed.preprocess
+    used_by: [S3 calibrate (team model), S4 per-track team vote]
+    providers: {ort_cpu: "40 ms/crop (M4, batch 32)", ort_coreml: "18 ms/crop (M4, MLProgram; ~3 min compile per load)"}

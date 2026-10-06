@@ -1,0 +1,224 @@
+{
+ "format": "pv-pipeline-w3-summary/v1",
+ "date": "2026-10-06",
+ "machine": "Apple M4 (no NVIDIA)",
+ "detector_provider": "ort_coreml",
+ "embedder_provider": "ort_cpu",
+ "minutes": 5,
+ "votes_per_track": 10,
+ "note": "S2\u2192S2b\u2192plan\u2192S3\u2192S4 on the first 5 min of 3 golden matches (eval/run_pipeline_w3.py). ids_per_player_per_90s = unique track ids / median visible players, scaled to 90 s and time-weighted over S4 segments (main_wide only; short segments inflate it). SP-05 baseline (YOLO11m + Ultralytics ByteTrack, raw 90 s windows incl. cuts): 22.9 / 23.9.",
+ "tracker_sweep_sp05_windows": {
+  "MZjaWGwbtEc@200s": {
+   "reference_params": 17.8,
+   "tuned_defaults": 14.5,
+   "sp05": 22.9
+  },
+  "TyCCa3tyhZw@300s": {
+   "reference_params": 18.6,
+   "tuned_defaults": 10.3,
+   "sp05": 23.9
+  },
+  "tuned": {
+   "track_buffer": 60,
+   "match_thresh": 0.9,
+   "new_track_thresh": 0.6,
+   "track_high_thresh": 0.35
+  },
+  "caveat": "tuned on the same two windows; ID switches unmeasured (no ID labels yet)"
+ },
+ "videos": [
+  {
+   "video": "MZjaWGwbtEc",
+   "shots": 33,
+   "main_wide_coverage": 0.838,
+   "segments": 17,
+   "segment_seconds": [
+    15.2,
+    24.2,
+    18.3,
+    10.7,
+    20.0,
+    28.6,
+    5.2,
+    20.5,
+    8.8,
+    13.4,
+    14.7,
+    3.7,
+    7.1,
+    30.2,
+    4.5,
+    8.6,
+    17.5
+   ],
+   "calibrate": {
+    "frames": 48,
+    "crops": 630,
+    "split": "spectral_k10_d2",
+    "cv_fisher": 7.054,
+    "cluster_sizes": [
+     312,
+     282
+    ],
+    "outlier_share": 0.0571,
+    "timings_s": {
+     "decode": 1.451,
+     "detect": 2.006,
+     "embed": 27.809,
+     "fit": 0.275,
+     "total": 31.57
+    }
+   },
+   "ids_per_player_per_90s": 15.6,
+   "ids_per_player_per_90s_reference_bytetrack_params": 21.2,
+   "sp05_bytetrack_ids_per_player_per_90s": 22.9,
+   "tracks": 585,
+   "team_tracks": {
+    "0": 291,
+    "1": 266,
+    "-1": 28
+   },
+   "vote_unanimous_share": 0.767,
+   "ball_frame_share": 0.845,
+   "s4_frames": 6288,
+   "s4_fps": 9.19,
+   "s4_timings_s": {
+    "decode_and_misc": 2.7,
+    "detect": 369.7,
+    "track_mask_crops": 14.1,
+    "team_vote": 297.0,
+    "write": 0.0,
+    "total": 684.1
+   },
+   "wall_s": {
+    "S2_normalize": 19.5,
+    "S2b_shots": 16.9,
+    "plan": 0.0,
+    "S3_calibrate": 31.6,
+    "S4_infer": 684.2
+   }
+  },
+  {
+   "video": "TyCCa3tyhZw",
+   "shots": 10,
+   "main_wide_coverage": 0.59,
+   "segments": 5,
+   "segment_seconds": [
+    21.6,
+    12.2,
+    18.8,
+    52.6,
+    71.8
+   ],
+   "calibrate": {
+    "frames": 48,
+    "crops": 713,
+    "split": "spectral_k10_d3",
+    "cv_fisher": 8.775,
+    "cluster_sizes": [
+     399,
+     274
+    ],
+    "outlier_share": 0.0561,
+    "timings_s": {
+     "decode": 2.435,
+     "detect": 2.704,
+     "embed": 42.567,
+     "fit": 0.432,
+     "total": 48.155
+    }
+   },
+   "ids_per_player_per_90s": 13.8,
+   "ids_per_player_per_90s_reference_bytetrack_params": 25.5,
+   "sp05_bytetrack_ids_per_player_per_90s": 23.9,
+   "tracks": 371,
+   "team_tracks": {
+    "0": 204,
+    "1": 143,
+    "-1": 24
+   },
+   "vote_unanimous_share": 0.814,
+   "ball_frame_share": 0.81,
+   "s4_frames": 4424,
+   "s4_fps": 9.53,
+   "s4_timings_s": {
+    "decode_and_misc": 1.7,
+    "detect": 270.3,
+    "track_mask_crops": 10.6,
+    "team_vote": 181.1,
+    "write": 0.0,
+    "total": 463.9
+   },
+   "wall_s": {
+    "S2_normalize": 31.4,
+    "S2b_shots": 26.5,
+    "plan": 0.0,
+    "S3_calibrate": 48.2,
+    "S4_infer": 464.0
+   }
+  },
+  {
+   "video": "BukNW8GRI5A",
+   "shots": 17,
+   "main_wide_coverage": 0.837,
+   "segments": 9,
+   "segment_seconds": [
+    39.8,
+    30.0,
+    30.4,
+    35.5,
+    42.2,
+    8.7,
+    23.2,
+    27.5,
+    13.6
+   ],
+   "calibrate": {
+    "frames": 48,
+    "crops": 634,
+    "split": "spectral_k10_d2",
+    "cv_fisher": 10.021,
+    "cluster_sizes": [
+     334,
+     258
+    ],
+    "outlier_share": 0.0662,
+    "timings_s": {
+     "decode": 3.971,
+     "detect": 3.036,
+     "embed": 39.296,
+     "fit": 0.362,
+     "total": 46.683
+    }
+   },
+   "ids_per_player_per_90s": 11.1,
+   "ids_per_player_per_90s_reference_bytetrack_params": 15.7,
+   "sp05_bytetrack_ids_per_player_per_90s": null,
+   "tracks": 404,
+   "team_tracks": {
+    "0": 250,
+    "1": 128,
+    "-1": 26
+   },
+   "vote_unanimous_share": 0.795,
+   "ball_frame_share": 0.709,
+   "s4_frames": 6276,
+   "s4_fps": 10.06,
+   "s4_timings_s": {
+    "decode_and_misc": 2.6,
+    "detect": 390.9,
+    "track_mask_crops": 14.6,
+    "team_vote": 215.4,
+    "write": 0.0,
+    "total": 623.5
+   },
+   "wall_s": {
+    "S2_normalize": 40.5,
+    "S2b_shots": 29.8,
+    "plan": 0.0,
+    "S3_calibrate": 46.7,
+    "S4_infer": 623.7
+   }
+  }
+ ]
+}

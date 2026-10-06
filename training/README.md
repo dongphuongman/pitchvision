@@ -13,6 +13,7 @@ uv run --project training python training/<script>.py ...
 | Script | What | Output |
 |---|---|---|
 | `export_dfine_onnx.py` | D-FINE (HF) → ONNX, parity check vs torch, CPU/CoreML benchmark | `$PITCHVISION_MODEL_DIR/dfine-m-obj2coco-640.onnx` + registry snippet |
+| `export_siglip_onnx.py` | SigLIP-base vision tower → ONNX (team embeddings, M1-CV-09), parity vs torch + HF processor, CPU/CoreML benchmark | `$PITCHVISION_MODEL_DIR/siglip-base-p16-224.onnx` + registry snippet |
 | `train_shots.py` | S2b shot classifier (M1-CV-06): features via `cv_core.shots`, leave-one-video-out CV, export `pv-gbm/v1` JSON | `$PITCHVISION_MODEL_DIR/shots-gbm-{det,colour}-v1.json`, `training/out/` (CV predictions, fold models) |
 | `dfine/` | D-FINE-M fine-tune prep (M1-CV-04): dataset converters, config, trainer, smoke test, GPU recipe | see `dfine/README.md` |
 | `keypoints/` | YOLOv11-pose pitch keypoints (M1-CV-05). **Own uv project** (`uv run --project training/keypoints …`): Ultralytics (AGPL / Enterprise licence) stays out of this env and cv-core | see `keypoints/README.md` |

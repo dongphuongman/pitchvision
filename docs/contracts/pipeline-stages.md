@@ -30,6 +30,17 @@ and the **stage functions** (`workers/pitchvision_worker/stages/*.py`, built on 
 (0 player · 1 goalkeeper · 2 referee · 3 ball — v1 from a COCO detector: person→0, sports ball→3) · `team int8` (0/1, -1 none)
 · `x1,y1,x2,y2 int16` (pixels on normalized video) · `conf float16` · `on_pitch bool` · `px,py float32` (NaN until
 homography lands in W4) · ZSTD. Schema + writer live in `cv_core.io.parquet` with a version field in file metadata.
+Player track ids start at 1; the ball is untracked in v1 (`track_id = -1`, best detection per frame). Rows exist only
+for tracked players (+ ball), each with its detector box/score; `on_pitch = false` marks a box that continues a track
+outside the grass mask (only on-pitch boxes may start a track).
+
+## Stage outputs / errors (M1-CV-08…10)
+- `plan_segments` returns `[]` when there is no analysable footage → job error `NO_WIDE_SHOTS`.
+- `run_calibrate` writes `team_model.json` (`pv-team-model/v1`, portable JSON — replaces AD's `team_model.pkl`) and
+  `team_samples.jpg`; raises `calibrate.NoWideShots` (`code = NO_WIDE_SHOTS`) or `cv_core.teams.TeamSeparationFailed`
+  (`code = TEAM_SEPARATION_FAILED`, `.reason` ∈ too_few_crops / imbalanced / not_separable) — both permanent.
+- `run_infer` returns `InferOutput(paths={"detections": …}, frames, fps_measured, stats)`; models resolve through
+  `models/registry.yaml` (`dfine-m-obj2coco-640`, `siglip-base-p16-224`); `PV_RUNTIME_PROVIDER` picks the provider.
 
 ## GPU dispatch (AD §7)
 - Orchestrator never calls a GPU stage directly: it builds a `GpuTask` (stage ∈ shots/calibrate/infer, inputs = object

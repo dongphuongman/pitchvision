@@ -12,6 +12,9 @@ Plain scripts (not a workspace member), run from the repo root with `uv run pyth
 | `run_detection.py` | AP@0.5 per class + mAP@50 from COCO GT + COCO results |
 | `run_teams.py` | Team accuracy (0/1 permutation-invariant per match) |
 | `run_homography.py` | Pitch calibration (M1-CV-05/18): line-alignment `h_quality` on golden frames + (with GT) keypoint / field error in metres; `--model` (cv_core pipeline) or `--pred`; `--sp09` main_wide frames; `--render-dir` overlays (refuses paths inside the repo) |
+| `teams_vs_umap.py` | Team split (M1-CV-09): cv_core team model (spectral split + whitened LDA) vs SP-04 UMAP→KMeans on the same SigLIP crops (`collect` in the main env, `compare` in the training env `--with umap-learn`); montage for the visual check |
+| `run_pipeline_w3.py` | W3 smoke eval (M1-CV-08/09/10): S2 → S2b → segment plan → S3 → S4 on the first minutes of golden matches: segments, team split + crop grids, tracking fragmentation vs SP-05, wall time / fps per stage |
+| `bench_infer.py` | S4 throughput on one segment per detector provider (CPU EP vs CoreML EP on a Mac): detect / track / team-vote split |
 
 Every script prints per match, per stratum (pooled, not mean of means) and overall, and writes JSON.
 Raw videos are **not** in the repo: set `PITCHVISION_GOLDEN_DIR` (default `<repo>/data/golden`);
