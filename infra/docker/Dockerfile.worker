@@ -76,8 +76,13 @@ RUN set -eux; \
 
 COPY --from=builder /opt/python /opt/python
 COPY --from=builder /opt/venv /opt/venv
+# Model registry (names, versions, sha256, licences). Weights are NOT baked in: they are mounted or
+# fetched into PITCHVISION_MODEL_DIR (R2 models bucket in cloud, AD §9.2).
+COPY models/registry.yaml /app/models/registry.yaml
 
 ENV PATH=/opt/venv/bin:$PATH \
+    PITCHVISION_MODEL_REGISTRY=/app/models/registry.yaml \
+    PITCHVISION_MODEL_DIR=/models \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility,video

@@ -16,7 +16,6 @@ import time
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -109,17 +108,7 @@ def redis_url() -> Iterator[str]:
 
 # ---------------------------------------------------------------- S3 (SeaweedFS, same image as compose)
 S3_IMAGE = os.environ.get("PV_TEST_S3_IMAGE", "chrislusf/seaweedfs:4.48")
-S3_KEY, S3_SECRET, S3_BUCKET = "pvtest", "pvtest-secret-123", "pv-test-data"
-
-
-def s3_test_client(endpoint: str) -> Any:
-    import boto3
-    from botocore.config import Config
-
-    return boto3.client(
-        "s3", endpoint_url=endpoint, aws_access_key_id=S3_KEY, aws_secret_access_key=S3_SECRET, region_name="us-east-1",
-        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}, retries={"max_attempts": 1}),
-    )  # fmt: skip
+from worker_testkit import S3_BUCKET, S3_KEY, S3_SECRET, s3_test_client  # noqa: E402
 
 
 @pytest.fixture(scope="session")

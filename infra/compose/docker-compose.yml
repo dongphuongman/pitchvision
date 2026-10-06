@@ -79,6 +79,9 @@ x-worker: &worker
     args:
       BASE: ${PV_WORKER_BASE:-nvidia/cuda:12.4.1-runtime-ubuntu22.04}
   restart: unless-stopped
+  # Exported ONNX weights + shot model (see models/registry.yaml; checksums are verified on load).
+  volumes:
+    - ${PV_MODEL_DIR:-${HOME}/.cache/pitchvision/models}:/models:ro
   # every role (orchestrator, cpu-worker, ingest-worker, gpu-worker) reads/writes tables the API's migrations
   # create: the orchestrator's startup sweep failed when it raced `migrate`
   depends_on:
@@ -254,6 +257,9 @@ services:
     environment:
       <<: *pv-env
       WORKER_ROLE: cpu
+      # Each process loads its own models (~1.5 GB with D-FINE + SigLIP when GPU stages run here,
+      # PV_LOCAL_GPU_QUEUE=cpu). 10 processes OOM-killed an 8 GB Docker VM — keep this small.
+      WORKER_CONCURRENCY: ${PV_CPU_CONCURRENCY:-2}
 
   # YouTube ingest (S1, M1-BE-08). Own queue `ingest` so it can move to a host with a different egress IP
   # (M1-OPS-06; SP-10: residential IP worked, datacenter IPs untested against YouTube bot-checks).
@@ -271,6 +277,7 @@ services:
     environment:
       <<: *pv-env
       WORKER_ROLE: gpu
+      WORKER_CONCURRENCY: ${PV_GPU_CONCURRENCY:-1}  # one process per GPU (AD §4: gpu-worker = number of GPUs)
     shm_size: 2gb
     deploy:
       resources:

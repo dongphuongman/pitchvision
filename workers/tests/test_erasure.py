@@ -7,12 +7,12 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-from conftest import S3_BUCKET, S3_KEY, S3_SECRET, s3_test_client
 from pitchvision_schemas import keys
 from pitchvision_worker import erasure
 from pitchvision_worker.config import WorkerConfig
 from pitchvision_worker.repository import org_tx
 from sqlalchemy import Engine, create_engine, text
+from worker_testkit import S3_BUCKET, S3_KEY, S3_SECRET, s3_test_client
 
 
 @pytest.fixture

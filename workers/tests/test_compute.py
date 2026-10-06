@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import S3_BUCKET, s3_test_client
 from pipeline_fakes import WIDE, MemoryStore
 from pitchvision_schemas import CpuTask, ErrorCode, GpuTask, PipelineConfig, Segment
 from pitchvision_worker.celery_app import QUEUE_ORCHESTRATE, TASK_ON_RESULT, create_app
@@ -23,6 +22,7 @@ from pitchvision_worker.compute.stages import StageOutput
 from pitchvision_worker.compute.tasks import run_and_report
 from pitchvision_worker.config import WorkerConfig
 from pitchvision_worker.storage import ObjectStore
+from worker_testkit import S3_BUCKET, s3_test_client
 
 TAG = "sha-test"
 PREFIX = "results/orgs/o/videos/v/jobs/j/stages/shots/"

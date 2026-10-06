@@ -39,7 +39,7 @@ def segment_prefix(org_id: str, video_id: str, job_id: str, segment: int) -> str
 
 
 def job_results_prefix(org_id: str, video_id: str, job_id: str) -> str:
-    """Durable job artefacts: models/team_model.pkl, tracks/tracks.parquet, stats/…"""
+    """Durable job artefacts: models/team_model.json, tracks/tracks.parquet, stats/…"""
     return _video("results", org_id, video_id) + f"jobs/{job_id}/"
 
 
