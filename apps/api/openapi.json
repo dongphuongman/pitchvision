@@ -1103,6 +1103,53 @@
         }
       }
     },
+    "/api/v1/results/pitch-template": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Pitch Template",
+        "description": "The 32 pitch landmarks (index, name, kind, metres) + painted lines of the FIFA 105 × 68 template — SCR-15\nlandmark menu (E03) and pitch diagram / line preview (E05). Static.",
+        "operationId": "get_pitch_template_api_v1_results_pitch_template_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PitchTemplateInfo"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/results/{video_id}/manifest": {
       "get": {
         "tags": [
@@ -1162,13 +1209,72 @@
         }
       }
     },
+    "/api/v1/results/{video_id}/media": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Media",
+        "description": "Presigned URL of the normalized video (25 fps) for the workspace player, valid `expires_in` s\n(`PV_MEDIA_URL_TTL_S`, 6 h) — fetch again on a media error. 404 `reason: not_normalized` before S2 wrote it.",
+        "operationId": "get_media_api_v1_results__video_id__media_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/results/{video_id}/teams": {
       "get": {
         "tags": [
           "results"
         ],
         "summary": "Get Teams",
-        "description": "Teams of the video's analysis (one per team-model cluster; name / colour editable later).",
+        "description": "Teams of the video's analysis (one per team-model cluster) + sample crops per team: `sample_sheet.url` is\none image (S3's crop grid) and each team's `samples` are rectangles in it (≤ 8).",
         "operationId": "get_teams_api_v1_results__video_id__teams_get",
         "security": [
           {
@@ -1194,6 +1300,437 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TeamList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Patch Teams",
+        "description": "Confirm teams (SCR-14 E09): names (1–40 chars), colours (#rrggbb), optional swap of name + colour between the\ntwo clusters. Display-only — tiles keep the cluster number, the manifest maps it — so nothing is reprocessed.\n409 `reason: no_teams` before the analysis finished.",
+        "operationId": "patch_teams_api_v1_results__video_id__teams_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamsPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/results/{video_id}/teams/candidates": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Team Candidates",
+        "description": "Player boxes on team detection's sample frames (SCR-14 manual mode): show the frame\n(`GET …/calibration/frame?t_ms=`) and let the user click boxes per team. Also after TEAM_SEPARATION_FAILED.",
+        "operationId": "get_team_candidates_api_v1_results__video_id__teams_candidates_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamCandidates"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/results/{video_id}/teams/manual": {
+      "post": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Post Manual Teams",
+        "description": "Re-run team detection seeded with ≥ 2 picked players per team (SCR-14 E13): a new job of kind `team_rerun`\n(reuses normalize / shots of the latest job; re-runs calibrate → infer → …). Requires `Idempotency-Key`.\n409: an active job (`job_id`), or no analysis yet (`reason: no_analysis`).",
+        "operationId": "post_manual_teams_api_v1_results__video_id__teams_manual_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required. Unique per request.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Required. Unique per request."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualTeamsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/results/{video_id}/calibration": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Calibration",
+        "description": "Pitch calibration state for SCR-15: the latest analysis' status, a running job, the last manual points.",
+        "operationId": "get_calibration_api_v1_results__video_id__calibration_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationState"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Post Calibration",
+        "description": "Manual 4–8 point calibration (SCR-15 E09): starts a CPU-only `recalibrate` job (re-projection with the manual\nhomography → tiles under a new revision → positions → new manifest; ~1–2 min). Track it like any job (WS topic\n`job:{id}`); the current manifest stays served until the new one is live. Requires `Idempotency-Key`.\n422 `reason`: frame_ms (points on different frames) · duplicate_landmark · collinear · not_analysed_shot.",
+        "operationId": "post_calibration_api_v1_results__video_id__calibration_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required. Unique per request.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Required. Unique per request."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalibrationIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationAccepted"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/results/{video_id}/calibration/frame": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Calibration Frame",
+        "description": "A still of the normalized video at `t_ms` (snapped to 25 fps) as a presigned JPEG URL (SCR-14 manual mode,\nSCR-15). Extracted by a worker on first use (may take a few seconds), cached afterwards. 503 when the worker\nis busy / down (retry), 404 `reason: no_video` before S2, 422 `reason: out_of_range` past the end.",
+        "operationId": "get_calibration_frame_api_v1_results__video_id__calibration_frame_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "t_ms",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 21600000,
+              "minimum": 0,
+              "title": "T Ms"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrameOut"
                 }
               }
             }
@@ -1448,6 +1985,205 @@
   },
   "components": {
     "schemas": {
+      "CalibrationAccepted": {
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobOut",
+            "description": "the `recalibrate` job — progress over WS topic job:{id}, like any job"
+          },
+          "correction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Correction Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision",
+            "description": "tiles revision the new manifest will carry"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job",
+          "correction_id",
+          "revision"
+        ],
+        "title": "CalibrationAccepted"
+      },
+      "CalibrationIn": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/CalibrationPoint"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "minItems": 4,
+            "title": "Points"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "shot",
+              "video"
+            ],
+            "title": "Scope",
+            "default": "shot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "title": "CalibrationIn",
+        "description": "SCR-15 E09. Scope ``shot``: the manual H replaces every frame of the analysed shot containing ``frame_ms``.\n``video``: also every analysed frame of other shots whose automatic H is missing / weak."
+      },
+      "CalibrationPoint": {
+        "properties": {
+          "template_index": {
+            "type": "integer",
+            "maximum": 31.0,
+            "minimum": 0.0,
+            "title": "Template Index",
+            "description": "GET /results/pitch-template keypoint index"
+          },
+          "x": {
+            "type": "number",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "X",
+            "description": "pixel on the normalized video frame"
+          },
+          "y": {
+            "type": "number",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Y"
+          },
+          "frame_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Frame Ms",
+            "description": "the frame the point was clicked on (all points: the same frame)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_index",
+          "x",
+          "y",
+          "frame_ms"
+        ],
+        "title": "CalibrationPoint"
+      },
+      "CalibrationState": {
+        "properties": {
+          "pitch_calibration": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "degraded",
+                  "manual",
+                  "unavailable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pitch Calibration",
+            "description": "of the latest finished analysis"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id",
+            "description": "latest finished analysis"
+          },
+          "active_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the video's running job, if any (e.g. a recalibrate job)"
+          },
+          "last_manual": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ManualCalibration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the latest manual calibration (prefill / Reset)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pitch_calibration",
+          "job_id",
+          "active_job",
+          "last_manual"
+        ],
+        "title": "CalibrationState"
+      },
+      "CandidateFrame": {
+        "properties": {
+          "t_ms": {
+            "type": "integer",
+            "title": "T Ms"
+          },
+          "frame_idx": {
+            "type": "integer",
+            "title": "Frame Idx"
+          },
+          "boxes": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 4,
+              "minItems": 4
+            },
+            "type": "array",
+            "title": "Boxes",
+            "description": "player candidates [x1, y1, x2, y2]"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_ms",
+          "frame_idx",
+          "boxes"
+        ],
+        "title": "CandidateFrame"
+      },
       "CompletedPart": {
         "properties": {
           "part_number": {
@@ -1555,6 +2291,31 @@
           "type"
         ],
         "title": "FieldError"
+      },
+      "FrameOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "presigned GET of a JPEG of normalized.mp4 at t_ms"
+          },
+          "t_ms": {
+            "type": "integer",
+            "title": "T Ms",
+            "description": "snapped to the 25 fps frame grid"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "t_ms",
+          "expires_in"
+        ],
+        "title": "FrameOut"
       },
       "FromUrlIn": {
         "properties": {
@@ -1722,7 +2483,31 @@
               }
             ],
             "title": "Stage",
-            "description": "Current stage: ingest, normalize, shots, plan, calibrate, infer, stitch, tiles, load_db"
+            "description": "Current stage: ingest, normalize, shots, plan, calibrate, infer, stitch, recompute, tiles, load_db, manifest"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "team_rerun",
+              "recalibrate"
+            ],
+            "title": "Kind",
+            "description": "analyze · team_rerun (SCR-14 manual teams: re-runs S3 with the user's seeds, then S4…) · recalibrate (SCR-15 manual pitch calibration: CPU re-projection + new tiles revision, no GPU)",
+            "default": "analyze"
+          },
+          "parent_job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Job Id",
+            "description": "derived jobs: the job whose finished stages they reuse"
           },
           "segments": {
             "anyOf": [
@@ -2018,6 +2803,114 @@
         ],
         "title": "Manifest"
       },
+      "ManualCalibration": {
+        "properties": {
+          "correction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Correction Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/CalibrationPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "shot",
+              "video"
+            ],
+            "title": "Scope"
+          },
+          "frame_ms": {
+            "type": "integer",
+            "title": "Frame Ms"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "correction_id",
+          "revision",
+          "points",
+          "scope",
+          "frame_ms",
+          "created_at"
+        ],
+        "title": "ManualCalibration"
+      },
+      "ManualTeamsIn": {
+        "properties": {
+          "samples": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/SeedBox"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "type": "object",
+            "title": "Samples",
+            "description": "{\"0\": [{t_ms, box} ×≥2], \"1\": [...]} — key = the team (cluster) the player belongs to"
+          }
+        },
+        "type": "object",
+        "required": [
+          "samples"
+        ],
+        "title": "ManualTeamsIn",
+        "description": "SCR-14 manual mode (E11/E13): ≥ 2 players per team picked on sample frames."
+      },
+      "MediaOut": {
+        "properties": {
+          "video_url": {
+            "type": "string",
+            "title": "Video Url",
+            "description": "presigned GET of normalized.mp4 (H.264, 25 fps); re-fetch on media error"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          },
+          "fps": {
+            "type": "integer",
+            "title": "Fps"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_url",
+          "expires_in",
+          "fps",
+          "width",
+          "height"
+        ],
+        "title": "MediaOut"
+      },
       "Meta": {
         "properties": {
           "version": {
@@ -2083,6 +2976,40 @@
           "status"
         ],
         "title": "PitchCalibration"
+      },
+      "PitchTemplateInfo": {
+        "properties": {
+          "length_m": {
+            "type": "number",
+            "title": "Length M"
+          },
+          "width_m": {
+            "type": "number",
+            "title": "Width M"
+          },
+          "keypoints": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateKeypoint"
+            },
+            "type": "array",
+            "title": "Keypoints"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "length_m",
+          "width_m",
+          "keypoints",
+          "lines"
+        ],
+        "title": "PitchTemplateInfo"
       },
       "ProblemDetails": {
         "properties": {
@@ -2158,6 +3085,102 @@
         ],
         "title": "ProblemDetails",
         "description": "OpenAPI shape of every 4xx/5xx body: Problem + optional extensions."
+      },
+      "SampleCrop": {
+        "properties": {
+          "x": {
+            "type": "integer",
+            "title": "X"
+          },
+          "y": {
+            "type": "integer",
+            "title": "Y"
+          },
+          "w": {
+            "type": "integer",
+            "title": "W"
+          },
+          "h": {
+            "type": "integer",
+            "title": "H"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "w",
+          "h"
+        ],
+        "title": "SampleCrop",
+        "description": "One player crop inside ``TeamList.sample_sheet`` (CSS sprite: ``background-position: -x px -y px``)."
+      },
+      "SampleSheet": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "presigned GET, expires (re-fetch /teams after `expires_in` s)"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "expires_in",
+          "width",
+          "height"
+        ],
+        "title": "SampleSheet",
+        "description": "S3's crop grid (``team_samples.jpg``): one row of crops per team, most typical first."
+      },
+      "SeedBox": {
+        "properties": {
+          "t_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "T Ms",
+            "description": "time of the frame on the normalized video (snapped to 25 fps)"
+          },
+          "box": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Box",
+            "description": "[x1, y1, x2, y2] pixels on the normalized video"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_ms",
+          "box"
+        ],
+        "title": "SeedBox"
       },
       "SegmentCounts": {
         "properties": {
@@ -2285,6 +3308,62 @@
         ],
         "title": "StoredPartOut"
       },
+      "TeamCandidates": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id"
+          },
+          "fps": {
+            "type": "number",
+            "title": "Fps"
+          },
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateFrame"
+            },
+            "type": "array",
+            "title": "Frames"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "fps",
+          "frames"
+        ],
+        "title": "TeamCandidates",
+        "description": "Clickable player boxes on S3's sample frames (SCR-14 manual mode E10/E11); frame images via\nGET /results/{id}/calibration/frame?t_ms=."
+      },
+      "TeamEdit": {
+        "properties": {
+          "cluster": {
+            "type": "integer",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Cluster"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cluster",
+          "name",
+          "color"
+        ],
+        "title": "TeamEdit"
+      },
       "TeamInfo": {
         "properties": {
           "cluster": {
@@ -2322,6 +3401,29 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id",
+            "description": "analysis the teams / samples come from (latest done job)"
+          },
+          "sample_sheet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SampleSheet"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -2347,7 +3449,7 @@
               }
             ],
             "title": "Cluster",
-            "description": "team-model cluster (0 / 1) the team was created from"
+            "description": "team-model cluster (0 / 1) the team was created from — the `team` value in tiles / tracks; never changes for a video's analysis"
           },
           "name": {
             "anyOf": [
@@ -2375,6 +3477,14 @@
           "confirmed": {
             "type": "boolean",
             "title": "Confirmed"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/SampleCrop"
+            },
+            "type": "array",
+            "title": "Samples",
+            "description": "≤ 8 crops of this cluster in `sample_sheet`"
           }
         },
         "type": "object",
@@ -2386,6 +3496,123 @@
           "confirmed"
         ],
         "title": "TeamOut"
+      },
+      "TeamsPatch": {
+        "properties": {
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/TeamEdit"
+            },
+            "type": "array",
+            "maxItems": 2,
+            "title": "Teams"
+          },
+          "swap": {
+            "type": "boolean",
+            "title": "Swap",
+            "default": false
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "TeamsPatch",
+        "description": "SCR-14 E02/E03/E04/E09. ``teams`` edits are applied by cluster first; then ``swap`` exchanges name + colour\nof the two clusters. Send the final mapping with ``swap: false`` (recommended), or the pre-swap values with\n``swap: true``. Clusters (= tile ``team`` values) never move, so no tile is regenerated."
+      },
+      "TemplateKeypoint": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "maximum": 31.0,
+            "minimum": 0.0,
+            "title": "Index"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "e.g. corner_tl, l_box_front_far, half_circle_near"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "intersection",
+              "arc",
+              "spot",
+              "virtual"
+            ],
+            "title": "Kind",
+            "description": "intersection / arc on the halfway line = precise; spot; virtual = not painted (extrapolated, noisier); circle_left/right are tangent points (imprecise along x)"
+          },
+          "x": {
+            "type": "number",
+            "title": "X",
+            "description": "metres"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y",
+            "description": "metres"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "name",
+          "kind",
+          "x",
+          "y"
+        ],
+        "title": "TemplateKeypoint"
+      },
+      "TemplateLine": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "segment",
+              "arc",
+              "spot"
+            ],
+            "title": "Kind"
+          },
+          "closed": {
+            "type": "boolean",
+            "title": "Closed",
+            "default": false
+          },
+          "points": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Points",
+            "description": "polyline in metres"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "points"
+        ],
+        "title": "TemplateLine"
       },
       "TrackPage": {
         "properties": {
