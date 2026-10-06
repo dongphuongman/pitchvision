@@ -1,6 +1,6 @@
 ---
 status: in-progress
-branch: main → origin https://github.com/dongphuongman/pitchvision (private), CI green at 0153d6f
+branch: main → origin https://github.com/dongphuongman/pitchvision (private), CI green at 0153d6f; local commits 75f793f…(this HANDOFF) NOT pushed yet
 timestamp: 2026-10-06
 ---
 
@@ -11,7 +11,7 @@ tactical map, stats, AI report. Read `README.md` first (layout, commands, rules)
 "Trạng thái thực hiện" (rendered from `docs/status.json`).
 
 ## Where we are (M1, plan 12/10–20/11, alpha 04/12/2026)
-Done and on `main` (Python 855 tests, web 233 tests, CI green incl. 3 Docker images):
+Done and on `main` (Python 883 tests, web 238 tests; CI last green at 0153d6f):
 - Phase 0 spikes + Gate G0; SP-07 on real R2; SP-08 rVFC sync; SP-11 detector choice.
 - W1 foundation: uv + pnpm monorepo, import-linter, `packages/schemas`, Alembic + RLS, FastAPI, cv-core runtime/VideoReader, golden eval, web shell, Compose, Dockerfiles, GitHub Actions.
 - W2: identity-svc (auth, orgs, roles, invites, Google OIDC, JWKS), API JWT, presigned multipart upload, YouTube ingest (queue `ingest`), S2 normalise, shot classifier 97.9 %, D-FINE ONNX, keypoint/homography lib, auth/onboarding screens, Terraform R2.
@@ -19,13 +19,22 @@ Done and on `main` (Python 855 tests, web 233 tests, CI green incl. 3 Docker ima
 - W4: S5 stitch, optional pitch stage, S7 signed tiles (HMAC), S8 positions via `pv_worker` role, manifest; SCR-11 New analysis (YouTube + resumable upload), SCR-12 settings, upload tray, SCR-13 Processing.
 - W5: SCR-20 workspace (manifest + `/media`), SCR-14 team confirm/manual (team_rerun job), SCR-15 manual calibration (recalibrate job, CPU recompute, new revision).
 
-Contracts: `docs/contracts/identity-api.md`, `docs/contracts/pipeline-stages.md` (stages, keys, derived jobs).
+- W6: plans Free/Pro/Team (identity `subscriptions`, token claims `plan` / `quota_min`, `pitchvision_schemas.plans`);
+  S11 export render + `/api/v1/exports` + SCR-25 modal + SCR-26 page (M1-BE-17); monthly minute quota + `GET /usage`
+  + G.E06 meter (M1-BE-18); notifications table + `/api/v1/notifications` + SCR-51 bell + emails via identity
+  `/internal/v1/notifications/email` (M1-BE-19); test for recalibrating after HOMOGRAPHY_UNAVAILABLE (backend was
+  already right: an `analyze` job never fails on the pitch).
+
+Contracts: `docs/contracts/identity-api.md` (plans, quota), `docs/contracts/pipeline-stages.md` (stages, keys,
+derived jobs, exports, notifications).
 
 ## Next (doable on the Mac)
-1. Backend: accept manual calibration after a job failed with HOMOGRAPHY_UNAVAILABLE (now 409 `no_analysis`; web E11 link already exists).
-2. S11 export render + SCR-25 (M1-BE-17), quota minutes (M1-BE-18), in-app + email notifications (M1-BE-19).
-3. SCR-14 E05/E06 (attacking direction, goalkeeper/referee fix) — backend + web.
-4. SCR-01 landing, SCR-40/41/50/51, Playwright flows F1/F3/F4/F8 (M1-FE-14…16).
+1. Push the local commits and check CI (Docker images: worker needs ffmpeg/libx264 — already used by normalize).
+   Add `PV_INTERNAL_TOKEN` to `infra/compose/.env` to get notification emails in Mailpit locally.
+2. SCR-14 E05/E06 (attacking direction, goalkeeper/referee fix) — backend + web.
+3. SCR-40 billing section (plan, usage, waitlist upgrade = SCR-41), /preferences email toggles, SCR-01 landing,
+   SCR-50 error pages, Playwright flows F1/F3/F4/F8 (M1-FE-14…16).
+4. Export follow-ups: 1080p from source.mp4 (now an upscale of the 720p copy); "member joined" notification.
 
 ## Blocked on the PO
 - Keypoint model (tactical map): ~300 golden frames labelled (guide `training/keypoints/README.md`) + NVIDIA GPU (RunPod/4090). Until then every job reports `pitch_calibration = unavailable` (overlay works, map empty) unless calibrated manually.
