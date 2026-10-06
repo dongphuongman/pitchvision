@@ -328,6 +328,66 @@ def fit_team_model(emb: np.ndarray, *, embedder: str, embedder_sha256: str | Non
                      centroids=cent, radius=radius, stats=stats)
 
 
+def fit_seeded_team_model(emb: np.ndarray, seed_emb: np.ndarray, seed_labels: Sequence[int] | np.ndarray, *,
+                          embedder: str,
+                          embedder_sha256: str | None = None, params: FitParams | None = None,
+                          min_seeds: int = 2) -> TeamModel:
+    """Team model from user-picked seed crops (SCR-14 manual mode, after ``TEAM_SEPARATION_FAILED``).
+
+    ``seed_emb`` [S, D] are embeddings of crops the user assigned to team ``seed_labels[i]`` (0 / 1; ≥ ``min_seeds``
+    each). Instead of searching for a split, the initial centroids are the seed means in PCA space; every crop of
+    ``emb`` [N, D] (the usual S3 sample, may be empty) joins its nearest seed centroid, then the same whitened refit
+    as ``fit_team_model`` runs with the seeds pinned to their team. No separability / balance gate (the user decided)
+    and no canonical reordering: cluster ``j`` IS the user's team ``j``. ``stats.seed_agreement`` = share of seeds the
+    final model puts back in their own team (low = the picks contradict each other)."""
+    p = params or FitParams()
+    lab_s = np.asarray(seed_labels, np.int64)
+    counts = [int((lab_s == j).sum()) for j in (0, 1)]
+    if len(seed_emb) != len(lab_s) or min(counts) < min_seeds or not set(lab_s.tolist()) <= {0, 1}:
+        raise TeamSeparationFailed("too_few_seeds", f"seed crops per team {counts} < {min_seeds}",
+                                   {"seeds": counts})
+    x = np.concatenate([np.asarray(emb, np.float64).reshape(-1, np.asarray(seed_emb).shape[1]),
+                        np.asarray(seed_emb, np.float64)])
+    x = x / (np.linalg.norm(x, axis=1, keepdims=True) + 1e-12)
+    n = len(x) - len(lab_s)
+    is_seed = np.r_[np.zeros(n, bool), np.ones(len(lab_s), bool)]
+    mean, comp, evr = pca(x, max(1, min(p.n_components, len(x) - 1)))
+    z = (x - mean) @ comp.T
+    cent = np.array([z[is_seed][lab_s == j].mean(0) for j in (0, 1)])
+    lab = np.linalg.norm(z[:, None, :] - cent[None], axis=2).argmin(1)
+    lab[is_seed] = lab_s
+    inlier = np.ones(len(z), bool)
+    white = np.eye(z.shape[1])
+    radius = np.zeros(2)
+    zw = z
+    for it in range(3):
+        if it:
+            evals, evecs = np.linalg.eigh(_within_cov(z[inlier], lab[inlier], p.ridge))
+            white = (evecs / np.sqrt(np.maximum(evals, 1e-12))).T
+        zw = z @ white.T
+        cent = np.array([zw[inlier & (lab == j)].mean(0) for j in (0, 1)])
+        d = np.linalg.norm(zw[:, None, :] - cent[None], axis=2)
+        lab = d.argmin(1)
+        lab[is_seed] = lab_s
+        own = d[np.arange(len(zw)), lab]
+        radius = np.array([_radius(own[(lab == j) & (inlier | is_seed)], p.outlier_k) for j in (0, 1)])
+        inlier = (own <= radius[lab]) | is_seed
+    d = np.linalg.norm(zw[:, None, :] - cent[None], axis=2)
+    agreement = float((d[is_seed].argmin(1) == lab_s).mean())
+    sizes = np.array([(inlier & (lab == j)).sum() for j in (0, 1)])
+    stats: dict[str, Any] = {
+        "seeded": True, "seeds": counts, "crops": n, "split": "seeded", "cv_fisher": None,
+        "pca_explained": round(float(evr.sum()), 4), "n_components": int(comp.shape[0]),
+        "inliers": int(inlier.sum()), "outliers": int((~inlier).sum()), "cluster_sizes": [int(s) for s in sizes],
+        "min_share": round(float(sizes.min() / max(sizes.sum(), 1)), 4),
+        "centroid_distance": round(float(np.linalg.norm(cent[0] - cent[1])), 4),
+        "seed_agreement": round(agreement, 4),
+        "params": {"outlier_k": p.outlier_k, "ridge": p.ridge, "min_seeds": min_seeds},
+    }
+    return TeamModel(embedder=embedder, embedder_sha256=embedder_sha256, mean=mean, components=white @ comp,
+                     centroids=cent, radius=radius, stats=stats)
+
+
 def representative(model: TeamModel, emb: np.ndarray, n: int = 3) -> dict[int, list[int]]:
     """Indices of the ``n`` crops closest to each centroid (the UI's "is this team A?" samples)."""
     d = model.distances(emb)
