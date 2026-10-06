@@ -99,6 +99,89 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/results/{video_id}/manifest': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Manifest
+     * @description What the player needs before fetching tiles (fps, size, shots, coverage, teams, pitch status) for the
+     *     video's latest finished analysis. `tile_url_template` is signed and expires (`PV_TILE_URL_TTL_S`, 6 h): fetch
+     *     the manifest again when a tile answers 403. 409 `reason: processing` while the first analysis is running.
+     */
+    get: operations['get_manifest_api_v1_results__video_id__manifest_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/results/{video_id}/teams': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Teams
+     * @description Teams of the video's analysis (one per team-model cluster; name / colour editable later).
+     */
+    get: operations['get_teams_api_v1_results__video_id__teams_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/results/{video_id}/tracks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Tracks
+     * @description 5 Hz positions for analysts (AD §10.2) — the player uses the manifest + tiles instead. Keyset-paged.
+     */
+    get: operations['get_tracks_api_v1_results__video_id__tracks_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/tiles/{video_id}/{job_id}/r{revision}/{tile_no}.json.gz': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Tile
+     * @description One playback tile (`pitchvision_schemas.Tile`). Use the manifest's `tile_url_template`; 403 when the
+     *     signature is invalid or expired.
+     */
+    get: operations['get_tile_api_v1_tiles__video_id___job_id__r_revision___tile_no__json_gz_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/videos': {
     parameters: {
       query?: never;
@@ -336,6 +419,19 @@ export interface components {
       /** Part Number */
       part_number: number;
     };
+    /** Coverage */
+    Coverage: {
+      /**
+       * Homography Ok Pct
+       * @description % of main_wide frames with h_quality ≥ 0.5
+       */
+      homography_ok_pct: number;
+      /**
+       * Main Wide Pct
+       * @description % of duration with analysable wide shots
+       */
+      main_wide_pct: number;
+    };
     /**
      * ErrorCode
      * @enum {string}
@@ -513,14 +609,56 @@ export interface components {
       id: string;
       /**
        * Pitch Calibration
-       * @description Manifest `pitch.status` of the finished analysis (`degraded` → "Low pitch quality"). null until the job has calibrated the pitch (written by the orchestrator from W4, M1-CV-11/12).
+       * @description Manifest `pitch.status` of the analysis (`degraded` → "Low pitch quality"; `unavailable` → no pitch keypoint model, so no pitch coordinates / tactical map). null until S5 has run (the orchestrator writes jobs.detail.pitch_calibration, M1-CV-11/12).
        */
-      pitch_calibration: ('ok' | 'degraded' | 'manual') | null;
+      pitch_calibration: ('ok' | 'degraded' | 'manual' | 'unavailable') | null;
       /** Progress */
       progress: number;
       /** Stage */
       stage: string | null;
       status: components['schemas']['JobStatus'];
+    };
+    /** Manifest */
+    Manifest: {
+      coverage: components['schemas']['Coverage'];
+      /** Duration Ms */
+      duration_ms: number;
+      /** Fps */
+      fps: number;
+      /** Frame Count */
+      frame_count: number;
+      /** Height */
+      height: number;
+      /** Job Id */
+      job_id: string;
+      pitch: components['schemas']['PitchCalibration'];
+      /** Revision */
+      revision: number;
+      /**
+       * Schema Version
+       * @default 1
+       */
+      schema_version: number;
+      /** Shots */
+      shots: components['schemas']['Shot'][];
+      /** Teams */
+      teams: components['schemas']['TeamInfo'][];
+      /** Tile Count */
+      tile_count: number;
+      /**
+       * Tile Ms
+       * @default 10000
+       */
+      tile_ms: number;
+      /**
+       * Tile Url Template
+       * @description e.g. /api/v1/tiles/{video}/{job}/r0/{tile_no}.json.gz?exp=…&sig=… — {tile_no} is 6-digit. Signed, expires (re-fetch the manifest on 403). The stored manifest.json holds the object-key template.
+       */
+      tile_url_template: string;
+      /** Video Id */
+      video_id: string;
+      /** Width */
+      width: number;
     };
     /** Meta */
     Meta: {
@@ -535,6 +673,25 @@ export interface components {
       part_number: number;
       /** Url */
       url: string;
+    };
+    /** PitchCalibration */
+    PitchCalibration: {
+      /**
+       * Length M
+       * @default 105
+       */
+      length_m: number;
+      /**
+       * Status
+       * @description ok · degraded (> 30 % of main_wide frames below h_quality 0.5) · manual (user calibrated) · unavailable (no pitch keypoint model: px/py are null, no tactical map)
+       * @enum {string}
+       */
+      status: 'ok' | 'degraded' | 'manual' | 'unavailable';
+      /**
+       * Width M
+       * @default 68
+       */
+      width_m: number;
     };
     /**
      * ProblemDetails
@@ -566,6 +723,21 @@ export interface components {
       /** Total */
       total: number;
     };
+    /** Shot */
+    Shot: {
+      /** Conf */
+      conf: number;
+      /** T0 Ms */
+      t0_ms: number;
+      /** T1 Ms */
+      t1_ms: number;
+      type: components['schemas']['ShotType'];
+    };
+    /**
+     * ShotType
+     * @enum {string}
+     */
+    ShotType: 'main_wide' | 'close_up' | 'replay' | 'other';
     /** SignedParts */
     SignedParts: {
       /** Parts */
@@ -586,6 +758,91 @@ export interface components {
       part_number: number;
       /** Size */
       size: number;
+    };
+    /** TeamInfo */
+    TeamInfo: {
+      /** Cluster */
+      cluster: number;
+      /** Color */
+      color: string;
+      /**
+       * Confirmed
+       * @default false
+       */
+      confirmed: boolean;
+      /** Name */
+      name: string;
+    };
+    /** TeamList */
+    TeamList: {
+      /** Items */
+      items: components['schemas']['TeamOut'][];
+    };
+    /** TeamOut */
+    TeamOut: {
+      /**
+       * Cluster
+       * @description team-model cluster (0 / 1) the team was created from
+       */
+      cluster: number | null;
+      /**
+       * Color
+       * @description #rrggbb (mean shirt colour of the cluster until the user changes it)
+       */
+      color: string | null;
+      /** Confirmed */
+      confirmed: boolean;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string | null;
+    };
+    /** TrackPage */
+    TrackPage: {
+      /**
+       * Items
+       * @description ordered by (ts_ms, track_id)
+       */
+      items: components['schemas']['TrackPoint'][];
+      /**
+       * Next Cursor
+       * @description pass as `cursor` with the same from_ms / to_ms for the next page
+       */
+      next_cursor: string | null;
+    };
+    /**
+     * TrackPoint
+     * @description One 5 Hz sample (AD §9.3 positions). Pitch metres on 105 × 68; null without homography.
+     */
+    TrackPoint: {
+      /** Px */
+      px: number | null;
+      /** Py */
+      py: number | null;
+      /**
+       * Q
+       * @description h_quality of the frame (0..1)
+       */
+      q: number | null;
+      /** Team */
+      team: number | null;
+      /**
+       * Track Id
+       * @description global track id (players); -1 = ball
+       */
+      track_id: number;
+      /** Ts Ms */
+      ts_ms: number;
+      /**
+       * Vx
+       * @description m/s
+       */
+      vx: number | null;
+      /** Vy */
+      vy: number | null;
     };
     /** UploadComplete */
     UploadComplete: {
@@ -967,6 +1224,179 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Meta'];
+        };
+      };
+    };
+  };
+  get_manifest_api_v1_results__video_id__manifest_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Manifest'];
+        };
+      };
+    };
+  };
+  get_teams_api_v1_results__video_id__teams_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamList'];
+        };
+      };
+    };
+  };
+  get_tracks_api_v1_results__video_id__tracks_get: {
+    parameters: {
+      query?: {
+        cursor?: string | null;
+        from_ms?: number;
+        limit?: number;
+        /** @description exclusive; default from_ms + 60 s; window ≤ 10 min */
+        to_ms?: number | null;
+      };
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TrackPage'];
+        };
+      };
+    };
+  };
+  get_tile_api_v1_tiles__video_id___job_id__r_revision___tile_no__json_gz_get: {
+    parameters: {
+      query: {
+        /** @description unix seconds; from the manifest's tile_url_template */
+        exp: number;
+        sig: string;
+      };
+      header?: never;
+      path: {
+        job_id: string;
+        revision: number;
+        tile_no: number;
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description gzip-encoded `Tile` JSON (Content-Encoding: gzip) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': Record<string, never>;
         };
       };
     };

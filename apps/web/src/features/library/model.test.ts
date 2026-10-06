@@ -57,6 +57,10 @@ describe('library model', () => {
     expect(cardStatus(ready, { status: 'done', pitch_calibration: 'ok' })).toBe('ready');
     expect(cardStatus(ready, { status: 'done', pitch_calibration: null })).toBe('ready');
     expect(cardTarget('v', 'ready_degraded')).toEqual({ kind: 'workspace', videoId: 'v' });
+    expect(cardStatus(ready, { status: 'done', pitch_calibration: 'unavailable' })).toBe(
+      'ready_no_pitch',
+    );
+    expect(cardTarget('v', 'ready_no_pitch')).toEqual({ kind: 'workspace', videoId: 'v' });
     // The status filter reads `latest_job` straight from the list item.
     const v = mockVideo({
       status: 'ready',

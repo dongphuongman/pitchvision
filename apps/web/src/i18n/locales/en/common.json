@@ -89,6 +89,7 @@
       "needs_calibration": "Calibrate pitch",
       "ready": "Ready",
       "ready_degraded": "Ready · Low pitch quality",
+      "ready_no_pitch": "Ready · No pitch map",
       "failed": "Failed",
       "cancelled": "Cancelled"
     },

@@ -15,7 +15,10 @@ export type FrameCount = number;
 export type Height = number;
 export type JobId = string;
 export type LengthM = number;
-export type Status = 'ok' | 'degraded' | 'manual';
+/**
+ * ok · degraded (> 30 % of main_wide frames below h_quality 0.5) · manual (user calibrated) · unavailable (no pitch keypoint model: px/py are null, no tactical map)
+ */
+export type Status = 'ok' | 'degraded' | 'manual' | 'unavailable';
 export type WidthM = number;
 export type Revision = number;
 export type SchemaVersion = number;
@@ -36,7 +39,7 @@ export type Teams = TeamInfo[];
 export type TileCount = number;
 export type TileMs = number;
 /**
- * e.g. https://tiles.…/{tile_no}.json.gz?sig=… — {tile_no} is 6-digit
+ * e.g. /api/v1/tiles/{video}/{job}/r0/{tile_no}.json.gz?exp=…&sig=… — {tile_no} is 6-digit. Signed, expires (re-fetch the manifest on 403). The stored manifest.json holds the object-key template.
  */
 export type TileUrlTemplate = string;
 export type VideoId = string;

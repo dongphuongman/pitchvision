@@ -35,6 +35,7 @@ export type VideoStatus =
   | 'needs_calibration'
   | 'ready'
   | 'ready_degraded'
+  | 'ready_no_pitch'
   | 'failed'
   | 'cancelled';
 
@@ -48,6 +49,7 @@ export const VIDEO_STATUS_TONE: Record<VideoStatus, BadgeTone> = {
   needs_calibration: 'warn',
   ready: 'ok',
   ready_degraded: 'ok',
+  ready_no_pitch: 'ok',
   failed: 'err',
   cancelled: 'mute',
 };

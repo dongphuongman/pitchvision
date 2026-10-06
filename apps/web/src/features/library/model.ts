@@ -51,7 +51,13 @@ export function cardStatus(
     case 'postprocessing':
       return 'analyzing';
     case 'done':
-      return job.pitch_calibration === 'degraded' ? 'ready_degraded' : 'ready';
+      // `unavailable`: no homography at all (no pitch keypoint model yet / calibration failed) →
+      // video overlay works, tactical map and pitch coordinates don't.
+      return job.pitch_calibration === 'degraded'
+        ? 'ready_degraded'
+        : job.pitch_calibration === 'unavailable'
+          ? 'ready_no_pitch'
+          : 'ready';
     case 'failed':
       return 'failed';
     case 'cancelled':
@@ -80,6 +86,7 @@ const STATUS_GROUP: Record<VideoStatus, StatusFilter> = {
   needs_calibration: 'needs_action',
   ready: 'ready',
   ready_degraded: 'ready',
+  ready_no_pitch: 'ready',
   failed: 'failed',
   cancelled: 'all',
 };
@@ -145,6 +152,7 @@ export function cardTarget(videoId: string, status: VideoStatus): CardTarget {
       return null;
     case 'ready':
     case 'ready_degraded':
+    case 'ready_no_pitch':
       return { kind: 'workspace', videoId };
     default:
       // preparing / queued / analyzing / failed / cancelled → SCR-13; "not analyzed" also lands

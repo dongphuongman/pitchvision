@@ -56,7 +56,8 @@ export function VideoCard({ video, view, onAction }: VideoCardProps) {
   const live = isJobRunning(job);
   const pct = live && job ? Math.round(job.progress) : null;
   const coveragePct =
-    (status === 'ready' || status === 'ready_degraded') && job?.coverage
+    (status === 'ready' || status === 'ready_degraded' || status === 'ready_no_pitch') &&
+    job?.coverage
       ? fmt.percent(job.coverage.main_wide_pct)
       : null;
 
