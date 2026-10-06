@@ -31,6 +31,10 @@ Done and on `main` (Python 889 tests, web 256 tests, CI green incl. 3 Docker ima
   — a non-owner's request emails the owners); opened from the minutes meter, 1080p export, quota 402; SCR-01
   landing at `/` (signed-in → library; Choose Pro → sign-up `plan=pro` → SCR-41 after onboarding); SCR-50 /403;
   Playwright e2e F1 / F3 / F4 / F8 against the dev server in mock-API mode (`pnpm web:e2e`, CI job `e2e`).
+- Compose smoke test on the Mac (2026-10-06): a real 20 s broadcast clip ran register → Mailpit verify → org →
+  multipart upload → the whole pipeline on CPU (S4 ~7 min) → manifest → export (5 s) → download → in-app + email
+  notifications. Fixed on the way: stage tasks of cancelled jobs ran after a worker restart (now skipped), ball
+  trails jumping across the frame, 1080p exports now read the original upload.
 
 Contracts: `docs/contracts/identity-api.md` (plans, quota), `docs/contracts/pipeline-stages.md` (stages, keys,
 derived jobs, exports, notifications).

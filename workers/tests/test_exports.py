@@ -260,3 +260,9 @@ def test_render_1080_from_the_original_on_the_same_frames(tmp_path: Path) -> Non
     assert np.abs(fa - fb).mean() < 8  # same frame f0 (a shifted frame would move the synthetic players)
     # without a larger original it falls back to the normalized copy
     assert render(sp, str(clip), tracks, tmp_path / "x.mp4", source_url=str(clip)).from_source is False
+
+
+def test_trails_break_at_detection_jumps() -> None:
+    pts = [(0, 0), (5, 0), (10, 0), (400, 300), (404, 300)]
+    assert export_render.split_jumps(pts, 43.2) == [[(0, 0), (5, 0), (10, 0)], [(400, 300), (404, 300)]]
+    assert export_render.split_jumps([], 10) == []

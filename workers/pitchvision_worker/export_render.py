@@ -29,6 +29,7 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from fractions import Fraction
+from itertools import pairwise
 from pathlib import Path
 from typing import IO, Any
 
@@ -48,6 +49,7 @@ LABEL_BG = (13, 9, 5)  # BGR of rgba(5,9,13)
 PITCH_BG = (52, 94, 36)
 PITCH_MARGIN_M = 4.0
 TRAIL_S = 1.0
+TRAIL_MAX_STEP = 0.06  # × frame height: a longer hop between frames is a detection jump, not motion
 PROGRESS_EVERY_S = 2.0
 DECODER_WAIT_S = 30.0
 ENCODER_WAIT_S = 600.0  # flushing x264's lookahead + muxing the audio + faststart rewrite
@@ -248,7 +250,10 @@ class Painter:
             pts = [(px, py) for pf, px, py in q if f - pf < self.trail_len]
             if len(pts) >= 2:
                 color = self.color(cls, int(rows["team"][i]))
-                cv2.polylines(frame, [np.array(pts, np.int32)], False, color, max(1, self.thick - 1), cv2.LINE_AA)
+                for seg in split_jumps(pts, TRAIL_MAX_STEP * self.video_h):
+                    if len(seg) >= 2:
+                        cv2.polylines(frame, [np.array(seg, np.int32)], False, color, max(1, self.thick - 1),
+                                      cv2.LINE_AA)  # fmt: skip
         for tid in [t for t in self.trails if t not in seen and f - self.trails[t][-1][0] >= self.trail_len]:
             del self.trails[tid]
 
@@ -278,6 +283,18 @@ def _text_color(color: tuple[int, int, int], unknown: tuple[int, int, int]) -> t
     """Team colour on the dark label, white when that colour is too dark to read (or unknown)."""
     b, g, r = color
     return (255, 255, 255) if color == unknown or 0.299 * r + 0.587 * g + 0.114 * b < 110 else color
+
+
+def split_jumps(pts: list[tuple[int, int]], max_step: float) -> list[list[tuple[int, int]]]:
+    """Cut a trail where consecutive points are farther apart than ``max_step`` px (ball re-detected elsewhere,
+    id switch) so no straight line is drawn across the frame."""
+    out: list[list[tuple[int, int]]] = [[pts[0]]] if pts else []
+    for a, b in pairwise(pts):
+        if math.hypot(b[0] - a[0], b[1] - a[1]) > max_step:
+            out.append([b])
+        else:
+            out[-1].append(b)
+    return out
 
 
 def _dashed_rect(img: np.ndarray, p1: tuple[int, int], p2: tuple[int, int], color: tuple[int, int, int],

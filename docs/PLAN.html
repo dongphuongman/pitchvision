@@ -172,6 +172,7 @@
   </table>
   <h3>Nhật ký</h3>
   <ul>
+      <li><code>2026-10-06</code> Smoke test Compose trên Mac với clip broadcast thật 20 s: đăng ký → xác minh email (Mailpit) → org → upload multipart (SeaweedFS) → job chạy hết S2→S4 (CPU, ~9 phút)→manifest → export MP4 (5 s) → tải về → thông báo in-app + email. Sửa: task của job đã huỷ vẫn chạy sau khi worker khởi động lại; vệt bóng nối thẳng khi detection nhảy; export 1080p đọc từ file gốc; x264/OpenCV chia lõi theo tiến trình.</li>
       <li><code>2026-10-06</code> M1-FE-16 Playwright: F1/F3/F4/F8 trên dev server mock API (Chromium), thêm job CI e2e; sửa lỗi điều hướng sau khi bấm Analyze/Start upload.</li>
       <li><code>2026-10-06</code> SCR-01 landing công khai (người đã đăng nhập vào thẳng Library), luồng plan=pro mở SCR-41 sau onboarding, SCR-50 trang 403. Web 256 test.</li>
       <li><code>2026-10-06</code> SCR-40 Settings (hồ sơ, tổ chức, thành viên, billing, email thông báo) + SCR-41 nâng cấp dạng waitlist; identity thêm PATCH /me, đổi mật khẩu, đăng xuất phiên khác, upgrade-requests (email Owner). Python 889, web 251 test.</li>
