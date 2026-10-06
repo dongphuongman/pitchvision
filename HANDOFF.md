@@ -14,7 +14,7 @@ files_modified:
   - spikes/ (sp11_detectors.py, sp08_prepare.py, sp08_run.py, sp08_overlay/, sp07_run.py, sp07_upload/, sp02_bench.py, sp03_homography.py, sp04_teams.py, sp05_tracking.py, sp09_sample.py, sp09_classify.py, botsort_gmc.yaml, results/)
 ---
 
-## Working on: PitchVision AI — M1 W4 server chain + SCR-11/12/13 merged
+## Working on: PitchVision AI — M1 workspace + SCR-14/15 merged
 
 ### Summary
 
@@ -52,6 +52,7 @@ PitchVision AI = web SaaS that analyses football broadcast video (detection, tea
    Notes: `positions` hypertable has no RLS (Timescale compression forbids it) → read via `positions_org` view; api must sign presigned URLs with PV_STORAGE_PUBLIC_ENDPOINT (M1-BE-07); worker CUDA image 8.1 GB (AD estimated 6); no GitHub remote yet so CI never ran.
 3b. DONE (06/10): M1 W2 Mac-doable part — see docs/status.json M1-W2. Contract: docs/contracts/identity-api.md. Object keys: pitchvision_schemas.keys (storage class first). E2E script idea: register→Mailpit→verify→org→upload→RLS→region 409→identity restart→YouTube preview (all passed).
    Remaining W2: GPU fine-tunes (D-FINE, YOLOv11-pose), label 300 golden frames for keypoints (SoccerNet research-only), M1-OPS-05 needs domain + Resend.
+3f. DONE (06/10): SCR-20 workspace (manifest + /media), SCR-14 teams confirm/manual (backend: swap = exchange name/colour, team_rerun job), SCR-15 manual calibration (backend: recalibrate job, CPU recompute, new revision). Next M1: keypoint model (labels + GPU), GPU E2E, S11 export + SCR-25, quota (M1-BE-18), notifications (M1-BE-19), staging/DNS/email (needs domain + Resend).
 3e. DONE (06/10): M1 W4 server chain (S5 stitch, optional pitch stage, S7 tiles, S8 load-db via pv_worker role, manifest, signed tiles) + web SCR-11/12/13 + upload tray. Next: SCR-20 workspace on real manifest/tiles (M1-FE-12), SCR-14 team confirmation, SCR-15 manual calibration, keypoint model (needs ~300 labelled golden frames + GPU). Fixed: stage tasks fail fast on worker loss; ORT threads split per process.
 3d. DONE (06/10): M1 W3 non-GPU — see docs/status.json M1-W3; contract docs/contracts/pipeline-stages.md. README.md added.
    Follow-ups: cap ORT intra-op threads per worker process; mark SIGKILLed (WorkerLost) tasks failed immediately instead of waiting the 30 min infer timeout; run full E2E (S4) on a GPU box; compose PV_CPU_CONCURRENCY default 2 (10 OOM-killed the 8 GB Docker VM).

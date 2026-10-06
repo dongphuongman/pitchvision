@@ -90,6 +90,12 @@
       "title": "M1 tuần 4–5 (kết quả, tile, màn hình tạo/xử lý)",
       "state": "partial",
       "note": "<strong>Server (merge):</strong> S5 ghép track trong cùng cảnh, nội suy ≤ 0,4 s (M1-CV-13); stage homography tuỳ chọn — chạy khi có model keypoint đăng ký, hiện chưa có nên pitch_calibration = unavailable (M1-CV-11/12); S7 tile 10 s đủ cả video, kiểm theo schema Tile (M1-BE-13); S8 nạp positions 5 Hz + teams (màu áo) + players qua role <code>pv_worker</code> có trigger chặn ghi sai tổ chức (M1-BE-14); manifest ghi sau cùng, API manifest/teams/tracks (M1-BE-15); tile ký HMAC-SHA256 TTL 6 h, kiểm chữ ký trước khi trả (M1-BE-16); orchestrator chạy đủ chuỗi tới done. <strong>Web:</strong> SCR-11 New analysis — YouTube preview + Analyze, upload multipart 6 luồng có resume/huỷ/chạy nền (M1-FE-09); SCR-12 Standard/Fast + confidence vào job config (M1-FE-10); upload tray G.B07; SCR-13 Processing realtime: bước, %, fps, ETA, segment, huỷ, retry, tự mở workspace (một phần M1-FE-13); nhãn 'Ready · No pitch map'. <strong>Kiểm tra:</strong> Python 832 test, web 207 test. <strong>Còn lại:</strong> workspace SCR-20 nối manifest/tile thật (M1-FE-12), SCR-14 xác nhận đội, SCR-15 hiệu chỉnh sân; model keypoint (cần nhãn golden + GPU); E2E đầy đủ trên máy GPU."
+    },
+    {
+      "id": "M1-W5",
+      "title": "M1 tuần 5–6 (workspace, đội, hiệu chỉnh sân)",
+      "state": "partial",
+      "note": "<strong>Xong:</strong> workspace SCR-20 trên manifest/media thật (M1-FE-12); SCR-14 xác nhận đội (tên, màu, hoán đổi không cần xử lý lại) + chọn mẫu đội thủ công → job chạy lại từ S3; SCR-15 hiệu chỉnh sân 4–8 điểm → job CPU tính lại toạ độ + tile revision mới (M1-BE-20); lối vào từ workspace và Processing. <strong>Kiểm tra:</strong> Python 855 test, web 233 test. <strong>Hạn chế:</strong> homography tay là 1 H/cảnh (camera lia/zoom → chỉ chính xác quanh khung đã click); chưa có hướng tấn công, sửa thủ môn/trọng tài; hiệu chỉnh tay cần 1 lần phân tích xong. <strong>Còn lại M1:</strong> model keypoint sân (cần ~300 khung golden gán nhãn + GPU), E2E trên máy GPU, export S11 + SCR-25, quota, thông báo, staging (domain + Resend)."
     }
   ],
   "log": [
@@ -164,6 +170,10 @@
     {
       "date": "2026-10-06",
       "text": "M1 W4 (server) + màn hình SCR-11/12/13 đã merge: chuỗi S5→S7/S8→manifest chạy tới done, tile ký HMAC, role pv_worker cho positions; upload multipart có resume trên web. Còn workspace thật và model keypoint."
+    },
+    {
+      "date": "2026-10-06",
+      "text": "Workspace SCR-20, SCR-14 xác nhận đội, SCR-15 hiệu chỉnh sân (web + backend) đã merge và push. Python 855 test, web 233 test."
     }
   ]
 }
