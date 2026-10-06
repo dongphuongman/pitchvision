@@ -48,3 +48,15 @@ homography lands in W4) · ZSTD. Schema + writer live in `cv_core.io.parquet` wi
 - The socket's own control frames (`subscribed`, `unsubscribed`, `ping`, `pong`, `error`) are part of the same
   `ServerEvent` union (exported JSON Schema `ws_server_event`).
 - Per-segment retries: 3 attempts, backoff 30 s / 2 min / 5 min; other segments continue (AD §16).
+
+## What the API reads back (VideoOut.latest_job)
+`GET /api/v1/videos[/{id}]` embeds the newest job: `{id, status, progress, stage, error, coverage, pitch_calibration}`.
+`coverage` is `jobs.coverage`; `pitch_calibration` (`ok` | `degraded` | `manual`, the manifest's `pitch.status`) is
+read from **`jobs.detail.pitch_calibration`** — null until the orchestrator writes it once S3/S5 have calibrated the
+pitch (W4, M1-CV-11/12). The web shows "Ready · Low pitch quality" for `degraded`.
+
+## Video deletion (AD §14)
+`DELETE /api/v1/videos/{id}` cancels the active job (→ `orchestrate.cancel_job`), soft-deletes the row and enqueues
+`cpu.delete_video_objects(org_id, video_id)` (`pitchvision_worker.erasure`): every object under
+`keys.video_prefixes` + in-progress multipart uploads, with a final pass 4 h later for outputs of stage tasks that
+were mid-flight. Stages must therefore only write under the keys above.
