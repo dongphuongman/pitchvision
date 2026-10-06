@@ -79,9 +79,12 @@ x-worker: &worker
     args:
       BASE: ${PV_WORKER_BASE:-nvidia/cuda:12.4.1-runtime-ubuntu22.04}
   restart: unless-stopped
+  # every role (orchestrator, cpu-worker, ingest-worker, gpu-worker) reads/writes tables the API's migrations
+  # create: the orchestrator's startup sweep failed when it raced `migrate`
   depends_on:
     redis: { condition: service_healthy }
     postgres: { condition: service_healthy }
+    migrate: { condition: service_completed_successfully }
     storage-init: { condition: service_completed_successfully }
 
 services:
