@@ -155,7 +155,7 @@ async def _fail(db: Db, org: uuid.UUID, job_id: str, retryable: bool) -> None:
 
     async def fail(s: Any) -> None:
         err = {"code": "INTERNAL" if retryable else "NO_WIDE_SHOTS", "retryable": retryable, "detail": "x"}
-        await s.execute(update(Job).where(Job.id == jid).values(status="failed", error=err))
+        await s.execute(update(Job).where(Job.id == jid).values(status="failed", error=err, stage="infer"))
         s.add_all([
             JobTask(job_id=jid, org_id=org, task_key="normalize", status="done", attempts=1),
             JobTask(job_id=jid, org_id=org, task_key="infer:001", status="failed", attempts=4, error="boom",
@@ -175,6 +175,7 @@ async def test_retry_resumes_failed_job(client: httpx.AsyncClient, tasks: FakeTa
     assert failed["error"] == {"code": "INTERNAL", "retryable": True, "detail": "x"}
     r = await client.post(f"/api/v1/jobs/{job['id']}/retry", headers=who(org))
     assert r.status_code == 202 and r.json()["status"] == "queued" and r.json()["error"] is None
+    assert r.json()["stage"] is None  # not the stage that failed: nothing runs until the orchestrator picks it up
     assert tasks.sent[-1] == ("orchestrate.start_job", {"job_id": job["id"], "org_id": str(org)}, "orchestrate")
     rows = await _exec(migrated, org, lambda s: s.execute(select(JobTask.task_key, JobTask.status, JobTask.attempts,
                                                                        JobTask.external_id)))  # fmt: skip

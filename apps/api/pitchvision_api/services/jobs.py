@@ -179,6 +179,7 @@ async def retry(session: AsyncSession, tasks: TaskQueue, principal: Principal, j
         raise _active_conflict(active)
     await repo.reset_failed_tasks(session, principal.org_id, job.id)
     job.status = JobStatus.queued.value
+    job.stage = None  # the WS snapshot / latest_job must not report the failed stage as running
     job.error = None
     job.finished_at = None
     try:
