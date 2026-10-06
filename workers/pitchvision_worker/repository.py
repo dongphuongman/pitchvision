@@ -1,13 +1,14 @@
-"""Tiny repository for workers (SQLAlchemy Core, sync psycopg 3): videos (ingest) + jobs tables (orchestrator).
+"""Tiny repository for workers (SQLAlchemy Core, sync psycopg 3): videos (ingest), jobs (orchestrator), results.
 
 Design (M1-BE-08): the ingest worker writes the outcome straight to Postgres instead of bouncing it
-through the API. It connects with an RLS-bound role (PV_WORKER_DATABASE_URL; `pv_app` today — no
-BYPASSRLS) and every transaction runs `set_config('app.org_id', <org>, true)` first, exactly like the API,
-so a worker bug can't touch another org's rows. Updates are guarded on `status = 'ingesting'` so a
-redelivered task or a user who deleted the video in the meantime is a no-op.
-TODO(OPS): a dedicated `pv_worker` role with UPDATE-only grants on the columns workers own.
+through the API. Workers connect as `pv_worker` (PV_WORKER_DATABASE_URL; migration 0004 — NOBYPASSRLS, member
+of `pv_app` so it has the API's RLS-bound grants, plus INSERT on the `positions` hypertable guarded by the
+`positions_org_guard` trigger) and every transaction runs `set_config('app.org_id', <org>, true)` first, exactly
+like the API, so a worker bug can't touch another org's rows. Ingest updates are guarded on
+`status = 'ingesting'` so a redelivered task or a user who deleted the video in the meantime is a no-op.
+S8 result rows (positions / teams / players) are written by ``pitchvision_worker.results_db``.
 
-Columns mirror apps/api migrations 0001–0003 (the API owns the schema). Job queries live in
+Columns mirror apps/api migrations 0001–0004 (the API owns the schema). Job queries live in
 pitchvision_worker.orchestrator.store; cross-org lookups go through the SECURITY DEFINER helpers below.
 """
 
@@ -22,6 +23,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     Connection,
     Engine,
@@ -56,6 +58,7 @@ videos = Table(
     Column("thumbnail_url", Text),
     Column("error", JSONB),
     Column("deleted_at", TIMESTAMP(timezone=True)),
+    Column("revision", Integer, nullable=False),
 )
 TZ = TIMESTAMP(timezone=True)
 jobs = Table(
@@ -106,6 +109,28 @@ shots = Table(
     Column("t1_ms", Integer, nullable=False),
     Column("type", Text, nullable=False),
     Column("conf", REAL, nullable=False),
+)
+teams = Table(
+    "teams",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")),
+    Column("video_id", UUID(as_uuid=True), nullable=False),
+    Column("org_id", UUID(as_uuid=True), nullable=False),
+    Column("cluster", Integer),
+    Column("name", Text),
+    Column("color", Text),
+    Column("confirmed", Boolean, nullable=False, server_default=text("false")),
+)
+players = Table(
+    "players",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")),
+    Column("video_id", UUID(as_uuid=True), nullable=False),
+    Column("org_id", UUID(as_uuid=True), nullable=False),
+    Column("track_id", Integer, nullable=False),
+    Column("team_id", UUID(as_uuid=True)),
+    Column("role", Text),
+    Column("confirmed", Boolean, nullable=False, server_default=text("false")),
 )
 
 

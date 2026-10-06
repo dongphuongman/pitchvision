@@ -1,6 +1,13 @@
-"""``detections.parquet`` (S4 v1, one file per segment) — schema, writer, reader (contract: pipeline-stages.md).
+"""Pipeline parquet files — schemas, writers, readers (contract: docs/contracts/pipeline-stages.md).
 
-Columns: ``frame_idx int32`` (normalized 25 fps timeline) · ``ts_ms int32`` · ``track_id int32`` (segment-local
+- ``detections.parquet`` (S4 v1, one file per segment), described below;
+- ``tracks.parquet`` (S5, one per job, AD §6.5): detections columns with GLOBAL track ids, without ``on_pitch``,
+  plus ``h_quality float16`` (NaN = no homography for the frame) and ``interpolated bool``;
+- ``homography.parquet`` (pitch stage, one per segment): ``frame_idx`` + image→pitch ``h0..h8`` (row-major, NaN =
+  none) + smoothed ``h_quality``.
+
+``detections.parquet`` columns:
+``frame_idx int32`` (normalized 25 fps timeline) · ``ts_ms int32`` · ``track_id int32`` (segment-local
 ByteTrack id ≥ 1; ``-1`` = untracked, used for the ball) · ``cls int8`` (0 player · 1 goalkeeper · 2 referee · 3 ball)
 · ``team int8`` (0 / 1, -1 none) · ``x1, y1, x2, y2 int16`` (pixels on the normalized video) · ``conf float16`` ·
 ``on_pitch bool`` · ``px, py float32`` (pitch metres; NaN until the W4 homography). ZSTD-compressed.
@@ -120,3 +127,110 @@ def read_detections(path: str | os.PathLike[str]) -> pa.Table:
     if not table.schema.equals(DETECTIONS_SCHEMA, check_metadata=False):
         raise DetectionsSchemaError(f"{path}: columns differ from detections v{DETECTIONS_VERSION}")
     return table
+
+
+# ---------------------------------------------------------------- generic helpers (tracks / homography files)
+def _table(schema: pa.Schema, types: Mapping[str, type[np.generic]], name: str, version: str,
+           columns: Mapping[str, Any], meta: Mapping[str, Any] | None) -> pa.Table:
+    names = tuple(schema.names)
+    unknown, missing = set(columns) - set(names), set(names) - set(columns)
+    if unknown or missing:
+        raise DetectionsSchemaError(f"{name} columns: missing {sorted(missing)}, unknown {sorted(unknown)}")
+    n = len(np.asarray(columns[names[0]]))
+    arrays = []
+    for col in names:
+        a = np.asarray(columns[col])
+        dt = types[col]
+        if np.issubdtype(dt, np.integer) and a.size and np.issubdtype(a.dtype, np.floating):
+            a = np.rint(a)
+        if np.issubdtype(dt, np.integer) and a.size:
+            info = np.iinfo(dt)  # type: ignore[type-var]
+            a = np.clip(a, info.min, info.max)
+        a = a.astype(dt, copy=False)
+        if len(a) != n:
+            raise DetectionsSchemaError(f"{name} column {col} has {len(a)} rows, expected {n}")
+        arrays.append(pa.array(a, type=schema.field(col).type))
+    md = {_KEY_SCHEMA: name.encode(), _KEY_VERSION: version.encode(),
+          _KEY_META: json.dumps(dict(meta or {}), separators=(",", ":"), default=str).encode()}
+    return pa.Table.from_arrays(arrays, schema=schema.with_metadata(md))
+
+
+def _write(table: pa.Table, path: str | os.PathLike[str], compression_level: int = 3) -> Path:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(p.name + ".tmp")
+    pq.write_table(table, tmp, compression="zstd", compression_level=compression_level)
+    os.replace(tmp, p)
+    return p
+
+
+def _read(path: str | os.PathLike[str], schema: pa.Schema, name: str, version: str) -> pa.Table:
+    table = pq.read_table(path)
+    md = detections_metadata(table)
+    if md["schema"] != name:
+        raise DetectionsSchemaError(f"{path}: not a {name} file (schema={md['schema']!r})")
+    if md["version"].split(".")[0] != version.split(".")[0]:
+        raise DetectionsSchemaError(f"{path}: version {md['version']} not readable by {version}")
+    if not table.schema.equals(schema, check_metadata=False):
+        raise DetectionsSchemaError(f"{path}: columns differ from {name} v{version}")
+    return table
+
+
+# ---------------------------------------------------------------- tracks.parquet (S5, AD §6.5)
+TRACKS_SCHEMA_NAME = "tracks"
+TRACKS_VERSION = "1.0"
+TRACKS_SCHEMA = pa.schema([
+    *(DETECTIONS_SCHEMA.field(c) for c in ("frame_idx", "ts_ms", "track_id", "cls", "team", "x1", "y1", "x2", "y2",
+                                           "conf", "px", "py")),
+    pa.field("h_quality", pa.float16(), nullable=False),
+    pa.field("interpolated", pa.bool_(), nullable=False),
+])
+_TRACK_TYPES: dict[str, type[np.generic]] = {
+    **{k: v for k, v in _NP_TYPES.items() if k != "on_pitch"}, "h_quality": np.float16, "interpolated": np.bool_}
+TRACK_COLUMNS: tuple[str, ...] = tuple(TRACKS_SCHEMA.names)
+
+
+def tracks_table(columns: Mapping[str, Any], meta: Mapping[str, Any] | None = None) -> pa.Table:
+    """``tracks.parquet`` table from column arrays (cast & clipped like detections)."""
+    return _table(TRACKS_SCHEMA, _TRACK_TYPES, TRACKS_SCHEMA_NAME, TRACKS_VERSION, columns, meta)
+
+
+def write_tracks(path: str | os.PathLike[str], columns: Mapping[str, Any] | pa.Table,
+                 meta: Mapping[str, Any] | None = None) -> Path:
+    """Write ``tracks.parquet`` (ZSTD) atomically."""
+    table = columns if isinstance(columns, pa.Table) else tracks_table(columns, meta)
+    return _write(table, path)
+
+
+def read_tracks(path: str | os.PathLike[str]) -> pa.Table:
+    return _read(path, TRACKS_SCHEMA, TRACKS_SCHEMA_NAME, TRACKS_VERSION)
+
+
+# ---------------------------------------------------------------- homography.parquet (pitch stage, per segment)
+HOMOGRAPHY_SCHEMA_NAME = "homography"
+HOMOGRAPHY_VERSION = "1.0"
+H_COLUMNS: tuple[str, ...] = tuple(f"h{i}" for i in range(9))
+HOMOGRAPHY_SCHEMA = pa.schema([
+    pa.field("frame_idx", pa.int32(), nullable=False),
+    *(pa.field(c, pa.float64(), nullable=False) for c in H_COLUMNS),
+    pa.field("h_quality", pa.float32(), nullable=False),
+])
+_H_TYPES: dict[str, type[np.generic]] = {"frame_idx": np.int32, "h_quality": np.float32,
+                                         **dict.fromkeys(H_COLUMNS, np.float64)}
+
+
+def write_homography(path: str | os.PathLike[str], frame_idx: Any, H: Any, quality: Any,
+                     meta: Mapping[str, Any] | None = None) -> Path:
+    """Per-frame image→pitch homography ``H [N, 3, 3]`` (NaN = none) + smoothed ``h_quality [N]``."""
+    Hs = np.asarray(H, np.float64).reshape(-1, 9)
+    cols: dict[str, Any] = {"frame_idx": frame_idx, "h_quality": quality}
+    cols.update({c: Hs[:, i] for i, c in enumerate(H_COLUMNS)})
+    return _write(_table(HOMOGRAPHY_SCHEMA, _H_TYPES, HOMOGRAPHY_SCHEMA_NAME, HOMOGRAPHY_VERSION, cols, meta), path)
+
+
+def read_homography(path: str | os.PathLike[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """→ ``(frame_idx [N] int64, H [N, 3, 3] image→pitch (NaN = none), h_quality [N] float32)``."""
+    t = _read(path, HOMOGRAPHY_SCHEMA, HOMOGRAPHY_SCHEMA_NAME, HOMOGRAPHY_VERSION)
+    H = np.stack([t.column(c).to_numpy() for c in H_COLUMNS], axis=1).reshape(-1, 3, 3)
+    return (t.column("frame_idx").to_numpy().astype(np.int64), H,
+            t.column("h_quality").to_numpy().astype(np.float32))

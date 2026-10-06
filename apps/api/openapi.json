@@ -1102,6 +1102,348 @@
           }
         }
       }
+    },
+    "/api/v1/results/{video_id}/manifest": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Manifest",
+        "description": "What the player needs before fetching tiles (fps, size, shots, coverage, teams, pitch status) for the\nvideo's latest finished analysis. `tile_url_template` is signed and expires (`PV_TILE_URL_TTL_S`, 6 h): fetch\nthe manifest again when a tile answers 403. 409 `reason: processing` while the first analysis is running.",
+        "operationId": "get_manifest_api_v1_results__video_id__manifest_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Manifest"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/results/{video_id}/teams": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Teams",
+        "description": "Teams of the video's analysis (one per team-model cluster; name / colour editable later).",
+        "operationId": "get_teams_api_v1_results__video_id__teams_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/results/{video_id}/tracks": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Tracks",
+        "description": "5 Hz positions for analysts (AD §10.2) — the player uses the manifest + tiles instead. Keyset-paged.",
+        "operationId": "get_tracks_api_v1_results__video_id__tracks_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "from_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "From Ms"
+            }
+          },
+          {
+            "name": "to_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "exclusive; default from_ms + 60 s; window ≤ 10 min",
+              "title": "To Ms"
+            },
+            "description": "exclusive; default from_ms + 60 s; window ≤ 10 min"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
+              "default": 2000,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackPage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/tiles/{video_id}/{job_id}/r{revision}/{tile_no}.json.gz": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Tile",
+        "description": "One playback tile (`pitchvision_schemas.Tile`). Use the manifest's `tile_url_template`; 403 when the\nsignature is invalid or expired.",
+        "operationId": "get_tile_api_v1_tiles__video_id___job_id__r_revision___tile_no__json_gz_get",
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Revision"
+            }
+          },
+          {
+            "name": "tile_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 999999,
+              "minimum": 0,
+              "title": "Tile No"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "unix seconds; from the manifest's tile_url_template",
+              "title": "Exp"
+            },
+            "description": "unix seconds; from the manifest's tile_url_template"
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "title": "Sig"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "gzip-encoded `Tile` JSON (Content-Encoding: gzip)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1127,6 +1469,30 @@
           "etag"
         ],
         "title": "CompletedPart"
+      },
+      "Coverage": {
+        "properties": {
+          "main_wide_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Main Wide Pct",
+            "description": "% of duration with analysable wide shots"
+          },
+          "homography_ok_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Homography Ok Pct",
+            "description": "% of main_wide frames with h_quality ≥ 0.5"
+          }
+        },
+        "type": "object",
+        "required": [
+          "main_wide_pct",
+          "homography_ok_pct"
+        ],
+        "title": "Coverage"
       },
       "ErrorCode": {
         "type": "string",
@@ -1533,7 +1899,8 @@
                 "enum": [
                   "ok",
                   "degraded",
-                  "manual"
+                  "manual",
+                  "unavailable"
                 ]
               },
               {
@@ -1541,7 +1908,7 @@
               }
             ],
             "title": "Pitch Calibration",
-            "description": "Manifest `pitch.status` of the finished analysis (`degraded` → \"Low pitch quality\"). null until the job has calibrated the pitch (written by the orchestrator from W4, M1-CV-11/12)."
+            "description": "Manifest `pitch.status` of the analysis (`degraded` → \"Low pitch quality\"; `unavailable` → no pitch keypoint model, so no pitch coordinates / tactical map). null until S5 has run (the orchestrator writes jobs.detail.pitch_calibration, M1-CV-11/12)."
           }
         },
         "type": "object",
@@ -1556,6 +1923,100 @@
         ],
         "title": "LatestJob",
         "description": "Summary of a video's newest job, embedded in VideoOut so lists need no per-video job calls."
+      },
+      "Manifest": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "video_id": {
+            "type": "string",
+            "title": "Video Id"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "fps": {
+            "type": "integer",
+            "title": "Fps"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms"
+          },
+          "frame_count": {
+            "type": "integer",
+            "title": "Frame Count"
+          },
+          "tile_ms": {
+            "type": "integer",
+            "title": "Tile Ms",
+            "default": 10000
+          },
+          "tile_count": {
+            "type": "integer",
+            "title": "Tile Count"
+          },
+          "tile_url_template": {
+            "type": "string",
+            "title": "Tile Url Template",
+            "description": "e.g. /api/v1/tiles/{video}/{job}/r0/{tile_no}.json.gz?exp=…&sig=… — {tile_no} is 6-digit. Signed, expires (re-fetch the manifest on 403). The stored manifest.json holds the object-key template."
+          },
+          "shots": {
+            "items": {
+              "$ref": "#/components/schemas/Shot"
+            },
+            "type": "array",
+            "title": "Shots"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/TeamInfo"
+            },
+            "type": "array",
+            "title": "Teams"
+          },
+          "pitch": {
+            "$ref": "#/components/schemas/PitchCalibration"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "video_id",
+          "job_id",
+          "revision",
+          "fps",
+          "width",
+          "height",
+          "duration_ms",
+          "frame_count",
+          "tile_count",
+          "tile_url_template",
+          "shots",
+          "coverage",
+          "teams",
+          "pitch"
+        ],
+        "title": "Manifest"
       },
       "Meta": {
         "properties": {
@@ -1592,6 +2053,36 @@
           "url"
         ],
         "title": "PartUrl"
+      },
+      "PitchCalibration": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded",
+              "manual",
+              "unavailable"
+            ],
+            "title": "Status",
+            "description": "ok · degraded (> 30 % of main_wide frames below h_quality 0.5) · manual (user calibrated) · unavailable (no pitch keypoint model: px/py are null, no tactical map)"
+          },
+          "length_m": {
+            "type": "number",
+            "title": "Length M",
+            "default": 105.0
+          },
+          "width_m": {
+            "type": "number",
+            "title": "Width M",
+            "default": 68.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "PitchCalibration"
       },
       "ProblemDetails": {
         "properties": {
@@ -1691,6 +2182,47 @@
         ],
         "title": "SegmentCounts"
       },
+      "Shot": {
+        "properties": {
+          "t0_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "T0 Ms"
+          },
+          "t1_ms": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "T1 Ms"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ShotType"
+          },
+          "conf": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Conf"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t0_ms",
+          "t1_ms",
+          "type",
+          "conf"
+        ],
+        "title": "Shot"
+      },
+      "ShotType": {
+        "type": "string",
+        "enum": [
+          "main_wide",
+          "close_up",
+          "replay",
+          "other"
+        ],
+        "title": "ShotType"
+      },
       "SignParts": {
         "properties": {
           "part_numbers": {
@@ -1752,6 +2284,232 @@
           "size"
         ],
         "title": "StoredPartOut"
+      },
+      "TeamInfo": {
+        "properties": {
+          "cluster": {
+            "type": "integer",
+            "title": "Cluster"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Color"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "cluster",
+          "name",
+          "color"
+        ],
+        "title": "TeamInfo"
+      },
+      "TeamList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TeamOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "TeamList"
+      },
+      "TeamOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cluster": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster",
+            "description": "team-model cluster (0 / 1) the team was created from"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "#rrggbb (mean shirt colour of the cluster until the user changes it)"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cluster",
+          "name",
+          "color",
+          "confirmed"
+        ],
+        "title": "TeamOut"
+      },
+      "TrackPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TrackPoint"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "ordered by (ts_ms, track_id)"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "pass as `cursor` with the same from_ms / to_ms for the next page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "TrackPage"
+      },
+      "TrackPoint": {
+        "properties": {
+          "ts_ms": {
+            "type": "integer",
+            "title": "Ts Ms"
+          },
+          "track_id": {
+            "type": "integer",
+            "title": "Track Id",
+            "description": "global track id (players); -1 = ball"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "px": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Px"
+          },
+          "py": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Py"
+          },
+          "vx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vx",
+            "description": "m/s"
+          },
+          "vy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vy"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q",
+            "description": "h_quality of the frame (0..1)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ts_ms",
+          "track_id",
+          "team",
+          "px",
+          "py",
+          "vx",
+          "vy",
+          "q"
+        ],
+        "title": "TrackPoint",
+        "description": "One 5 Hz sample (AD §9.3 positions). Pitch metres on 105 × 68; null without homography."
       },
       "UploadComplete": {
         "properties": {

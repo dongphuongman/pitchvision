@@ -8,6 +8,7 @@ Env = Literal["local", "test", "staging", "production"]
 Region = Literal["eu", "us"]
 
 GIB = 1024**3
+DEV_TILE_SIGNING_KEY = "pv-dev-insecure-tile-signing-key-change-me"  # local/test only (validator below)
 
 
 class Settings(BaseSettings):
@@ -42,6 +43,13 @@ class Settings(BaseSettings):
     # --- jobs (M1-BE-09): every job pins the image it runs on; workers refuse tasks for another tag (AD §7) ---
     image_tag: str = "dev"
 
+    # --- playback tiles (M1-BE-16, AD §8.3/§14): the bucket is never public; tile URLs carry an HMAC signature ---
+    # HMAC-SHA256 key shared with the tile server (this API's /tiles route today, the Cloudflare Worker later).
+    # Required (≥ 32 chars) in staging/production; local/test fall back to an insecure dev key.
+    tile_signing_key: str = ""
+    tile_url_ttl_s: int = 6 * 3600  # manifest-issued tile URLs expire; the player re-fetches the manifest on 403
+    tile_base_url: str | None = None  # None = this API's route (/api/v1/tiles); the Worker's origin later
+
     # --- WebSocket (M1-BE-12, AD §10.3) ---
     ws_heartbeat_s: float = 25.0
     ws_max_topics: int = 50  # subscriptions per connection
@@ -63,3 +71,13 @@ class Settings(BaseSettings):
         if self.dev_auth and self.env != "local":
             raise ValueError("PV_DEV_AUTH=1 is only allowed with PV_ENV=local")
         return self
+
+    @model_validator(mode="after")
+    def _tile_key(self) -> "Settings":
+        if self.env in ("staging", "production") and len(self.tile_signing_key) < 32:
+            raise ValueError("PV_TILE_SIGNING_KEY (≥ 32 characters) is required outside local/test")
+        return self
+
+    @property
+    def tile_key(self) -> bytes:
+        return (self.tile_signing_key or DEV_TILE_SIGNING_KEY).encode()

@@ -40,6 +40,11 @@ def test_calibrate_writes_portable_team_model(calibrated: CalibrateOutput) -> No
     sizes = out.stats["cluster_sizes"]
     assert abs(sizes[0] - sizes[1]) <= 0.1 * sum(sizes)
     assert out.stats["outliers"] >= 25  # the orange referee (one per frame) is nobody's teammate
+    # display colours (S8 teams / manifest): one red-ish, one blue-ish cluster
+    colors = raw["stats"]["colors"]
+    assert set(colors) == {"0", "1"}
+    rgb = sorted((int(c[1:3], 16), int(c[5:7], 16)) for c in colors.values())  # (r, b)
+    assert rgb[0][1] > rgb[0][0] and rgb[1][0] > rgb[1][1]  # a blue team and a red team
     TeamModel.load(out.team_model)
 
 

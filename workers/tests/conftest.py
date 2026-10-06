@@ -1,6 +1,7 @@
 """Docker-backed fixtures for worker integration tests (skipped cleanly without Docker).
 
-- `pg_app_url`: TimescaleDB migrated with apps/api's Alembic (the API owns the schema), pv_app login enabled.
+- `pg_app_url` / `pg_worker_url`: ONE TimescaleDB container migrated with apps/api's Alembic (the API owns the
+  schema), pv_app and pv_worker logins enabled (`pg_urls` also has the superuser conninfo).
 - `redis_url`: a throwaway Redis for the Celery contract tests.
 - `s3_endpoint`: a throwaway SeaweedFS S3 gateway (bucket `pv-test-data`) for the compute backend round trip.
 """
@@ -15,6 +16,7 @@ import subprocess
 import time
 import uuid
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -23,6 +25,7 @@ API_DIR = Path(__file__).resolve().parents[2] / "apps" / "api"
 PG_IMAGE = os.environ.get("PV_TEST_PG_IMAGE", "timescale/timescaledb:latest-pg16")
 REDIS_IMAGE = "redis:7-alpine"
 APP_PASSWORD = "pv_app_test"
+WORKER_PASSWORD = "pv_worker_test"
 
 
 def _free_port() -> int:
@@ -49,8 +52,15 @@ def _run(image: str, port: int, inner: int, *env: str) -> str:
     return name
 
 
+@dataclass(frozen=True)
+class PgUrls:
+    app: str        # pv_app (the API's role)
+    worker: str     # pv_worker (migration 0004: pv_app grants + INSERT on positions)
+    admin: str      # superuser conninfo (psycopg), for fixtures only
+
+
 @pytest.fixture(scope="session")
-def pg_app_url() -> Iterator[str]:
+def pg_urls() -> Iterator[PgUrls]:
     import psycopg
     from alembic import command
     from alembic.config import Config
@@ -77,9 +87,22 @@ def pg_app_url() -> Iterator[str]:
         command.upgrade(cfg, "head")
         with psycopg.connect(conninfo, autocommit=True) as conn:
             conn.execute(f"ALTER ROLE pv_app LOGIN PASSWORD '{APP_PASSWORD}'")
-        yield f"postgresql+psycopg://pv_app:{APP_PASSWORD}@127.0.0.1:{port}/pv"
+            conn.execute(f"ALTER ROLE pv_worker LOGIN PASSWORD '{WORKER_PASSWORD}'")
+        yield PgUrls(app=f"postgresql+psycopg://pv_app:{APP_PASSWORD}@127.0.0.1:{port}/pv",
+                     worker=f"postgresql+psycopg://pv_worker:{WORKER_PASSWORD}@127.0.0.1:{port}/pv",
+                     admin=conninfo)
     finally:
         subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=60)
+
+
+@pytest.fixture(scope="session")
+def pg_app_url(pg_urls: PgUrls) -> str:
+    return pg_urls.app
+
+
+@pytest.fixture(scope="session")
+def pg_worker_url(pg_urls: PgUrls) -> str:
+    return pg_urls.worker
 
 
 @pytest.fixture(scope="session")

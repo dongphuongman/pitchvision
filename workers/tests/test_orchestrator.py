@@ -1,11 +1,13 @@
-"""M1-BE-10 orchestrator against real Postgres (RLS, pv_app) with DEV FAKE stages and an in-memory object store.
+"""M1-BE-10 orchestrator against real Postgres (RLS, pv_worker) with DEV FAKE GPU stages and an in-memory object store.
 
 Stage tasks are executed by the real executor (download → stage → upload → _SUCCESS); results are fed back through
-`engine.advance(report=…)` exactly like `orchestrate.on_task_result` does.
+`engine.advance(report=…)` exactly like `orchestrate.on_task_result` does. The post-processing chain (S5 stitch,
+S7 tiles, S8 load-db, manifest) is the REAL code, running on the fakes' synthetic detections.
 """
 
 from __future__ import annotations
 
+import gzip
 import json
 import uuid
 from collections.abc import Iterator
@@ -15,7 +17,7 @@ from typing import Any
 import pytest
 from cv_core.io.normalize import MediaError
 from pipeline_fakes import NO_WIDE, Clock, DevFakeStages, FakeBackend, FakeRedis, MemoryStore, plan_every_120s
-from pitchvision_schemas import keys
+from pitchvision_schemas import Manifest, ShotType, Tile, keys
 from pitchvision_worker import repository
 from pitchvision_worker.compute.base import classify, success_key
 from pitchvision_worker.compute.executor import execute
@@ -29,8 +31,8 @@ TAG = "sha-test"
 
 
 @pytest.fixture
-def db(pg_app_url: str) -> Iterator[Engine]:
-    e = create_engine(pg_app_url)
+def db(pg_worker_url: str) -> Iterator[Engine]:
+    e = create_engine(pg_worker_url)  # the orchestrator / workers' role (compose PV_WORKER_DATABASE_URL)
     yield e
     e.dispose()
 
@@ -47,12 +49,17 @@ class Harness:
     redis: FakeRedis = field(default_factory=FakeRedis)
     stages: DevFakeStages = field(default_factory=DevFakeStages)
     scheduled: list[float] = field(default_factory=list)
+    pitch: bool = False  # Deps.pitch_available (a registered pitch keypoint model)
+
+    def __post_init__(self) -> None:
+        self.stages.db = self.db
 
     def deps(self) -> eng.Deps:
         router = BackendRouter({"local": self.backend}, ["local"], cpu=self.backend)
         return eng.Deps(engine=self.db, store=self.store, router=router, redis=self.redis,  # type: ignore[arg-type]
                         schedule=lambda j, o, d: self.scheduled.append(d), now=self.clock,
-                        planners={"plan_segments": plan_every_120s}, max_inflight=16)  # fmt: skip
+                        planners={"plan_segments": plan_every_120s}, max_inflight=16,
+                        pitch_available=lambda: self.pitch)  # fmt: skip
 
     def setup(self, video_status: str = "ready", source_type: str = "upload") -> Harness:
         src = keys.source_key(str(self.org), str(self.video_id), "mp4")
@@ -127,8 +134,9 @@ def test_full_dag_to_done(h: Harness) -> None:
     assert job["coverage"] == {"main_wide_pct": 66.67} and job["error"] is None
     tasks = h.tasks()
     assert set(tasks) == {"normalize", "shots", "plan", "calibrate", "infer:000", "infer:001", "infer:002",
-                          "infer:003", "stitch", "tiles", "load_db"}  # fmt: skip
+                          "infer:003", "stitch", "tiles", "load_db", "manifest"}  # fmt: skip
     assert all(t["status"] == "done" for t in tasks.values())
+    assert tasks["plan"]["payload"]["pitch"] is False and not any(k.startswith("pitch:") for k in tasks)
     assert tasks["infer:002"]["attempts"] == 1 and tasks["normalize"]["payload"]["manifest"]["duration_ms"] == 600_000
     # S2b persisted: shots rows + media shots.json; S2 probe went into videos
     assert h.sql("SELECT count(*) FROM shots WHERE video_id = :v")[0][0] == 2
@@ -148,6 +156,30 @@ def test_full_dag_to_done(h: Harness) -> None:
     assert types[-1] == "completed" and "progress" in types
     infer = [m["data"] for _, m in h.redis.published if m["type"] == "progress" and m["data"]["stage"] == "infer"]
     assert infer and infer[-1]["segments"]["total"] == 4
+    assert {m["data"]["stage"] for _, m in h.redis.published if m["type"] == "progress"} >= {"stitch", "tiles"}
+
+    # post-processing chain: tracks.parquet → 60 tiles + positions / teams / players → manifest (last)
+    results = keys.job_results_prefix(org, vid, job_id)
+    assert results + "tracks/tracks.parquet" in h.store.objects and success_key(results + "tracks/") in h.store.objects
+    tile_keys = sorted(k for k in h.store.objects if k.startswith(keys.tile_prefix(org, vid, job_id, 0)))
+    assert tile_keys == [keys.tile_key(org, vid, job_id, 0, n) for n in range(60)]
+    tile = Tile.model_validate_json(gzip.decompress(h.store.objects[tile_keys[0]]))
+    assert len(tile.frames) == 250 and tile.shots == [(0, 250, ShotType.main_wide)]
+    assert sorted(o[0] for o in tile.frames[0].objs) == [-1, 1, 2]
+    late = Tile.model_validate_json(gzip.decompress(h.store.objects[tile_keys[45]]))  # 450 s: close-up, not analysed
+    assert late.shots == [(11250, 11500, ShotType.close_up)] and all(not f.objs for f in late.frames)
+    manifest = Manifest.model_validate_json(h.store.objects[keys.manifest_key(org, vid)])
+    assert (manifest.job_id, manifest.revision, manifest.tile_count, manifest.fps) == (job_id, 0, 60, 25)
+    assert (manifest.width, manifest.height, manifest.duration_ms, manifest.frame_count) == (1280, 720, 600_000, 15000)
+    assert manifest.tile_url_template == keys.tile_prefix(org, vid, job_id, 0) + "{tile_no}.json.gz"
+    assert manifest.coverage.main_wide_pct == 66.67 and manifest.pitch.status == "unavailable"
+    assert [(t.cluster, t.color) for t in manifest.teams] == [(0, "#c8102e"), (1, "#f5f5f5")]
+    assert job["detail"]["pitch_calibration"] == "unavailable"
+    assert tasks["manifest"]["payload"]["tile_count"] == 60
+    # 5 Hz rows for 400 s of wide footage: 2 players + ball; the ids keep across the 120 s keyframe boundaries
+    assert h.sql("SELECT count(*), count(DISTINCT track_id) FROM positions_org WHERE video_id = :v")[0] == (6000, 3)
+    assert h.sql("SELECT count(*) FROM teams WHERE video_id = :v")[0][0] == 2
+    assert h.sql("SELECT count(*) FROM players WHERE video_id = :v")[0][0] == 2
     assert h.advance() == "done"  # idempotent
 
 
@@ -336,3 +368,95 @@ def test_other_org_cannot_drive_job(h: Harness) -> None:
     h.setup()
     assert eng.advance(h.job_id, uuid.uuid4(), h.deps()) == "missing"  # RLS
     assert repository.job_org(h.db, h.job_id) == h.org
+
+
+# ---------------------------------------------------------------- W4: optional pitch stage + post-processing chain
+def test_pitch_stage_projects_positions(h: Harness) -> None:
+    h.pitch = True
+    h.setup()
+    h.advance()
+    h.run_submitted()
+    tasks = h.tasks()
+    assert tasks["plan"]["payload"]["pitch"] is True
+    assert all(tasks[f"pitch:00{i}"]["status"] == "done" for i in range(4))
+    assert h.stages.calls["pitch:002"] == 1
+    org, vid, job_id = str(h.org), str(h.video_id), str(h.job_id)
+    assert keys.segment_prefix(org, vid, job_id, 2) + "pitch/homography.parquet" in h.store.objects
+    assert success_key(keys.segment_prefix(org, vid, job_id, 2) + "pitch/") in h.store.objects
+    job = h.job()
+    assert job["status"] == "done" and job["detail"]["pitch_calibration"] == "ok"
+    m = Manifest.model_validate_json(h.store.objects[keys.manifest_key(org, vid)])
+    assert m.pitch.status == "ok" and m.coverage.homography_ok_pct == 100.0
+    xy = h.sql("SELECT count(*), count(px), min(px), max(px) FROM positions_org WHERE video_id = :v")[0]
+    assert xy[0] == xy[1] == 6000 and 5 < xy[2] < xy[3] < 60
+    tile = Tile.model_validate_json(gzip.decompress(h.store.objects[keys.tile_key(org, vid, job_id, 0, 1)]))
+    assert tile.frames[0].hq == pytest.approx(0.9) and all(o[8] is not None for o in tile.frames[0].objs)
+
+
+def test_failed_pitch_segments_degrade_but_never_fail_the_job(h: Harness) -> None:
+    def broken() -> None:
+        raise ValueError("bad keypoints")  # INTERNAL, retryable → retried, then given up
+
+    h.pitch = True
+    h.setup()
+    h.stages.fail["pitch:001"] = broken
+    h.stages.fail["pitch:002"] = broken
+    h.advance()
+    h.run_submitted()
+    for _ in range(eng.MAX_RETRIES):
+        h.clock.tick(300)
+        h.advance()
+        h.run_submitted()
+    tasks = h.tasks()
+    assert tasks["pitch:001"]["status"] == tasks["pitch:002"]["status"] == "failed"
+    assert h.job()["status"] == "done" and h.job()["detail"]["pitch_calibration"] == "degraded"  # 40 % wide w/o H
+    m = Manifest.model_validate_json(h.store.objects[keys.manifest_key(str(h.org), str(h.video_id))])
+    assert m.pitch.status == "degraded" and m.coverage.homography_ok_pct == 40.0
+
+
+def test_post_processing_order_and_manifest_last(h: Harness) -> None:
+    h.setup()
+    h.advance()
+    h.run_submitted(skip_stages=("tiles", "load_db"))
+    job = h.job()
+    assert job["status"] == "postprocessing" and job["stage"] == "tiles"
+    pending = sorted(t.stage for _, t in h.backend.submitted)
+    assert pending == ["load_db", "tiles"]  # dispatched together once stitch is done
+    tiles_task = next(t for _, t in h.backend.submitted if t.stage == "tiles")
+    assert tiles_task.params["revision"] == 0 and tiles_task.params["duration_ms"] == 600_000  # type: ignore[union-attr]
+    assert keys.manifest_key(str(h.org), str(h.video_id)) not in h.store.objects
+    h.run_submitted(skip_stages=("tiles",))  # load_db done, tiles still running → no manifest yet
+    assert h.job()["status"] == "postprocessing" and h.job()["stage"] == "tiles"
+    assert keys.manifest_key(str(h.org), str(h.video_id)) not in h.store.objects
+    h.run_submitted()
+    assert h.job()["status"] == "done" and keys.manifest_key(str(h.org), str(h.video_id)) in h.store.objects
+    assert h.tasks()["manifest"]["status"] == "done"
+
+
+def test_post_stage_failure_fails_job_and_retry_reuses_tracks(h: Harness) -> None:
+    from pitchvision_schemas import ErrorCode
+    from pitchvision_worker.compute.base import StageFailure
+    from pitchvision_worker.compute.stages import STAGES
+
+    h.setup()
+    real_tiles = STAGES["tiles"]
+
+    def bad_tiles(*a: Any) -> Any:
+        raise StageFailure(ErrorCode.INTERNAL, "disk full", retryable=False)
+
+    registry = h.stages.registry
+    h.stages.registry = lambda: {**registry(), "tiles": bad_tiles}  # type: ignore[method-assign]
+    h.advance()
+    h.run_submitted()
+    job = h.job()
+    assert job["status"] == "failed" and job["stage"] == "tiles" and job["error"]["detail"] == "disk full"
+    assert keys.manifest_key(str(h.org), str(h.video_id)) not in h.store.objects
+    # retry (API): stitch is done and checkpointed → only tiles (and the manifest) run again
+    h.stages.registry = lambda: {**registry(), "tiles": real_tiles}  # type: ignore[method-assign]
+    h.sql("UPDATE jobs SET status = 'queued', error = NULL, finished_at = NULL WHERE id = :j")
+    h.sql("UPDATE job_tasks SET status = 'queued', attempts = 0, error = NULL, external_id = NULL, not_before = NULL"
+          " WHERE job_id = :j AND status <> 'done'")  # fmt: skip
+    h.advance()
+    assert [t.stage for _, t in h.backend.submitted] == ["tiles"]
+    h.run_submitted()
+    assert h.job()["status"] == "done" and h.stages.calls["infer:000"] == 1

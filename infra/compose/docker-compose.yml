@@ -21,8 +21,13 @@ x-pv-env: &pv-env
   PV_JWT_ISSUER: ${PV_WEB_URL:-http://localhost:3000}  # must equal identity's iss
   # LOCAL ONLY: 1 = trust X-Dev-Org/X-Dev-User/X-Dev-Role headers instead of JWTs (refused unless PV_ENV=local)
   PV_DEV_AUTH: ${PV_DEV_AUTH:-0}
-  # Workers write video status through the same RLS-bound role as the api (they SET app.org_id per tx).
-  PV_WORKER_DATABASE_URL: postgresql+psycopg://pv_app:${PV_APP_DB_PASSWORD:?set in .env}@postgres:5432/${POSTGRES_DB:?set in .env}
+  # Workers connect as pv_worker (migration 0004): the api's RLS-bound grants + INSERT on the positions hypertable
+  # (tenant-guarded by a trigger on app.org_id, which workers SET per tx). migrate enables its login.
+  PV_WORKER_DB_PASSWORD: ${PV_WORKER_DB_PASSWORD:-pv-worker-local-only}
+  PV_WORKER_DATABASE_URL: postgresql+psycopg://pv_worker:${PV_WORKER_DB_PASSWORD:-pv-worker-local-only}@postgres:5432/${POSTGRES_DB:?set in .env}
+  # HMAC key for signed playback-tile URLs (AD §14; api /api/v1/tiles route self-host, Cloudflare Worker later).
+  PV_TILE_SIGNING_KEY: ${PV_TILE_SIGNING_KEY:-}
+  PV_TILE_URL_TTL_S: ${PV_TILE_URL_TTL_S:-21600}
   # Pipeline (M1-BE-09…11). Jobs pin the image tag; workers refuse tasks built for another tag (AD §7).
   PV_IMAGE_TAG: ${TAG:-dev}
   # Queue LocalGpuBackend sends GPU stages to: `gpu` (gpu-local profile) or `cpu` on a CPU-only box (slow, same code).

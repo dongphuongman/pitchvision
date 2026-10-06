@@ -6,7 +6,7 @@ from pitchvision_schemas.compute import Capacity, CpuStage, CpuTask, GpuStage, G
 from pitchvision_schemas.errors import ErrorCode, Problem
 from pitchvision_schemas.jobs import JOB_TRANSITIONS, JobStatus, can_transition
 from pitchvision_schemas.keys import shots_key, tile_key
-from pitchvision_schemas.manifest import Coverage, Manifest, PitchCalibration, TeamInfo
+from pitchvision_schemas.manifest import Coverage, Manifest, PitchCalibration, PitchStatus, TeamInfo
 from pitchvision_schemas.pipeline import PipelineConfig, Segment
 from pitchvision_schemas.shots import Shot, ShotTimeline, ShotType
 from pitchvision_schemas.tiles import TILE_MS, ObjCls, Tile, TileFrame, tile_no_for
@@ -53,6 +53,7 @@ __all__ = [
     "PingMessage",
     "PipelineConfig",
     "PitchCalibration",
+    "PitchStatus",
     "PongMessage",
     "Problem",
     "ProgressData",

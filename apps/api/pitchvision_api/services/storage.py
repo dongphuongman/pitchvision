@@ -28,6 +28,13 @@ MAX_PARTS = 10_000  # S3/R2 multipart limit
 
 
 @dataclass(frozen=True)
+class StoredObject:
+    body: Any  # botocore StreamingBody (blocking .read(n) / .close())
+    size: int
+    etag: str | None
+
+
+@dataclass(frozen=True)
 class StoredPart:
     part_number: int
     etag: str
@@ -143,6 +150,26 @@ class Storage:
 
     def delete_object(self, key: str) -> None:
         self.internal.delete_object(Bucket=self.bucket, Key=key)
+
+    def open_object(self, key: str) -> StoredObject | None:
+        """Streaming GET (None when the key doesn't exist). The caller must close ``body``."""
+        try:
+            r = self.internal.get_object(Bucket=self.bucket, Key=key)
+        except ClientError as e:
+            if is_missing(e):
+                return None
+            raise
+        return StoredObject(r["Body"], int(r.get("ContentLength") or 0), r.get("ETag"))
+
+    def get_bytes(self, key: str) -> bytes | None:
+        obj = self.open_object(key)
+        if obj is None:
+            return None
+        try:
+            data: bytes = obj.body.read()
+            return data
+        finally:
+            obj.body.close()
 
     def presign_get(self, key: str) -> str:
         return str(

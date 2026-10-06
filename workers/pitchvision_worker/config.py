@@ -30,7 +30,7 @@ class WorkerConfig:
     def from_env(cls, env: Mapping[str, str] | None = None) -> WorkerConfig:
         e = os.environ if env is None else env
         return cls(
-            # RLS-bound role (pv_app today); see repository.py for why workers write through it
+            # pv_worker (migration 0004, RLS-bound); see repository.py for why workers write through it
             database_url=sync_url(e.get("PV_WORKER_DATABASE_URL") or e.get("PV_DATABASE_URL") or DEFAULT_DB_URL),
             redis_url=e.get("PV_REDIS_URL") or "redis://localhost:6379/0",
             storage_endpoint=e.get("PV_STORAGE_ENDPOINT") or None,

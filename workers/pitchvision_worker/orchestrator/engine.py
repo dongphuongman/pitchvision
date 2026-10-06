@@ -7,8 +7,13 @@ becomes ready, and the periodic/startup ``sweep``. Each call opens one RLS-scope
 job as far as it can without waiting:
 
     queued → ingesting (wait for the video to be ready) → calibrating: normalize (cpu) → shots (gpu) → plan (inline)
-    → calibrate (gpu) → inferring: infer:NNN fan-out (gpu, ≤ max_inflight) → postprocessing: stitch/tiles/load_db
-    (W3 stubs) → done
+    → calibrate (gpu) → inferring: infer:NNN (+ optional pitch:NNN) fan-out (gpu, ≤ max_inflight each)
+    → postprocessing: stitch (cpu) → tiles + load_db (cpu, parallel) → manifest (inline, LAST) → done
+
+Optional pitch calibration (M1-CV-11/12): decided once at plan time (``Deps.pitch_available``: the image's model
+registry has a ``pitch_keypoints`` entry) and stored in the plan payload. A pitch task that fails or reports
+``unavailable`` never fails the job; S5 simply gets no homography for that segment. The verdict (ok / degraded /
+unavailable) comes from S5 and is written to ``jobs.detail.pitch_calibration``.
 
 Completion tracking (robust to worker AND orchestrator restarts — no chord, no in-memory state):
 - job_tasks is the durable state; a row is pending (status queued, no external_id), dispatched (running +
@@ -47,21 +52,34 @@ from sqlalchemy import Connection, Engine
 from pitchvision_worker import events
 from pitchvision_worker.compute.base import StageFailure, StageTask, classify, success_key
 from pitchvision_worker.compute.router import BackendRouter
-from pitchvision_worker.compute.stages import PLANNERS, SHOTS_FILE, SegmentPlanner
+from pitchvision_worker.compute.stages import (
+    PLANNERS,
+    SHOTS_FILE,
+    SegmentPlanner,
+    detections_input,
+    homography_input,
+)
 from pitchvision_worker.orchestrator import store
+from pitchvision_worker.orchestrator.manifest import build_manifest
 from pitchvision_worker.repository import org_tx
 from pitchvision_worker.storage import ObjectStore
 
 log = logging.getLogger(__name__)
 
 NORMALIZE, SHOTS, PLAN, CALIBRATE = "normalize", "shots", "plan", "calibrate"
-POST_STAGES = ("stitch", "tiles", "load_db")  # S5, S7, S8: stubs until W4 (M1-CV-13, M1-BE-13/14)
+STITCH, TILES, LOAD_DB, MANIFEST = "stitch", "tiles", "load_db", "manifest"
+POST_STAGES = (STITCH, TILES, LOAD_DB, MANIFEST)  # S5, S7, S8 (cpu tasks) + the manifest (inline, last)
+DETECTIONS_FILE = "detections.parquet"  # S4 output under keys.segment_prefix (contract)
+HOMOGRAPHY_FILE = "homography.parquet"  # pitch output under keys.segment_prefix + "pitch/"
+TRACKS_FILE = "tracks.parquet"  # S5 output under results/…/jobs/{job}/tracks/
+TEAM_MODEL_FILE = "team_model.json"
 BACKOFF_S = (30, 120, 300)  # AD §16.1: retry a task 3 times, then it fails
 MAX_RETRIES = len(BACKOFF_S)
 POLL_AFTER_S = 60  # check backend/_SUCCESS for dispatched tasks silent for this long (the result message is faster)
 STALE_QUEUED_S = 6 * 3600  # = broker visibility timeout: a message still PENDING after this is considered lost
 RUNNING_GRACE_S = 600
-TIMEOUT_S = {NORMALIZE: 3 * 3600, SHOTS: 2 * 3600, CALIBRATE: 1800, "infer": 1800}
+TIMEOUT_S = {NORMALIZE: 3 * 3600, SHOTS: 2 * 3600, CALIBRATE: 1800, "infer": 1800, "pitch": 1800, STITCH: 1800,
+             TILES: 1800, LOAD_DB: 1800}  # fmt: skip
 WEIGHTS = {NORMALIZE: 5.0, SHOTS: 5.0, CALIBRATE: 5.0, "infer": 80.0, "post": 5.0}  # AD §8.2: S4 is 80 %
 TERMINAL = {JobStatus.done, JobStatus.failed, JobStatus.cancelled}
 
@@ -70,10 +88,21 @@ def infer_key(i: int) -> str:
     return f"infer:{i:03d}"
 
 
+def pitch_key(i: int) -> str:
+    return f"pitch:{i:03d}"
+
+
 def task_key_of(task_id: str) -> tuple[uuid.UUID, str]:
     """GpuTask.make_id(job, stage, seg) → (job_id, job_tasks.task_key)."""
     job, stage, *seg = task_id.split(":")
-    return uuid.UUID(job), (infer_key(int(seg[0])) if stage == "infer" and seg else stage)
+    return uuid.UUID(job), (f"{stage}:{int(seg[0]):03d}" if stage in ("infer", "pitch") and seg else stage)
+
+
+def pitch_model_available() -> bool:
+    """Default ``Deps.pitch_available``: the model registry in this image lists a pitch keypoint model."""
+    from pitchvision_worker.stages.pitch import pitch_model_registered
+
+    return pitch_model_registered()
 
 
 @dataclass
@@ -97,6 +126,7 @@ class Deps:
     max_inflight: int = 16
     now: Callable[[], datetime] = field(default=lambda: datetime.now(UTC))
     planners: Mapping[str, SegmentPlanner] = field(default_factory=lambda: PLANNERS)
+    pitch_available: Callable[[], bool] = pitch_model_available
 
 
 def advance(job_id: uuid.UUID, org_id: uuid.UUID, deps: Deps, report: Report | None = None, *,
@@ -167,7 +197,8 @@ class _Run:
                     return
                 self._to(JobStatus.postprocessing)
             if self.status == JobStatus.postprocessing:
-                self._postprocess()
+                if not self._postprocess():
+                    return
                 self._to(JobStatus.done)
                 store.update_job(self.conn, self.id, finished_at=self.now, error=None)
                 self.events.append(events.completed(self.id, self.video_id))
@@ -252,34 +283,97 @@ class _Run:
         if not segments:
             self._task_failed(row, StageFailure(ErrorCode.NO_WIDE_SHOTS, "no analysable segment", retryable=False))
             self._fail_job(self._task_failure(PLAN))
-        plan = {"segments": [s.model_dump() for s in segments], "main_wide_pct": pct, "shots": n}
+        try:
+            pitch = bool(self.deps.pitch_available())
+        except Exception as e:  # optional stage: never fail the plan over it
+            log.warning("job %s: pitch availability check failed: %r", self.id, e)
+            pitch = False
+        plan = {"segments": [s.model_dump() for s in segments], "main_wide_pct": pct, "shots": n, "pitch": pitch}
         self._task_done(row, plan)
-        log.info("job %s: %d shots, main_wide %.1f%%, %d segment(s)", self.id, n, pct, len(segments))
+        log.info("job %s: %d shots, main_wide %.1f%%, %d segment(s), pitch stage %s", self.id, n, pct,
+                 len(segments), "on" if pitch else "unavailable")  # fmt: skip
         return True
 
     def _segments(self) -> list[dict[str, Any]]:
         segs: list[dict[str, Any]] = (self.tasks.get(PLAN, {}).get("payload") or {}).get("segments") or []
         return segs
 
+    def _pitch_enabled(self) -> bool:
+        return bool((self.tasks.get(PLAN, {}).get("payload") or {}).get("pitch"))
+
     def _inferring(self) -> bool:
         self.stage = "infer"
         states = [self._ensure(infer_key(s["index"])) for s in self._segments()]
-        if any(s == "waiting" for s in states):
+        pitch_states = [self._ensure(pitch_key(s["index"])) for s in self._segments()] if self._pitch_enabled() else []
+        if any(s == "waiting" for s in (*states, *pitch_states)):
             return False
         failed = [infer_key(s["index"]) for s, st in zip(self._segments(), states, strict=True) if st == "failed"]
         if failed:
             first = self._task_failure(failed[0])
             detail = f"{len(failed)}/{len(states)} segment(s) failed; first ({failed[0]}): {first.detail}"
             self._fail_job(StageFailure(first.code, detail, first.retryable))
+        lost = [k for k in (pitch_key(s["index"]) for s in self._segments()) if self.tasks.get(k, {}).get("status")
+                == "failed"]  # fmt: skip
+        if lost:  # optional stage: those segments simply get no homography
+            log.warning("job %s: pitch failed for %d segment(s) (%s); continuing without them", self.id, len(lost),
+                        ", ".join(lost))  # fmt: skip
         return True
 
-    def _postprocess(self) -> None:
-        for key in POST_STAGES:  # TODO(W4): S5 stitch (M1-CV-13), S7 tiles (M1-BE-13), S8 load-db (M1-BE-14)
-            self.stage = key
-            row = self.tasks.get(key) or self._insert(key)
-            if row["status"] != "done":
-                log.info("job %s: %s is a stub in W3, marking done", self.id, key)
-                self._task_done(row, {"stub": True})
+    def _postprocess(self) -> bool:
+        """stitch → tiles + load_db → manifest. Returns True once the manifest is written (job can be done)."""
+        self.stage = STITCH
+        if not self._ensure_done(STITCH):
+            return False
+        states = {k: self._ensure(k) for k in (TILES, LOAD_DB)}
+        for key, state in states.items():
+            if state == "failed":
+                self.stage = key
+                self._fail_job(self._task_failure(key))
+        waiting = [k for k, s in states.items() if s == "waiting"]
+        if waiting:
+            self.stage = waiting[0]
+            return False
+        self.stage = MANIFEST
+        self._write_manifest()
+        return True
+
+    def _media(self) -> dict[str, Any]:
+        media: dict[str, Any] = (self.tasks.get(NORMALIZE, {}).get("payload") or {}).get("manifest") or {}
+        return media
+
+    def _timeline(self) -> ShotTimeline:
+        return ShotTimeline.model_validate_json(self.deps.store.get_bytes(self._prefix(SHOTS) + SHOTS_FILE))
+
+    def _write_manifest(self) -> None:
+        """LAST step before done: manifest.json at keys.manifest_key (tiles + DB rows already exist)."""
+        row = self.tasks.get(MANIFEST) or self._insert(MANIFEST)
+        if row["status"] == "done":
+            return
+        try:
+            team_model = json.loads(self.deps.store.get_bytes(self._prefix(CALIBRATE) + TEAM_MODEL_FILE))
+        except Exception as e:  # display defaults (names / palette colours) are fine without it
+            log.warning("job %s: team model unreadable for the manifest: %r", self.id, e)
+            team_model = None
+        manifest = build_manifest(org_id=self.org, video_id=self.video_id, job_id=self.id, config=self.config,
+                                  media=self._media(), timeline=self._timeline(),
+                                  team_model=team_model if isinstance(team_model, dict) else None,
+                                  stitch=self.tasks[STITCH].get("payload") or {},
+                                  tiles=self.tasks[TILES].get("payload") or {})  # fmt: skip
+        key = keys.manifest_key(str(self.org), str(self.video_id))
+        self.deps.store.put_bytes(key, manifest.model_dump_json().encode())
+        self._task_done(row, {"key": key, "tile_count": manifest.tile_count, "revision": manifest.revision,
+                              "pitch": manifest.pitch.status})  # fmt: skip
+        log.info("job %s: manifest written (%d tiles, revision %d, pitch %s)", self.id, manifest.tile_count,
+                 manifest.revision, manifest.pitch.status)  # fmt: skip
+
+    def _pitch_status(self) -> str | None:
+        """S5's pitch verdict once stitch is done (→ jobs.detail.pitch_calibration, read by the API)."""
+        row = self.tasks.get(STITCH)
+        if row and row["status"] == "done":
+            status = ((row.get("payload") or {}).get("pitch") or {}).get("status")
+            return str(status) if status else None
+        prev = (self.job["detail"] or {}).get("pitch_calibration")
+        return str(prev) if prev else None
 
     # ------------------------------------------------------------------ tasks
     def _insert(self, key: str) -> store.Row:
@@ -297,8 +391,9 @@ class _Run:
         if row["not_before"] is not None and row["not_before"] > self.now:
             self._wake((row["not_before"] - self.now).total_seconds())
             return "waiting"
-        if key.startswith("infer:") and self._inflight("infer:") >= self.deps.max_inflight:
-            return "waiting"
+        for fan_out in ("infer:", "pitch:"):
+            if key.startswith(fan_out) and self._inflight(fan_out) >= self.deps.max_inflight:
+                return "waiting"
         self._dispatch(row, self._build(key))
         return str(row["status"]) if row["status"] in ("done", "failed") else "waiting"
 
@@ -337,10 +432,48 @@ class _Run:
             inputs = {"normalized": normalized, "shots": self._prefix(SHOTS) + SHOTS_FILE}
             return GpuTask(task_id=GpuTask.make_id(job, CALIBRATE), stage="calibrate", output_prefix=self._prefix(key),
                            inputs=inputs, timeout_s=TIMEOUT_S[CALIBRATE], **common)  # fmt: skip
+        if key in (STITCH, TILES, LOAD_DB):
+            return self._build_post(key, common)
         index = int(key.split(":")[1])
-        inputs = {"normalized": normalized, "team_model": self._prefix(CALIBRATE) + "team_model.json"}
+        if key.startswith("pitch:"):
+            return GpuTask(task_id=GpuTask.make_id(job, "pitch", index), stage="pitch",
+                           output_prefix=self._prefix(key), segment=self._segment(index), timeout_s=TIMEOUT_S["pitch"],
+                           inputs={"normalized": normalized, "shots": self._prefix(SHOTS) + SHOTS_FILE},
+                           **common)  # fmt: skip
+        inputs = {"normalized": normalized, "team_model": self._prefix(CALIBRATE) + TEAM_MODEL_FILE}
         return GpuTask(task_id=GpuTask.make_id(job, "infer", index), stage="infer", output_prefix=self._prefix(key),
                        inputs=inputs, segment=self._segment(index), timeout_s=TIMEOUT_S["infer"],
+                       **common)  # fmt: skip
+
+    def _build_post(self, key: str, common: dict[str, Any]) -> CpuTask:
+        """S5 / S7 / S8 CpuTasks: object keys in ``inputs``, ids / revision / plan in ``params``."""
+        org, vid, job = str(self.org), str(self.video_id), str(self.id)
+        shots = self._prefix(SHOTS) + SHOTS_FILE
+        tracks = self._prefix(STITCH) + TRACKS_FILE
+        ids = {"org_id": org, "video_id": vid, "job_id": job}
+        if key == STITCH:
+            inputs = {"shots": shots}
+            for s in self._segments():
+                i = int(s["index"])
+                inputs[detections_input(i)] = self._prefix(infer_key(i)) + DETECTIONS_FILE
+                pitch = self.tasks.get(pitch_key(i))
+                if pitch and pitch["status"] == "done" and (pitch.get("payload") or {}).get("status") == "ok":
+                    inputs[homography_input(i)] = self._prefix(pitch_key(i)) + HOMOGRAPHY_FILE
+            return CpuTask(task_id=CpuTask.make_id(job, STITCH), stage="stitch", output_prefix=self._prefix(key),
+                           inputs=inputs, params={**ids, "segments": self._segments()}, timeout_s=TIMEOUT_S[STITCH],
+                           **common)  # fmt: skip
+        video = store.get_video(self.conn, self.video_id) or {}
+        revision = int(video.get("revision") or 0)
+        if key == TILES:
+            media = self._media()
+            params = {**ids, "revision": revision, "duration_ms": int(media.get("duration_ms") or 0)
+                      or self._timeline().shots[-1].t1_ms, "frame_count": media.get("frame_count")}  # fmt: skip
+            return CpuTask(task_id=CpuTask.make_id(job, TILES), stage="tiles", output_prefix=self._prefix(key),
+                           inputs={"tracks": tracks, "shots": shots}, params=params, timeout_s=TIMEOUT_S[TILES],
+                           **common)  # fmt: skip
+        inputs = {"tracks": tracks, "team_model": self._prefix(CALIBRATE) + TEAM_MODEL_FILE}
+        return CpuTask(task_id=CpuTask.make_id(job, LOAD_DB), stage="load_db", output_prefix=self._prefix(key),
+                       inputs=inputs, params={**ids, "revision": revision}, timeout_s=TIMEOUT_S[LOAD_DB],
                        **common)  # fmt: skip
 
     def _segment(self, index: int) -> Segment:
@@ -354,6 +487,11 @@ class _Run:
             return self.results + "models/"  # contract: results/…/jobs/{job}/models/team_model.json
         if key.startswith("infer:"):
             return keys.segment_prefix(str(self.org), str(self.video_id), str(self.id), int(key.split(":")[1]))
+        if key.startswith("pitch:"):  # own _SUCCESS, next to the segment's detections
+            return keys.segment_prefix(str(self.org), str(self.video_id), str(self.id), int(key.split(":")[1])) + \
+                "pitch/"
+        if key == STITCH:
+            return self.results + "tracks/"  # contract: results/…/jobs/{job}/tracks/tracks.parquet
         return self.results + f"stages/{key}/"
 
     def _task_done(self, row: store.Row, result: dict[str, Any]) -> None:
@@ -458,8 +596,11 @@ class _Run:
         if self.status == JobStatus.done:
             pct, eta_s = 100.0, 0
         pct = round(min(pct, 100.0), 2)
-        detail = {"segments": dict(zip(("done", "running", "total"), counts, strict=True)) if counts else None,
-                  "fps": None, "eta_s": eta_s}  # fmt: skip
+        detail: dict[str, Any] = {"segments": dict(zip(("done", "running", "total"), counts, strict=True))
+                                  if counts else None, "fps": None, "eta_s": eta_s}  # fmt: skip
+        pitch = self._pitch_status()
+        if pitch:
+            detail["pitch_calibration"] = pitch  # LatestJob.pitch_calibration (API)
         changed = (float(self.job["progress"]) != pct or self.job["stage"] != self.stage
                    or (self.job["detail"] or {}).get("segments") != detail["segments"])  # fmt: skip
         store.update_job(self.conn, self.id, progress=pct, stage=self.stage, detail=detail)

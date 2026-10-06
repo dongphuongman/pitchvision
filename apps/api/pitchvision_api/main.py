@@ -12,7 +12,7 @@ from pitchvision_api.auth import DEV_ORG_HEADER, DEV_ROLE_HEADER, DEV_USER_HEADE
 from pitchvision_api.db import make_engine, make_sessionmaker
 from pitchvision_api.errors import PROBLEM_JSON, ProblemDetails, install_error_handlers
 from pitchvision_api.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
-from pitchvision_api.routers import health, ingest, jobs, meta, videos, ws
+from pitchvision_api.routers import health, ingest, jobs, meta, results, tiles, videos, ws
 from pitchvision_api.services.events import EventHub
 from pitchvision_api.services.idempotency import IDEMPOTENCY_HEADER, REPLAYED_HEADER, install_idempotency
 from pitchvision_api.services.storage import Storage
@@ -30,6 +30,8 @@ def api_router() -> APIRouter:
     router.include_router(ingest.router)
     router.include_router(videos.router)
     router.include_router(jobs.router)
+    router.include_router(results.router)
+    router.include_router(tiles.router)  # signature-authenticated (no bearer): the tile URL is the credential
     router.include_router(ws.router)  # WebSocket /api/v1/ws (not in OpenAPI; protocol in routers/ws.py)
     return router
 

@@ -1,12 +1,12 @@
 """ComputeBackend payloads (AD §7, §10.4 "GpuTask / CpuTask"). Inputs/outputs are object keys; no shared filesystem."""
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from pitchvision_schemas.pipeline import PipelineConfig, Segment
 
-GpuStage = Literal["calibrate", "infer", "ocr", "render", "shots"]
-CpuStage = Literal["normalize"]
+GpuStage = Literal["calibrate", "infer", "ocr", "pitch", "render", "shots"]
+CpuStage = Literal["normalize", "stitch", "tiles", "load_db"]
 TaskStatus = Literal["queued", "running", "done", "failed"]
 
 
@@ -17,13 +17,15 @@ def make_task_id(job_id: str, stage: str, segment: int | None = None) -> str:
 class GpuTask(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    task_id: str = Field(..., description='idempotency key = f"{job_id}:{stage}:{segment:03d}" (segment: infer only)')
+    task_id: str = Field(
+        ..., description='idempotency key = f"{job_id}:{stage}:{segment:03d}" (segment: infer / pitch only)')
     stage: GpuStage
     image_tag: str = Field(..., description="must match across backends (deterministic results)")
     inputs: dict[str, str] = Field(default_factory=dict, description="name → object key")
     output_prefix: str
     config: PipelineConfig
-    segment: Segment | None = Field(None, description="the S4 unit of work (stage infer); None for whole-video stages")
+    segment: Segment | None = Field(
+        None, description="the S4 unit of work (stages infer / pitch); None for whole-video stages")
     timeout_s: int = 1800
 
     @staticmethod
@@ -32,7 +34,8 @@ class GpuTask(BaseModel):
 
 
 class CpuTask(BaseModel):
-    """CPU-queue twin of GpuTask for stages that never need a GPU (S2 normalise); always runs on the local cpu queue."""
+    """CPU-queue twin of GpuTask for stages that never need a GPU (S2 normalise, S5 stitch, S7 tiles, S8 load-db);
+    always runs on the local cpu queue."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -43,6 +46,9 @@ class CpuTask(BaseModel):
     outputs: dict[str, str] = Field(default_factory=dict, description="name → exact key for outputs outside the prefix")
     output_prefix: str
     config: PipelineConfig
+    params: dict[str, Any] = Field(
+        default_factory=dict,
+        description="stage arguments that are not object keys: org/video/job ids, revision, duration, segment plan")
     timeout_s: int = 3600
 
     @staticmethod
