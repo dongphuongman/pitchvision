@@ -20,7 +20,7 @@ from typing import Any
 from celery import Task
 
 from pitchvision_worker import metrics, repository
-from pitchvision_worker.celery_app import QUEUE_INGEST, app
+from pitchvision_worker.celery_app import QUEUE_INGEST, QUEUE_ORCHESTRATE, TASK_VIDEO_READY, app
 from pitchvision_worker.config import WorkerConfig
 from pitchvision_worker.stages import ingest
 from pitchvision_worker.storage import s3_client, source_key, upload_file
@@ -74,11 +74,12 @@ class IngestDeps:
     ydl_factory: ingest.YdlFactory = ingest.default_ydl_factory
     ffprobe: Callable[[Path], ingest.MediaInfo] = ingest.ffprobe
     tmp_root: str | None = None
+    notify_jobs: Callable[[uuid.UUID, uuid.UUID], None] | None = None  # wake jobs waiting for this video
 
     @classmethod
     def from_env(cls) -> IngestDeps:
         cfg = WorkerConfig.from_env()
-        return cls(cfg, repository.engine_for(cfg.database_url), _s3(cfg), _redis())
+        return cls(cfg, repository.engine_for(cfg.database_url), _s3(cfg), _redis(), notify_jobs=_poke_jobs)
 
 
 @app.task(
@@ -149,6 +150,8 @@ def run_download(
         return Outcome("skipped", reason="state_changed")
     metrics.record_ingest("download", "success", "", deps.redis)
     _publish(deps.redis, vid, "ready", None)
+    if deps.notify_jobs is not None:
+        deps.notify_jobs(vid, org)
     return Outcome("done")
 
 
@@ -161,6 +164,8 @@ def _failed(e: ingest.IngestError, vid: uuid.UUID, org: uuid.UUID, deps: IngestD
     repository.mark_failed(deps.engine, org, vid, error)
     metrics.record_ingest("download", "failed" if e.retryable else "rejected", e.reason, deps.redis)
     _publish(deps.redis, vid, "failed", error)
+    if deps.notify_jobs is not None:
+        deps.notify_jobs(vid, org)
     return Outcome("failed", reason=e.reason)
 
 
@@ -173,6 +178,14 @@ def _publish(redis_client: Any | None, vid: uuid.UUID, status: str, error: dict[
         redis_client.publish(f"video:{vid}", json.dumps(event))
     except Exception as e:
         log.warning("ingest: publish event failed: %r", e)
+
+
+def _poke_jobs(vid: uuid.UUID, org: uuid.UUID) -> None:
+    """Jobs created while the video was ingesting wait in `ingesting`: wake them now (the sweep is the fallback)."""
+    try:
+        app.send_task(TASK_VIDEO_READY, kwargs={"video_id": str(vid), "org_id": str(org)}, queue=QUEUE_ORCHESTRATE)
+    except Exception as e:
+        log.warning("ingest: could not notify the orchestrator: %r", e)
 
 
 @lru_cache(maxsize=1)

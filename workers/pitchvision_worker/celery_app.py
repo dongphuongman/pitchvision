@@ -55,7 +55,7 @@ def _sweep_interval_s() -> float:
 
 def create_app(broker_url: str | None = None) -> Celery:
     url = broker_url or redis_url()
-    include = ["pitchvision_worker.tasks", "pitchvision_worker.compute.tasks"]
+    include = ["pitchvision_worker.tasks", "pitchvision_worker.compute.tasks", "pitchvision_worker.orchestrator.tasks"]
     app = Celery("pitchvision_worker", broker=url, backend=url, include=include)
     app.conf.update(
         task_queues=[Queue(name) for name in QUEUES],

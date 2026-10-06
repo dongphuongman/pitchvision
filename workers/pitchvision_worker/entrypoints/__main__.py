@@ -11,6 +11,7 @@ Optional env:
     WORKER_CONCURRENCY  Celery process count (default: Celery's CPU count; gpu: 1)
     WORKER_LOGLEVEL     Celery log level (default: INFO)
     PV_REDIS_URL        broker/backend URL (default: redis://localhost:6379/0)
+    PV_BEAT_SCHEDULE    orchestrator only: beat state file (default /tmp/pv-celerybeat-schedule)
 """
 
 from __future__ import annotations
@@ -82,6 +83,10 @@ def celery_worker_argv(role: Role, env: Mapping[str, str]) -> list[str]:
     )
     if concurrency:
         argv.append(f"--concurrency={int(concurrency)}")
+    if role == Role.ORCHESTRATOR:
+        # embedded beat: periodic `orchestrate.sweep` (job recovery, AD §16.1). Duplicate sweeps from several
+        # orchestrator replicas are harmless — every step locks its job row.
+        argv += ["--beat", f"--schedule={env.get('PV_BEAT_SCHEDULE', '/tmp/pv-celerybeat-schedule')}"]
     return argv
 
 

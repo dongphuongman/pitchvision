@@ -23,6 +23,11 @@ x-pv-env: &pv-env
   PV_DEV_AUTH: ${PV_DEV_AUTH:-0}
   # Workers write video status through the same RLS-bound role as the api (they SET app.org_id per tx).
   PV_WORKER_DATABASE_URL: postgresql+psycopg://pv_app:${PV_APP_DB_PASSWORD:?set in .env}@postgres:5432/${POSTGRES_DB:?set in .env}
+  # Pipeline (M1-BE-09…11). Jobs pin the image tag; workers refuse tasks built for another tag (AD §7).
+  PV_IMAGE_TAG: ${TAG:-dev}
+  # Queue LocalGpuBackend sends GPU stages to: `gpu` (gpu-local profile) or `cpu` on a CPU-only box (slow, same code).
+  PV_LOCAL_GPU_QUEUE: ${PV_LOCAL_GPU_QUEUE:-gpu}
+  PV_COMPUTE_BACKENDS: ${PV_COMPUTE_BACKENDS:-local}
   # Only this URL changes when the object store is swapped (SeaweedFS -> Garage -> R2).
   PV_STORAGE_ENDPOINT: http://storage:8333
   PV_STORAGE_PUBLIC_ENDPOINT: ${PV_STORAGE_PUBLIC_ENDPOINT:-http://localhost:8333}

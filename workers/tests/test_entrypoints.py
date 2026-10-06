@@ -39,6 +39,12 @@ def test_celery_roles_start_worker_on_their_queue(role: str, queue: str) -> None
     assert f"--hostname={role.strip().lower()}@%h" in run.argv
 
 
+def test_orchestrator_runs_embedded_beat_for_the_recovery_sweep() -> None:
+    argv = celery_worker_argv(Role.ORCHESTRATOR, {})
+    assert "--beat" in argv and any(a.startswith("--schedule=") for a in argv)
+    assert "--beat" not in celery_worker_argv(Role.CPU, {})
+
+
 def test_gpu_defaults_to_one_process_and_env_overrides() -> None:
     assert "--concurrency=1" in celery_worker_argv(Role.GPU, {})
     assert "--concurrency=4" in celery_worker_argv(Role.INGEST, {})
