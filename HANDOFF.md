@@ -1,6 +1,6 @@
 ---
 status: in-progress
-branch: main → origin https://github.com/dongphuongman/pitchvision (private), CI green at 0153d6f; local commits 75f793f…(this HANDOFF) NOT pushed yet
+branch: main → origin https://github.com/dongphuongman/pitchvision (private), CI green at 1d79b8b (pushed)
 timestamp: 2026-10-06
 ---
 
@@ -11,7 +11,7 @@ tactical map, stats, AI report. Read `README.md` first (layout, commands, rules)
 "Trạng thái thực hiện" (rendered from `docs/status.json`).
 
 ## Where we are (M1, plan 12/10–20/11, alpha 04/12/2026)
-Done and on `main` (Python 883 tests, web 238 tests; CI last green at 0153d6f):
+Done and on `main` (Python 883 tests, web 238 tests, CI green incl. 3 Docker images):
 - Phase 0 spikes + Gate G0; SP-07 on real R2; SP-08 rVFC sync; SP-11 detector choice.
 - W1 foundation: uv + pnpm monorepo, import-linter, `packages/schemas`, Alembic + RLS, FastAPI, cv-core runtime/VideoReader, golden eval, web shell, Compose, Dockerfiles, GitHub Actions.
 - W2: identity-svc (auth, orgs, roles, invites, Google OIDC, JWKS), API JWT, presigned multipart upload, YouTube ingest (queue `ingest`), S2 normalise, shot classifier 97.9 %, D-FINE ONNX, keypoint/homography lib, auth/onboarding screens, Terraform R2.
@@ -29,7 +29,7 @@ Contracts: `docs/contracts/identity-api.md` (plans, quota), `docs/contracts/pipe
 derived jobs, exports, notifications).
 
 ## Next (doable on the Mac)
-1. Push the local commits and check CI (Docker images: worker needs ffmpeg/libx264 — already used by normalize).
+1. Local email check:
    Add `PV_INTERNAL_TOKEN` to `infra/compose/.env` to get notification emails in Mailpit locally.
 2. SCR-14 E05/E06 (attacking direction, goalkeeper/referee fix) — backend + web.
 3. SCR-40 billing section (plan, usage, waitlist upgrade = SCR-41), /preferences email toggles, SCR-01 landing,
