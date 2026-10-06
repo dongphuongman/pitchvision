@@ -1,7 +1,9 @@
 import { http, HttpResponse } from 'msw';
 import { setupWorker } from 'msw/browser';
 import { identityHandlers, type MockDb } from './identity';
-import { demoDb } from './seed';
+import { demoDb, demoVideoDb } from './seed';
+import { playerHandlers } from './player';
+import { videoHandlers } from './videos';
 
 /**
  * Dev-only in-browser API (`VITE_MOCK_API=1 pnpm dev`). The worker script is served by the
@@ -36,6 +38,8 @@ export async function startMockApi(): Promise<void> {
   persistCookie(db);
   const worker = setupWorker(
     ...identityHandlers(db),
+    ...videoHandlers(demoVideoDb(), { simulate: { tickMs: 1500 } }),
+    ...playerHandlers(),
     http.get('*/api/v1/meta', () => HttpResponse.json({ version: 'mock', schema_version: 1 })),
   );
   await worker.start({ onUnhandledFrame: 'bypass' });

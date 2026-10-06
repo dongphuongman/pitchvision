@@ -1,19 +1,31 @@
 import { setupServer } from 'msw/node';
+import { resetWsClientForTests } from '@/api/ws';
+import { resetPendingDeletesForTests } from '@/features/library/pendingDeletes';
 import { createMockDb, identityHandlers, type MockDb } from '@/mocks/identity';
+import { createVideoDb, videoHandlers, type MockVideoDb } from '@/mocks/videos';
 
 /**
  * MSW for a test file: `const mock = setupIdentityMock()` at the top level of a describe/file.
- * Each test gets a fresh in-memory identity DB (`mock.db`), mutable before rendering.
- * Unhandled requests fail the test so contract drift is visible.
+ * Each test gets a fresh in-memory identity DB (`mock.db`) and videos/jobs DB (`mock.videos`,
+ * incl. the `/api/v1/ws` socket), mutable before rendering. Unhandled requests fail the test so
+ * contract drift is visible.
  */
 export function setupIdentityMock() {
   const server = setupServer();
-  const state: { db: MockDb } = { db: createMockDb() };
+  const state: { db: MockDb; videos: MockVideoDb } = {
+    db: createMockDb(),
+    videos: createVideoDb(),
+  };
 
   beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
   beforeEach(() => {
     state.db = createMockDb();
-    server.resetHandlers(...identityHandlers(state.db));
+    state.videos = createVideoDb();
+    server.resetHandlers(...identityHandlers(state.db), ...videoHandlers(state.videos));
+  });
+  afterEach(() => {
+    resetWsClientForTests();
+    resetPendingDeletesForTests();
   });
   afterAll(() => server.close());
 
@@ -21,6 +33,9 @@ export function setupIdentityMock() {
     server,
     get db() {
       return state.db;
+    },
+    get videos() {
+      return state.videos;
     },
   };
 }

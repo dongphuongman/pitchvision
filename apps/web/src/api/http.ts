@@ -40,6 +40,16 @@ export function setAuthHooks(hooks: AuthHooks): void {
   authHooks = hooks;
 }
 
+/** Current access token (for transports that can't use the fetch wrapper, e.g. the WebSocket). */
+export function getAccessToken(): string | null {
+  return authHooks.getAccessToken();
+}
+
+/** Single-flight session refresh shared with the fetch wrapper. */
+export function refreshAccessToken(): Promise<string | null> {
+  return authHooks.refresh();
+}
+
 /**
  * Identity endpoints that must never trigger "refresh then retry": they *are* the session
  * lifecycle (a 401 from login means bad credentials, from refresh means signed out).

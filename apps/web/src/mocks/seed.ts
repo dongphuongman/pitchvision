@@ -1,4 +1,5 @@
 import { createMockDb, mockOrg, mockUser, type MockDb } from './identity';
+import { createVideoDb, mockJob, mockVideo, stubManifest, type MockVideoDb } from './videos';
 
 /**
  * Demo data for `VITE_MOCK_API=1 pnpm dev` (password for every account: "correct horse battery"):
@@ -54,4 +55,82 @@ export function demoDb(): MockDb {
     resetTokens: { 'demo-reset': 'valid', old: 'expired' },
     verifyTokens: { 'demo-verify': unverified.id },
   });
+}
+
+const TEAMS = [
+  ['Riverside FC', 'Harbor City'],
+  ['France', 'Switzerland'],
+  ['U17 Riverside', 'Ajax U17'],
+  ['Northfield', 'Riverside FC'],
+  ['Riverside FC', 'Eastgate Utd'],
+  ['Westbrook', 'Riverside FC'],
+  ['Riverside Women', 'Lakeside Women'],
+] as const;
+
+/**
+ * Library demo (SCR-10): 26 videos covering every card state, so the first page (20) scrolls
+ * into a second one. Jobs don't change the video status (sources stay `ready`); the latest job
+ * drives the card. Running jobs advance over the mock WebSocket.
+ */
+export function demoVideoDb(): MockVideoDb {
+  const db = createVideoDb();
+  const day = (n: number, h = 18) => new Date(Date.UTC(2026, 9, 5 - n, h, 0, 0)).toISOString();
+  type Kind =
+    'running' | 'queued' | 'ingesting' | 'uploading' | 'failed' | 'fresh' | 'ingestFailed' | 'done';
+  const kinds: Kind[] = [
+    'running',
+    'queued',
+    'ingesting',
+    'uploading',
+    'failed',
+    'fresh',
+    'ingestFailed',
+  ];
+  for (let i = 0; i < 26; i += 1) {
+    const [home, away] = TEAMS[i % TEAMS.length] ?? ['Home', 'Away'];
+    const kind = kinds[i] ?? 'done';
+    const v = mockVideo({
+      title: kind === 'uploading' ? 'training_match_cam2.mp4' : `${home} vs ${away}`,
+      created_at: day(i, 20 - (i % 5)),
+      duration_ms:
+        kind === 'uploading' || kind === 'ingesting' ? null : 5_400_000 + ((i * 137_000) % 900_000),
+      source_type: kind === 'uploading' || i % 3 === 2 ? 'upload' : 'youtube',
+      status:
+        kind === 'uploading'
+          ? 'uploading'
+          : kind === 'ingesting'
+            ? 'ingesting'
+            : kind === 'ingestFailed'
+              ? 'failed'
+              : 'ready',
+      error: kind === 'ingestFailed' ? { code: 'INGEST_FAILED', reason: null, detail: null } : null,
+    });
+    db.videos.push(v);
+    if (kind === 'running') {
+      db.jobs.push(mockJob(v, { status: 'inferring', progress: 42, eta_s: 540 }));
+    } else if (kind === 'queued') {
+      db.jobs.push(mockJob(v, { status: 'queued', stage: null, progress: 0 }));
+    } else if (kind === 'failed') {
+      db.jobs.push(
+        mockJob(v, {
+          status: 'failed',
+          progress: 37,
+          error: { code: 'NO_WIDE_SHOTS', retryable: true, detail: null },
+        }),
+      );
+    } else if (kind === 'done') {
+      db.jobs.push(
+        mockJob(v, {
+          status: 'done',
+          progress: 100,
+          stage: 'load_db',
+          coverage: { main_wide_pct: 58 + ((i * 7) % 30) },
+        }),
+      );
+      db.manifests[v.id] = stubManifest(v, {
+        pitch: { status: i === 9 ? 'degraded' : 'ok' },
+      });
+    }
+  }
+  return db;
 }
