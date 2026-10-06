@@ -29,6 +29,7 @@ from worker_testkit import S3_BUCKET, s3_test_client
 pytestmark = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
 
 RED, BLUE = "#ff0000", "#0000ff"
+USER = uuid.UUID("00000000-0000-4000-8000-0000000000aa")
 
 
 def tracks_file(path: Path, frames: int = 50) -> Path:
@@ -140,8 +141,9 @@ def _rows(engine: Engine, org: uuid.UUID, eid: uuid.UUID) -> dict[str, Any]:
 def _export(engine: Engine, org: uuid.UUID, vid: uuid.UUID, sp: ExportSpec, **cols: Any) -> uuid.UUID:
     eid = uuid.uuid4()
     with org_tx(engine, org) as c:
-        c.execute(text("INSERT INTO exports (id, org_id, video_id, spec, filename) VALUES (:e, :o, :v, :s, 'x.mp4')"),
-                  {"e": eid, "o": org, "v": vid, "s": json.dumps(sp.model_dump(mode="json"))})  # fmt: skip
+        c.execute(text("INSERT INTO exports (id, org_id, video_id, spec, filename, created_by) "
+                       "VALUES (:e, :o, :v, :s, 'x.mp4', :u)"),
+                  {"e": eid, "o": org, "v": vid, "s": json.dumps(sp.model_dump(mode="json")), "u": USER})  # fmt: skip
         if cols:
             sets = ", ".join(f"{k} = :{k}" for k in cols)
             c.execute(text(f"UPDATE exports SET {sets} WHERE id = :e"), {"e": eid, **cols})
@@ -178,6 +180,10 @@ def test_render_export_task(tmp_path: Path, setup: tuple[ExportDeps, uuid.UUID, 
     assert row["size_bytes"] == len(deps.store.get_bytes(key)) > 0
     assert timedelta(days=6.9) < row["expires_at"] - row["finished_at"] <= timedelta(days=7)
     assert run_render_export(str(org), str(eid), deps) == "skipped"  # redelivery
+    with org_tx(deps.engine, org) as c:
+        notes = list(c.execute(text("SELECT type, user_id, data->>'export_id', data->>'filename' FROM notifications "
+                                    "WHERE video_id = :v"), {"v": vid}))  # fmt: skip
+    assert [tuple(n) for n in notes] == [("export_ready", USER, str(eid), "x.mp4")]
     assert run_render_export(str(uuid.uuid4()), str(eid), deps, row_waits=0) == "wait_row"  # other org: invisible
     assert run_render_export(str(uuid.uuid4()), str(eid), deps, row_waits=9) == "skipped"
 

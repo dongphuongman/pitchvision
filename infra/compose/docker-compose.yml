@@ -28,6 +28,9 @@ x-pv-env: &pv-env
   # HMAC key for signed playback-tile URLs (AD §14; api /api/v1/tiles route self-host, Cloudflare Worker later).
   PV_TILE_SIGNING_KEY: ${PV_TILE_SIGNING_KEY:-}
   PV_TILE_URL_TTL_S: ${PV_TILE_URL_TTL_S:-21600}
+  # Notification emails (M1-BE-19): workers hand them to identity-svc's internal route; unset token = in-app only.
+  PV_IDENTITY_INTERNAL_URL: ${PV_IDENTITY_INTERNAL_URL:-http://identity:8000}
+  PV_INTERNAL_TOKEN: ${PV_INTERNAL_TOKEN:-}
   # Pipeline (M1-BE-09…11). Jobs pin the image tag; workers refuse tasks built for another tag (AD §7).
   PV_IMAGE_TAG: ${TAG:-dev}
   # Queue LocalGpuBackend sends GPU stages to: `gpu` (gpu-local profile) or `cpu` on a CPU-only box (slow, same code).
@@ -53,6 +56,7 @@ x-identity-env: &identity-env
   # Browser-facing origin: email links, OIDC redirect, and the JWT `iss`.
   PV_WEB_URL: ${PV_WEB_URL:-http://localhost:3000}
   PV_JWT_ISSUER: ${PV_WEB_URL:-http://localhost:3000}
+  PV_INTERNAL_TOKEN: ${PV_INTERNAL_TOKEN:-}  # workers' notification emails (/internal/v1)
   # Local: migrate-identity generates a signing key once into the identity-keys volume so sessions survive
   # restarts. Production: set PV_JWT_PRIVATE_KEY_PEM from the secret store instead.
   PV_JWT_PRIVATE_KEY_PEM: ${PV_JWT_PRIVATE_KEY_PEM:-}

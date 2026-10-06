@@ -16,6 +16,7 @@ from pitchvision_schemas.exports import (
 from pitchvision_schemas.jobs import JOB_KINDS, JOB_TRANSITIONS, JobKind, JobStatus, can_transition
 from pitchvision_schemas.keys import shots_key, tile_key
 from pitchvision_schemas.manifest import Coverage, Manifest, PitchCalibration, PitchStatus, TeamInfo
+from pitchvision_schemas.notifications import EMAIL_TYPES, NOTIFICATION_TYPES, NotificationType, notification_path
 from pitchvision_schemas.pipeline import PipelineConfig, Segment
 from pitchvision_schemas.pitch_template import (
     PitchTemplateInfo,
@@ -46,9 +47,11 @@ from pitchvision_schemas.ws import (
 SCHEMA_VERSION = 1
 
 __all__ = [
+    "EMAIL_TYPES",
     "EXPORT_HEIGHTS",
     "JOB_KINDS",
     "JOB_TRANSITIONS",
+    "NOTIFICATION_TYPES",
     "PLAN_LIMITS",
     "SCHEMA_VERSION",
     "TERMINAL_EXPORT",
@@ -75,6 +78,7 @@ __all__ = [
     "JobKind",
     "JobStatus",
     "Manifest",
+    "NotificationType",
     "ObjCls",
     "PingMessage",
     "PipelineConfig",
@@ -104,6 +108,7 @@ __all__ = [
     "can_transition",
     "limits_for",
     "load_pitch_template",
+    "notification_path",
     "plan_of",
     "shots_key",
     "tile_key",

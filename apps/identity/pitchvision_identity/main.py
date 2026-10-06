@@ -20,7 +20,7 @@ from pitchvision_identity.errors import PROBLEM_JSON, ProblemDetails, install_er
 from pitchvision_identity.mail import EmailSender, make_sender
 from pitchvision_identity.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
 from pitchvision_identity.ratelimit import MemoryRateLimiter, RateLimiter
-from pitchvision_identity.routers import auth, health, invites, me, orgs, wellknown
+from pitchvision_identity.routers import auth, health, internal, invites, me, orgs, wellknown
 from pitchvision_identity.security import KeyRing, PasswordHasher
 from pitchvision_identity.services.oidc import GoogleOidc
 from pitchvision_identity.settings import Settings
@@ -93,6 +93,7 @@ def create_app(
     app.include_router(health.router)
     app.include_router(wellknown.router)
     app.include_router(api_router())
+    app.include_router(internal.router)
     app.openapi = lambda: _openapi(app)  # type: ignore[method-assign]
     return app
 

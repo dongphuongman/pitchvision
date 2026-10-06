@@ -344,3 +344,32 @@ class Export(Base):
     finished_at: Mapped[datetime | None]
     expires_at: Mapped[datetime | None]
     deleted_at: Mapped[datetime | None]
+
+
+class Notification(Base):
+    """0006: SCR-51 notifications (type = pitchvision_schemas.NotificationType)."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        _video_fk(),
+        CheckConstraint(
+            "type IN ('job_ready', 'needs_teams', 'job_failed', 'export_ready', 'export_failed', 'quota_80', "
+            "'quota_100')"
+        ),
+        CheckConstraint("email_status IN ('pending', 'sent', 'skipped', 'failed')"),
+        UniqueConstraint("user_id", "dedupe_key", name="uq_notifications_dedupe"),
+        Index("ix_notifications_user", "org_id", "user_id", "created_at", "id"),
+        Index("ix_notifications_email", "created_at", postgresql_where=text("email_status = 'pending'")),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, server_default=GEN_UUID)
+    org_id: Mapped[uuid.UUID]
+    user_id: Mapped[uuid.UUID]
+    type: Mapped[str]
+    video_id: Mapped[uuid.UUID | None]
+    data: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
+    dedupe_key: Mapped[str | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    read_at: Mapped[datetime | None]
+    email_status: Mapped[str] = mapped_column(server_default="pending")
+    email_attempts: Mapped[int] = mapped_column(server_default="0")

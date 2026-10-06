@@ -210,6 +210,23 @@ automatic retry (SCR-26 Retry re-queues the same row). `cpu.sweep_exports` (beat
 `expired`), `GET /exports/{id}/download` (presigned attachment, 15 min; 409 `not_ready`, 410 `expired`), `POST
 …/cancel`, `POST …/retry`, `DELETE` (requester or editor+). Limitation: 1080p upscales the 720p normalized copy.
 
+## Notifications (M1-BE-19, SCR-51)
+`notifications` (API migration 0006, RLS) — one row per recipient; `type` ∈ `pitchvision_schemas.NotificationType`,
+`path` (web route) from `notification_path`. Written in the SAME transaction as the change they report, with a
+unique `(user_id, dedupe_key)`:
+- orchestrator, job → done: `needs_teams` (teams not all confirmed; not after a recalibration) else `job_ready`;
+  job → failed: `job_failed {code, retryable}`. Recipient `jobs.created_by`.
+- export task, done / failed: `export_ready {filename, size_bytes}` / `export_failed {code}` to `exports.created_by`.
+- API quota check, when a new / retried job's minutes cross 80 % / 100 % of the month: `quota_80` / `quota_100` to
+  the caller (once per month and mark).
+API: `GET /api/v1/notifications?limit&cursor` → `{items[{id, type, video_id, video_title, data, path, created_at,
+read_at}], unread_count, next_cursor}` (own rows in the active org), `POST /api/v1/notifications/read {ids | all}`.
+Email: types in `EMAIL_TYPES` start `email_status = pending` (others `skipped`); `cpu.deliver_notification_emails`
+(beat, `PV_NOTIFY_EMAIL_S` 60 s) posts them to identity-svc `POST /internal/v1/notifications/email` (bearer
+`PV_INTERNAL_TOKEN`; identity checks membership + verified email and renders the copy) → `sent` / `skipped`;
+transport errors retry, `failed` after 5 attempts or a 4xx. No token / URL configured → `skipped` (in-app only).
+Not yet: "member joined" (identity event), per-user email preferences (SCR-40 /preferences).
+
 ## Video deletion (AD §14)
 `DELETE /api/v1/videos/{id}` cancels the active job (→ `orchestrate.cancel_job`), soft-deletes the row and enqueues
 `cpu.delete_video_objects(org_id, video_id)` (`pitchvision_worker.erasure`): every object under

@@ -32,7 +32,7 @@ from celery import Task
 from pitchvision_schemas import ExportSpec, keys
 from sqlalchemy import select, text, update
 
-from pitchvision_worker import repository
+from pitchvision_worker import notify, repository
 from pitchvision_worker.celery_app import QUEUE_CPU, TASK_SWEEP_EXPORTS, app
 from pitchvision_worker.config import WorkerConfig
 from pitchvision_worker.export_render import RenderCancelled, RenderError, render
@@ -81,17 +81,38 @@ def set_progress(engine: Any, org: uuid.UUID, export_id: uuid.UUID, pct: float) 
                     {"progress": Decimal(f"{max(0.0, min(99.0, pct)):.2f}"), "heartbeat_at": _now()})  # fmt: skip
 
 
+def _finish(engine: Any, org: uuid.UUID, export_id: uuid.UUID, values: dict[str, Any], type_: str,
+            extra: dict[str, Any]) -> bool:  # fmt: skip
+    """running → done / failed + the requester's SCR-51 notification, in one transaction."""
+    with org_tx(engine, org) as conn:
+        stmt = (update(exports)
+                .where(exports.c.id == export_id, exports.c.org_id == org, exports.c.status == "running",
+                       exports.c.deleted_at.is_(None))
+                .values(**values)
+                .returning(exports.c.created_by, exports.c.video_id, exports.c.filename,
+                           exports.c.attempts))  # fmt: skip
+        row = conn.execute(stmt).first()
+        if row is None:
+            return False
+        notify.add(conn, org_id=org, user_id=row.created_by, type_=type_, video_id=row.video_id,
+                   data={"export_id": str(export_id), "filename": row.filename, **extra},
+                   dedupe_key=f"export:{export_id}:{type_}:{row.attempts}")  # fmt: skip
+        return True
+
+
 def mark_done(engine: Any, org: uuid.UUID, export_id: uuid.UUID, object_key: str, size: int, ttl_days: int) -> bool:
     now = _now()
-    return _guarded(engine, org, export_id, "running", {
+    return _finish(engine, org, export_id, {
         "status": "done", "progress": 100, "object_key": object_key, "size_bytes": size, "error": None,
-        "finished_at": now, "heartbeat_at": now, "expires_at": now + timedelta(days=ttl_days)})
+        "finished_at": now, "heartbeat_at": now, "expires_at": now + timedelta(days=ttl_days)},
+        "export_ready", {"size_bytes": size})
 
 
 def mark_failed(engine: Any, org: uuid.UUID, export_id: uuid.UUID, code: str, detail: str, retryable: bool) -> bool:
-    return _guarded(engine, org, export_id, "running", {
+    return _finish(engine, org, export_id, {
         "status": "failed", "finished_at": _now(),
-        "error": {"code": code, "retryable": retryable, "detail": detail[:500] or None}})
+        "error": {"code": code, "retryable": retryable, "detail": detail[:500] or None}},
+        "export_failed", {"code": code})
 
 
 # ---------------------------------------------------------------- render task

@@ -50,6 +50,7 @@ class Harness:
     stages: DevFakeStages = field(default_factory=DevFakeStages)
     scheduled: list[float] = field(default_factory=list)
     pitch: bool = False  # Deps.pitch_available (a registered pitch keypoint model)
+    user: uuid.UUID = field(default_factory=uuid.uuid4)  # jobs.created_by → notification recipient
 
     def __post_init__(self) -> None:
         self.stages.db = self.db
@@ -69,8 +70,9 @@ class Harness:
                            "VALUES (:v, :o, :u, :st, :s, :k)"),
                       {"v": self.video_id, "o": self.org, "u": uuid.uuid4(), "st": source_type, "s": video_status,
                        "k": src if video_status == "ready" else None})  # fmt: skip
-            c.execute(text("INSERT INTO jobs (id, video_id, org_id, image_tag, config) VALUES (:j, :v, :o, :t, :c)"),
-                      {"j": self.job_id, "v": self.video_id, "o": self.org, "t": TAG,
+            c.execute(text("INSERT INTO jobs (id, video_id, org_id, image_tag, config, created_by) "
+                           "VALUES (:j, :v, :o, :t, :c, :u)"),
+                      {"j": self.job_id, "v": self.video_id, "o": self.org, "t": TAG, "u": self.user,
                        "c": json.dumps({"segment_target_s": 120})})  # fmt: skip
         return self
 
@@ -112,6 +114,10 @@ class Harness:
         with org_tx(self.db, self.org) as c:
             rows = c.execute(text("SELECT * FROM job_tasks WHERE job_id = :j"), {"j": self.job_id}).mappings()
             return {r["task_key"]: dict(r) for r in rows}
+
+    def notifications(self) -> list[tuple[Any, ...]]:
+        return [tuple(r) for r in self.sql("SELECT type, user_id, data->>'job_id', email_status FROM notifications "
+                                           "WHERE video_id = :v ORDER BY created_at, type")]  # fmt: skip
 
     def sql(self, stmt: str, **params: Any) -> list[Any]:
         with org_tx(self.db, self.org) as c:
@@ -181,6 +187,8 @@ def test_full_dag_to_done(h: Harness) -> None:
     assert h.sql("SELECT count(*) FROM teams WHERE video_id = :v")[0][0] == 2
     assert h.sql("SELECT count(*) FROM players WHERE video_id = :v")[0][0] == 2
     assert h.advance() == "done"  # idempotent
+    # SCR-51: teams are not confirmed yet → "confirm teams" (once, even after the extra advance)
+    assert h.notifications() == [("needs_teams", h.user, job_id, "pending")]
 
 
 def test_no_wide_shots_fails_job(h: Harness) -> None:
@@ -194,6 +202,7 @@ def test_no_wide_shots_fails_job(h: Harness) -> None:
     assert job["coverage"] == {"main_wide_pct": 0.0} and "calibrate" not in h.stages.calls
     assert h.redis.published[-1][1] == {"topic": f"job:{h.job_id}", "type": "failed",
                                         "data": {"code": "NO_WIDE_SHOTS", "retryable": False}}  # fmt: skip
+    assert h.notifications() == [("job_failed", h.user, str(h.job_id), "pending")]
 
 
 def test_unreadable_video_is_not_retried(h: Harness) -> None:
@@ -465,13 +474,14 @@ def test_post_stage_failure_fails_job_and_retry_reuses_tracks(h: Harness) -> Non
 def _derived(h: Harness, kind: str, detail: dict[str, Any], *, bump_revision: bool = False) -> Harness:
     """A child job of ``h``'s (finished / failed) job, as the API creates it (jobs.detail.kind + parent_job_id)."""
     child = Harness(h.db, org=h.org, video_id=h.video_id, store=h.store, backend=h.backend, clock=h.clock,
-                    redis=h.redis, stages=h.stages)  # fmt: skip
+                    redis=h.redis, stages=h.stages, user=h.user)  # fmt: skip
     with org_tx(h.db, h.org) as c:
         if bump_revision:
             c.execute(text("UPDATE videos SET revision = revision + 1 WHERE id = :v"), {"v": h.video_id})
-        c.execute(text("INSERT INTO jobs (id, video_id, org_id, image_tag, config, detail) "
-                       "VALUES (:j, :v, :o, :t, :c, :d)"),
-                  {"j": child.job_id, "v": h.video_id, "o": h.org, "t": TAG, "c": json.dumps({"segment_target_s": 120}),
+        c.execute(text("INSERT INTO jobs (id, video_id, org_id, image_tag, config, detail, created_by) "
+                       "VALUES (:j, :v, :o, :t, :c, :d, :u)"),
+                  {"j": child.job_id, "v": h.video_id, "o": h.org, "t": TAG, "u": h.user,
+                   "c": json.dumps({"segment_target_s": 120}),
                    "d": json.dumps({"kind": kind, "parent_job_id": str(h.job_id), **detail})})  # fmt: skip
     return child
 
@@ -517,6 +527,8 @@ def test_recalibrate_job_reprojects_on_cpu_under_a_new_revision(h: Harness) -> N
     assert o[8] == pytest.approx((o[3] + o[5]) / 2 / 10, abs=0.05) and o[9] == pytest.approx(o[6] / 10, abs=0.05)
     xy = h.sql("SELECT count(*), count(px), min(py), max(py) FROM positions_org WHERE video_id = :v")[0]
     assert xy[0] == xy[1] == 6000 and 30 < xy[2] <= xy[3] < 45
+    # a recalibration never asks to confirm teams again
+    assert h.notifications()[-1] == ("job_ready", h.user, job_id, "pending")
 
 
 def test_recalibrate_with_bad_points_fails_permanently(h: Harness) -> None:

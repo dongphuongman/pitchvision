@@ -186,6 +186,10 @@
     {
       "date": "2026-10-06",
       "text": "M1-BE-18 quota phút (backend): tính phút đã dùng theo tháng từ job analyze (job lỗi/huỷ, job phái sinh không tính), chặn 402 khi upload/nhập YouTube/tạo job/thử lại vượt hạn mức; GET /usage cho đồng hồ G.E06."
+    },
+    {
+      "date": "2026-10-06",
+      "text": "M1-BE-19 thông báo (backend): bảng notifications ghi cùng transaction khi job xong/lỗi (cần xác nhận đội), export xong/lỗi, quota 80%/100%; API danh sách + đánh dấu đã đọc; email qua route nội bộ của identity-svc (token PV_INTERNAL_TOKEN), worker giao định kỳ. Python 883 test."
     }
   ]
 }

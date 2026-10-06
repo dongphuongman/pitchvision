@@ -25,6 +25,9 @@ class WorkerConfig:
     compute_backends: tuple[str, ...] = ("local",)  # PV_COMPUTE_BACKENDS, priority order (AD §7.1)
     max_inflight_segments: int = 16  # PV_MAX_INFLIGHT_SEGMENTS per job (capacity also caps it)
     sweep_interval_s: float = 30.0  # PV_SWEEP_INTERVAL_S: orchestrator recovery sweep period
+    # --- notifications (M1-BE-19): identity-svc sends the emails; unset = in-app only
+    identity_internal_url: str | None = None  # PV_IDENTITY_INTERNAL_URL, e.g. http://identity:8001
+    internal_token: str | None = None  # PV_INTERNAL_TOKEN, shared with identity-svc
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> WorkerConfig:
@@ -46,6 +49,8 @@ class WorkerConfig:
             ),
             max_inflight_segments=int(e.get("PV_MAX_INFLIGHT_SEGMENTS") or 16),
             sweep_interval_s=float(e.get("PV_SWEEP_INTERVAL_S") or 30),
+            identity_internal_url=(e.get("PV_IDENTITY_INTERNAL_URL") or "").rstrip("/") or None,
+            internal_token=e.get("PV_INTERNAL_TOKEN") or None,
         )
 
 

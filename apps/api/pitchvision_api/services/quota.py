@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pitchvision_api.auth import Principal
 from pitchvision_api.errors import ApiError
+from pitchvision_api.services import notifications
 
 USED_SQL = text("""
 SELECT coalesce(sum(ceil(coalesce(v.duration_ms, 0) / 60000.0)), 0)::int
@@ -66,12 +67,16 @@ async def usage(session: AsyncSession, principal: Principal) -> Usage:
 
 
 async def ensure(session: AsyncSession, principal: Principal, needed: int = 0) -> None:
-    """402 unless ``needed`` more minutes fit this month (``needed = 0``: at least one minute left)."""
+    """402 unless ``needed`` more minutes fit this month (``needed = 0``: at least one minute left). When the
+    minutes are about to be used (``needed > 0``) and that crosses 80 % / 100 % of the limit, the caller gets the
+    SCR-51 quota notification (once per month and mark)."""
     await session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
                           {"k": f"quota:{principal.org_id}"})  # fmt: skip
     used = await used_minutes(session, principal)
     limit = principal.limits.minutes_per_month
     if used + needed <= limit and used < limit:
+        if needed:
+            await _thresholds(session, principal, used, used + needed, limit)
         return
     _, resets = period()
     plan = principal.plan.value.capitalize()
@@ -80,3 +85,14 @@ async def ensure(session: AsyncSession, principal: Principal, needed: int = 0) -
                    f"{plan} plan allows {limit} minutes/month; {used} used{tail}",
                    extensions={"reason": "quota", "plan": principal.plan.value, "used": used, "limit": limit,
                                "needed": needed, "resets_at": resets.isoformat()})  # fmt: skip
+
+
+async def _thresholds(session: AsyncSession, principal: Principal, before: int, after: int, limit: int) -> None:
+    start, end = period()
+    for pct, type_ in ((100, "quota_100"), (80, "quota_80")):
+        mark = math.ceil(limit * pct / 100)
+        if before < mark <= after:
+            await notifications.add(session, principal, type_, {"used": after, "limit": limit, "plan":
+                                    principal.plan.value, "resets_at": end.isoformat()},
+                                    f"{type_}:{start:%Y-%m}")  # fmt: skip
+            return

@@ -208,6 +208,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/notifications': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Notifications
+     * @description Newest first + `unread_count` (bell badge G.E07). `path` is the web route to open; the text is rendered by
+     *     the web from `type` + `data` + `video_title`.
+     */
+    get: operations['list_notifications_api_v1_notifications_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/notifications/read': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mark Read
+     * @description Mark `ids` (or `all: true`) as read.
+     */
+    post: operations['mark_read_api_v1_notifications_read_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/results/{video_id}/calibration': {
     parameters: {
       query?: never;
@@ -1226,6 +1267,17 @@ export interface components {
         [key: string]: components['schemas']['SeedBox'][];
       };
     };
+    /** MarkRead */
+    MarkRead: {
+      /**
+       * All
+       * @description Mark every notification as read (E01 Mark all as read)
+       * @default false
+       */
+      all: boolean;
+      /** Ids */
+      ids?: string[];
+    };
     /** MediaOut */
     MediaOut: {
       /** Expires In */
@@ -1248,6 +1300,55 @@ export interface components {
       schema_version: number;
       /** Version */
       version: string;
+    };
+    /** NotificationList */
+    NotificationList: {
+      /** Items */
+      items: components['schemas']['NotificationOut'][];
+      /** Next Cursor */
+      next_cursor?: string | null;
+      /** Unread Count */
+      unread_count: number;
+    };
+    /** NotificationOut */
+    NotificationOut: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Data */
+      data: {
+        [key: string]: unknown;
+      };
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Path
+       * @description Web route the notification opens (SCR-51 E02)
+       */
+      path: string;
+      /** Read At */
+      read_at: string | null;
+      /**
+       * Type
+       * @enum {string}
+       */
+      type:
+        | 'job_ready'
+        | 'needs_teams'
+        | 'job_failed'
+        | 'export_ready'
+        | 'export_failed'
+        | 'quota_80'
+        | 'quota_100';
+      /** Video Id */
+      video_id: string | null;
+      /** Video Title */
+      video_title: string | null;
     };
     /** PartUrl */
     PartUrl: {
@@ -2272,6 +2373,87 @@ export interface operations {
         content: {
           'application/json': components['schemas']['Meta'];
         };
+      };
+    };
+  };
+  list_notifications_api_v1_notifications_get: {
+    parameters: {
+      query?: {
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NotificationList'];
+        };
+      };
+    };
+  };
+  mark_read_api_v1_notifications_read_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MarkRead'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

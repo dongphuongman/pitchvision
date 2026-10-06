@@ -60,7 +60,7 @@ from pitchvision_schemas import (
 from pitchvision_schemas.jobs import can_transition
 from sqlalchemy import Connection, Engine
 
-from pitchvision_worker import events
+from pitchvision_worker import events, notify
 from pitchvision_worker.compute.base import StageFailure, StageTask, classify, success_key
 from pitchvision_worker.compute.router import BackendRouter
 from pitchvision_worker.compute.stages import (
@@ -222,6 +222,7 @@ class _Run:
                 self._to(JobStatus.done)
                 store.update_job(self.conn, self.id, finished_at=self.now, error=None)
                 self.events.append(events.completed(self.id, self.video_id))
+                self._notify_done()
         except _JobFailed:
             pass
         finally:
@@ -242,8 +243,22 @@ class _Run:
             self._to(JobStatus.failed)
             store.update_job(self.conn, self.id, error=failure.as_dict(), finished_at=self.now)
             self.events.append(events.failed(self.id, failure.code, failure.retryable))
+            notify.add(self.conn, org_id=self.org, user_id=self.job["created_by"], type_="job_failed",
+                       video_id=self.video_id, data={"job_id": str(self.id), "kind": self.kind, "code": failure.code,
+                                                     "retryable": failure.retryable},
+                       dedupe_key=f"job:{self.id}:failed:{self.now.isoformat()}")  # fmt: skip
             log.warning("job %s failed: %s", self.id, failure)
         raise _JobFailed
+
+    def _notify_done(self) -> None:
+        """SCR-51: "<video> is ready", or "confirm teams" while the teams aren't confirmed (not after a
+        recalibration — teams didn't change)."""
+        needs_teams = self.kind != "recalibrate" and not notify.teams_confirmed(self.conn, self.video_id)
+        notify.add(self.conn, org_id=self.org, user_id=self.job["created_by"],
+                   type_="needs_teams" if needs_teams else "job_ready", video_id=self.video_id,
+                   data={"job_id": str(self.id), "kind": self.kind,
+                         "pitch_calibration": self.detail.get("pitch_calibration")},
+                   dedupe_key=f"job:{self.id}:done")  # fmt: skip
 
     # ------------------------------------------------------------------ derived jobs
     def _parent_id(self) -> uuid.UUID | None:

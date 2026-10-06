@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     smtp_starttls: bool = False
     smtp_ssl: bool = False
     resend_api_key: str | None = None
+    # service-to-service (workers → POST /internal/v1/notifications/email); unset = internal routes answer 404
+    internal_token: str | None = None
 
     # --- Google OIDC (disabled unless both id and secret are set)
     google_client_id: str | None = None

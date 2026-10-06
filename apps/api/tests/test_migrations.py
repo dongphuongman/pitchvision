@@ -18,7 +18,7 @@ from .conftest import Db, alembic_config, enable_app_login
 
 TENANT_TABLES = {
     "videos", "jobs", "job_tasks", "teams", "players", "positions", "corrections",
-    "stats_player", "stats_team", "tactics", "reports", "shots", "idempotency_keys", "exports",
+    "stats_player", "stats_team", "tactics", "reports", "shots", "idempotency_keys", "exports", "notifications",
 }  # fmt: skip
 ORG_A, ORG_B = uuid.uuid4(), uuid.uuid4()
 
