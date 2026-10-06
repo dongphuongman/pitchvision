@@ -203,7 +203,7 @@ export function ProcessingPage() {
           </>
         )}
 
-        {failed && job.error && <FailureBanner job={job} />}
+        {failed && job.error && <FailureBanner job={job} videoId={videoId} canEdit={canEdit} />}
         {cancelled && <Banner tone="warn">{t('processing.cancelled')}</Banner>}
         {actionError !== null && <Banner tone="err">{actionMessage}</Banner>}
 
@@ -267,8 +267,17 @@ function SegmentBar({ done, running, total }: { done: number; running: number; t
   );
 }
 
-function FailureBanner({ job }: { job: LiveJob }) {
+function FailureBanner({
+  job,
+  videoId,
+  canEdit,
+}: {
+  job: LiveJob;
+  videoId: string;
+  canEdit: boolean;
+}) {
   const { t } = useTranslation('video');
+  const returnTo = `/videos/${encodeURIComponent(videoId)}/processing`;
   const { t: te } = useTranslation('errors');
   const err = job.error;
   if (!err) return null;
@@ -277,7 +286,33 @@ function FailureBanner({ job }: { job: LiveJob }) {
       ? t(`processing.step.${STEP_OF[job.stage as JobStage]}`)
       : null;
   return (
-    <Banner tone="err">
+    <Banner
+      tone="err"
+      actions={
+        // E10 / E11: manual fallbacks for the two "we couldn't do it automatically" failures.
+        canEdit && err.code === 'TEAM_SEPARATION_FAILED' ? (
+          <Button asChild size="sm">
+            <Link
+              to="/videos/$videoId/teams"
+              params={{ videoId }}
+              search={{ mode: 'manual', return_to: returnTo }}
+            >
+              {t('processing.pickManually')}
+            </Link>
+          </Button>
+        ) : canEdit && err.code === 'HOMOGRAPHY_UNAVAILABLE' ? (
+          <Button asChild size="sm">
+            <Link
+              to="/videos/$videoId/calibrate"
+              params={{ videoId }}
+              search={{ return_to: returnTo }}
+            >
+              {t('processing.calibrateManually')}
+            </Link>
+          </Button>
+        ) : null
+      }
+    >
       <strong>{where ? t('processing.failedAt', { step: where }) : t('processing.failed')}</strong>{' '}
       {te(`codes.${err.code}`, { defaultValue: err.code })}
       {err.detail ? ` ${err.detail}` : ''} {err.retryable ? t('processing.progressSaved') : ''}

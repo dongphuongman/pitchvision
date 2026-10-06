@@ -104,4 +104,33 @@ describe('SCR-13 Processing', () => {
       expect(mock.videos.log.some((l) => l.startsWith(`POST jobs ${v.id}`))).toBe(true),
     );
   });
+
+  it('offers manual fallbacks for team / pitch failures to editors (E10, E11)', async () => {
+    const { v } = seedJob({
+      status: 'failed',
+      stage: 'calibrate',
+      error: { code: 'TEAM_SEPARATION_FAILED', retryable: false, detail: null },
+    });
+    renderApp(`/videos/${v.id}/processing`, { auth: testSession({ role: 'editor' }) });
+    const link = await screen.findByRole('link', { name: 'Pick players manually' });
+    expect(link.getAttribute('href')).toContain(`/videos/${v.id}/teams?mode=manual`);
+  });
+
+  it('links HOMOGRAPHY_UNAVAILABLE to manual calibration, not for viewers', async () => {
+    const { v } = seedJob({
+      status: 'failed',
+      stage: 'calibrate',
+      error: { code: 'HOMOGRAPHY_UNAVAILABLE', retryable: false, detail: null },
+    });
+    const first = renderApp(`/videos/${v.id}/processing`, { auth: testSession() });
+    const link = await screen.findByRole('link', { name: 'Calibrate pitch manually' });
+    expect(link.getAttribute('href')).toContain(`/videos/${v.id}/calibrate`);
+    first.unmount();
+
+    renderApp(`/videos/${v.id}/processing`, { auth: testSession({ role: 'viewer' }) });
+    expect(await screen.findByText(/Analysis failed at/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Calibrate pitch manually' }),
+    ).not.toBeInTheDocument();
+  });
 });

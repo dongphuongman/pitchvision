@@ -1,11 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link } from '@tanstack/react-router';
-import { ChevronRight, Maximize, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import {
+  ChevronRight,
+  Crosshair,
+  Maximize,
+  MoreVertical,
+  Pause,
+  Play,
+  Shirt,
+  SkipBack,
+  SkipForward,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { manifestQuery, mediaQuery } from '@/api/results';
 import type { ShotType } from '@/api/types';
 import { videoQuery } from '@/api/videos';
+import { can } from '@/auth/roles';
+import { useRole } from '@/auth/session';
 import { useFormat } from '@/i18n/format';
 import { msForFrame } from '@/player/frames';
 import { DEFAULT_LAYERS, type OverlayLayers } from '@/player/overlay';
@@ -16,6 +28,10 @@ import {
   Button,
   Card,
   Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   IconButton,
   Select,
   Skeleton,
@@ -45,6 +61,7 @@ export function WorkspacePage() {
   const { t } = useTranslation('video');
   const { t: tc } = useTranslation();
   const fmt = useFormat();
+  const canEdit = can(useRole(), 'editor');
 
   const video = useQuery(videoQuery(videoId));
   const manifest = useQuery(manifestQuery(videoId));
@@ -114,6 +131,12 @@ export function WorkspacePage() {
   const title = video.data?.title ?? videoId;
   const pitch = m?.pitch.status;
   const notReady = manifest.isError || media.isError;
+  // SCR-14 / SCR-15 come back here (same tab and position).
+  const here = `/videos/${encodeURIComponent(videoId)}/${tab}${startSeconds !== undefined ? `?t=${String(startSeconds)}` : ''}`;
+  const calibrateSearch = {
+    t: state ? Math.round(currentMs / 1000) : startSeconds,
+    return_to: here,
+  };
 
   return (
     <div className="mx-auto max-w-[1600px] px-5 pt-4 pb-[60px]">
@@ -125,7 +148,45 @@ export function WorkspacePage() {
           {t('workspace.crumb')}
         </Link>
         <ChevronRight size={16} className="text-fg-3" aria-hidden="true" />
-        <b className="truncate text-lg font-bold">{title}</b>
+        <b className="min-w-0 truncate text-lg font-bold">{title}</b>
+        <div className="flex-1" />
+        {canEdit && (
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <IconButton
+                label={t('workspace.more')}
+                tooltip={false}
+                icon={<MoreVertical size={17} />}
+              />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem
+                icon={<Shirt size={16} />}
+                onSelect={() =>
+                  void navigate({
+                    to: '/videos/$videoId/teams',
+                    params: { videoId },
+                    search: { return_to: here },
+                  })
+                }
+              >
+                {t('workspace.teamsColors')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                icon={<Crosshair size={16} />}
+                onSelect={() =>
+                  void navigate({
+                    to: '/videos/$videoId/calibrate',
+                    params: { videoId },
+                    search: calibrateSearch,
+                  })
+                }
+              >
+                {t('workspace.calibratePitch')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </nav>
 
       {notReady && (
@@ -148,9 +209,22 @@ export function WorkspacePage() {
           tone="warn"
           className="mb-3"
           actions={
-            <Button variant="ghost" onClick={() => setBannerHidden(true)}>
-              {tc('actions.close')}
-            </Button>
+            <>
+              {canEdit && (
+                <Button asChild size="sm">
+                  <Link
+                    to="/videos/$videoId/calibrate"
+                    params={{ videoId }}
+                    search={calibrateSearch}
+                  >
+                    {t('workspace.calibrate')}
+                  </Link>
+                </Button>
+              )}
+              <Button variant="ghost" onClick={() => setBannerHidden(true)}>
+                {tc('actions.close')}
+              </Button>
+            </>
           }
         >
           {t(pitch === 'degraded' ? 'workspace.pitchDegraded' : 'workspace.pitchUnavailable')}
@@ -294,6 +368,17 @@ export function WorkspacePage() {
                     </span>
                   ))}
                 </div>
+                {canEdit && m.teams.some((team) => !team.confirmed) && (
+                  <Button asChild size="sm" className="self-start">
+                    <Link
+                      to="/videos/$videoId/teams"
+                      params={{ videoId }}
+                      search={{ return_to: here }}
+                    >
+                      {t('workspace.confirmTeams')}
+                    </Link>
+                  </Button>
+                )}
                 <p className="text-body-sm m-0 text-fg-2">
                   {t('workspace.quality', {
                     coverage: Math.round(m.coverage.main_wide_pct),
