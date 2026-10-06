@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link } from '@tanstack/react-router';
 import {
+  Download,
   ChevronRight,
   Crosshair,
   Maximize,
@@ -17,6 +18,7 @@ import { manifestQuery, mediaQuery } from '@/api/results';
 import type { ShotType } from '@/api/types';
 import { videoQuery } from '@/api/videos';
 import { can } from '@/auth/roles';
+import { ExportDialog } from '@/features/exports/ExportDialog';
 import { useRole } from '@/auth/session';
 import { useFormat } from '@/i18n/format';
 import { msForFrame } from '@/player/frames';
@@ -56,7 +58,7 @@ function isTypingTarget(el: EventTarget | null): boolean {
 /** SCR-20 Analysis workspace (M1-FE-12): video + overlay ↔ tactical map, shot timeline, tabs. */
 export function WorkspacePage() {
   const { videoId, tab } = route.useParams();
-  const { t: startSeconds } = route.useSearch();
+  const { t: startSeconds, export: exportTab } = route.useSearch();
   const navigate = route.useNavigate();
   const { t } = useTranslation('video');
   const { t: tc } = useTranslation();
@@ -150,6 +152,17 @@ export function WorkspacePage() {
         <ChevronRight size={16} className="text-fg-3" aria-hidden="true" />
         <b className="min-w-0 truncate text-lg font-bold">{title}</b>
         <div className="flex-1" />
+        {m && (
+          <Button
+            size="sm"
+            onClick={() =>
+              void navigate({ search: (prev) => ({ ...prev, export: 'video' as const }) })
+            }
+          >
+            <Download size={15} aria-hidden="true" />
+            {t('workspace.export')}
+          </Button>
+        )}
         {canEdit && (
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
@@ -188,6 +201,20 @@ export function WorkspacePage() {
           </DropdownMenu>
         )}
       </nav>
+
+      {m && exportTab && (
+        <ExportDialog
+          open
+          onOpenChange={(open) => {
+            if (!open)
+              void navigate({ search: (prev) => ({ ...prev, export: undefined }), replace: true });
+          }}
+          videoId={videoId}
+          manifest={m}
+          layers={layers}
+          currentMs={currentMs}
+        />
+      )}
 
       {notReady && (
         <Banner

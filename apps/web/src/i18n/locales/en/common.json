@@ -28,7 +28,10 @@
     "currentOrg": "Current organization",
     "orgSwitched": "Switched to {{org}}.",
     "orgSwitchFailed": "Couldn't switch organization. Try again.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "usage": "{{used}}/{{limit}} min",
+    "usageLabel": "Analysis minutes this month: {{used}} of {{limit}}",
+    "usageResets": "Resets on {{date}}"
   },
   "signOutDialog": {
     "title": "An upload is in progress",
@@ -109,5 +112,21 @@
   "error": {
     "title": "Something went wrong",
     "body": "Something went wrong on our side. Please try again."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "unread": "{{count}} unread",
+    "settings": "Notification settings",
+    "types": {
+      "job_ready": "{{title}} is ready",
+      "needs_teams": "{{title}} is ready — confirm the teams",
+      "job_failed": "{{title}} failed during analysis",
+      "export_ready": "Export {{filename}} is ready",
+      "export_failed": "Export {{filename}} failed",
+      "quota_80": "You've used 80% of this month's minutes",
+      "quota_100": "You've used all of this month's minutes"
+    },
+    "untitled": "Your video"
   }
 }

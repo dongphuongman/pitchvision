@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { setupWorker } from 'msw/browser';
+import { accountHandlers, createAccount } from './account';
 import { identityHandlers, type MockDb } from './identity';
 import { demoDb, demoVideoDb } from './seed';
 import { playerHandlers } from './player';
@@ -43,6 +44,7 @@ export async function startMockApi(): Promise<void> {
     ...videoHandlers(videos, { simulate: { tickMs: 1500 } }),
     ...resultsHandlers(videos),
     ...playerHandlers(),
+    ...accountHandlers(createAccount({ exportTicks: 5 }), videos),
     http.get('*/api/v1/meta', () => HttpResponse.json({ version: 'mock', schema_version: 1 })),
   );
   await worker.start({ onUnhandledFrame: 'bypass' });

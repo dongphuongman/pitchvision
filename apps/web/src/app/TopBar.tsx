@@ -1,7 +1,6 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
 import {
   ArrowLeftRight,
-  Bell,
   Building2,
   Check,
   CircleHelp,
@@ -35,12 +34,13 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-  IconButton,
   Kbd,
   toast,
   Tooltip,
 } from '@/ui';
 import { Logo } from './Logo';
+import { NotificationMenu } from './NotificationMenu';
+import { UsageMeter } from './UsageMeter';
 
 const navLink =
   'focus-ring flex items-center gap-[7px] rounded-md px-3 py-[7px] font-semibold text-fg-2 hover:bg-surface-3 hover:text-fg';
@@ -61,8 +61,8 @@ function initials(name: string | undefined): string {
 /**
  * Global top bar (UIUX G). Role-based visibility (hidden, not disabled — UIUX §3.1):
  * G.E05 New analysis editor+, G.E10 Organization admin+, G.E11 Billing owner, G.E13 Switch
- * organization only with ≥ 2 memberships. G.E03 Live is hidden until Phase C; the usage meter
- * (G.E06) appears once the billing API exists.
+ * organization only with ≥ 2 memberships. G.E03 Live is hidden until Phase C. G.E06 usage meter and
+ * G.E07 notifications (SCR-51) are their own components.
  */
 export function TopBar({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
   const { t } = useTranslation();
@@ -125,16 +125,8 @@ export function TopBar({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
           </Button>
         </Tooltip>
       )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <IconButton label={t('nav.notifications')} icon={<Bell size={18} />} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-[380px]">
-          <p className="m-0 px-2.5 py-6 text-center text-control text-fg-3">
-            {t('nav.noNotifications')}
-          </p>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <UsageMeter />
+      <NotificationMenu />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button

@@ -59,7 +59,8 @@
     "teamsColors": "Teams & colors",
     "calibratePitch": "Calibrate pitch",
     "calibrate": "Calibrate",
-    "confirmTeams": "Confirm teams"
+    "confirmTeams": "Confirm teams",
+    "export": "Export"
   },
   "player": {
     "timeline": "Timeline",
@@ -88,7 +89,78 @@
   },
   "exports": {
     "title": "Exports",
-    "empty": "No exports yet. Export a clip or data from an analyzed match."
+    "empty": "No exports yet. Exports from any match appear here.",
+    "goToLibrary": "Go to library",
+    "filter": {
+      "label": "Status",
+      "all": "All",
+      "active": "Active",
+      "done": "Done"
+    },
+    "col": {
+      "file": "File",
+      "source": "Source",
+      "status": "Status",
+      "expires": "Expires",
+      "actions": "Actions"
+    },
+    "status": {
+      "queued": "Queued",
+      "running": "{{pct}}%",
+      "done": "Ready",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "expired": "Expired"
+    },
+    "expiresIn": "{{count}} days",
+    "expiresIn_one": "1 day",
+    "expiresToday": "Today",
+    "download": "Download",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "more": "More actions for {{file}}",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "delete": "Delete",
+    "deleted": "Export deleted",
+    "deleteConfirm": "Delete {{file}}? The file is removed for everyone in your organization.",
+    "downloadFailed": "Couldn't start the download.",
+    "dialog": {
+      "title": "Export",
+      "tabs": {
+        "video": "Video",
+        "data": "Data",
+        "pdf": "Report PDF",
+        "map": "Tactical map video"
+      },
+      "soon": "Coming later",
+      "range": "Range",
+      "full": "Full match",
+      "custom": "Custom",
+      "from": "From",
+      "to": "To",
+      "rangeHint": "Times as mm:ss on the match video.",
+      "rangeInvalid": "Enter a start before the end, inside the video.",
+      "layers": "Layers",
+      "layer": {
+        "boxes": "Boxes",
+        "labels": "Labels",
+        "conf": "Confidence",
+        "ball": "Ball",
+        "trails": "Trails"
+      },
+      "layout": "Layout",
+      "videoOnly": "Video only",
+      "videoMap": "Video + map side by side",
+      "noMap": "No tactical map for this analysis (pitch not calibrated).",
+      "quality": "Quality",
+      "pro": "Pro",
+      "watermark": "Free plan exports include a watermark.",
+      "upgrade": "Upgrade",
+      "start": "Start export",
+      "started": "Export started",
+      "viewExports": "View exports"
+    }
   },
   "corrections": {
     "back": "Back",

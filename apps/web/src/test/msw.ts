@@ -2,6 +2,7 @@ import { setupServer } from 'msw/node';
 import { resetWsClientForTests } from '@/api/ws';
 import { resetPendingDeletesForTests } from '@/features/library/pendingDeletes';
 import { resetUploadsForTests } from '@/features/upload/useUploads';
+import { accountHandlers, createAccount, type MockAccount } from '@/mocks/account';
 import { createMockDb, identityHandlers, type MockDb } from '@/mocks/identity';
 import { resultsHandlers } from '@/mocks/results';
 import { createVideoDb, videoHandlers, type MockVideoDb } from '@/mocks/videos';
@@ -14,19 +15,22 @@ import { createVideoDb, videoHandlers, type MockVideoDb } from '@/mocks/videos';
  */
 export function setupIdentityMock() {
   const server = setupServer();
-  const state: { db: MockDb; videos: MockVideoDb } = {
+  const state: { db: MockDb; videos: MockVideoDb; account: MockAccount } = {
     db: createMockDb(),
     videos: createVideoDb(),
+    account: createAccount(),
   };
 
   beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
   beforeEach(() => {
     state.db = createMockDb();
     state.videos = createVideoDb();
+    state.account = createAccount();
     server.resetHandlers(
       ...identityHandlers(state.db),
       ...videoHandlers(state.videos),
       ...resultsHandlers(state.videos),
+      ...accountHandlers(state.account, state.videos),
     );
   });
   afterEach(() => {
@@ -43,6 +47,9 @@ export function setupIdentityMock() {
     },
     get videos() {
       return state.videos;
+    },
+    get account() {
+      return state.account;
     },
   };
 }

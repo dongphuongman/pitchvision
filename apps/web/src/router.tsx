@@ -402,7 +402,11 @@ const workspaceRoute = createRoute({
     },
     stringify: (p: { tab: WorkspaceTab }) => ({ tab: p.tab }),
   },
-  validateSearch: (s: Record<string, unknown>): { t?: number } => ({ t: seconds(s.t) }),
+  // ?export=video opens SCR-25 over the workspace (Back closes it).
+  validateSearch: (s: Record<string, unknown>): { t?: number; export?: 'video' } => ({
+    t: seconds(s.t),
+    export: s.export === 'video' ? 'video' : undefined,
+  }),
   component: WorkspacePage,
 });
 
