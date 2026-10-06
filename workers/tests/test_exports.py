@@ -197,7 +197,8 @@ def test_render_export_cancel_and_failures(tmp_path: Path, setup: tuple[ExportDe
     sp = _with_tracks(deps, org, vid, tmp_path)
     eid = _export(deps.engine, org, vid, sp)
 
-    def cancelled_midway(spec_: ExportSpec, url: str, tracks: Path, out: Path, *, on_progress: Any) -> Any:
+    def cancelled_midway(spec_: ExportSpec, url: str, tracks: Path, out: Path, *, on_progress: Any,
+                         **_: Any) -> Any:
         with org_tx(deps.engine, org) as c:  # the API cancels while it renders
             c.execute(text("UPDATE exports SET status = 'cancelled' WHERE id = :e"), {"e": eid})
         if not on_progress(50.0):
@@ -236,3 +237,26 @@ def test_sweep_fails_stale_and_purges(tmp_path: Path, setup: tuple[ExportDeps, u
     assert _rows(deps.engine, org, alive)["status"] == "running"
     assert [_rows(deps.engine, org, e)["object_key"] for e in (expired, deleted, kept)] == [None, None, keys_[2]]
     assert [deps.store.exists(k) for k in keys_] == [False, False, True]
+
+
+def test_render_1080_from_the_original_on_the_same_frames(tmp_path: Path) -> None:
+    clip = write_clip(tmp_path / "n.mp4", 3.0)  # stands in for normalized.mp4 (640×360, 25 fps)
+    source = tmp_path / "source.mp4"  # the "upload": 1280×720, 50 fps, timeline starting at 2 s
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(clip), "-vf", "fps=50,scale=1280:720",
+                    "-output_ts_offset", "2", "-c:v", "libx264", "-crf", "16", "-g", "50", str(source)],
+                   check=True)  # fmt: skip
+    info = export_render.probe_source(str(source))
+    assert info is not None and info.height == 720 and float(info.fps) == 50 and info.start_s >= 1.9
+    sp = spec(layout="video", out_height=1080, watermark=False, layers=ExportLayers(boxes=False, labels=False,
+                                                                                     ball=False))  # fmt: skip
+    tracks = tracks_file(tmp_path / "t.parquet")
+    up, orig = tmp_path / "up.mp4", tmp_path / "orig.mp4"
+    a = render(sp, str(clip), tracks, up)
+    b = render(sp, str(clip), tracks, orig, source_url=str(source))
+    assert (a.from_source, b.from_source) == (False, True)
+    assert a.frames == b.frames == 30 and a.height == b.height == 1080
+    fa, fb = first_frame(up).astype(np.int16), first_frame(orig).astype(np.int16)
+    assert fa.shape == fb.shape
+    assert np.abs(fa - fb).mean() < 8  # same frame f0 (a shifted frame would move the synthetic players)
+    # without a larger original it falls back to the normalized copy
+    assert render(sp, str(clip), tracks, tmp_path / "x.mp4", source_url=str(clip)).from_source is False

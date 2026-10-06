@@ -36,7 +36,7 @@ from pitchvision_worker import notify, repository
 from pitchvision_worker.celery_app import QUEUE_CPU, TASK_SWEEP_EXPORTS, app
 from pitchvision_worker.config import WorkerConfig
 from pitchvision_worker.export_render import RenderCancelled, RenderError, render
-from pitchvision_worker.repository import exports, org_tx
+from pitchvision_worker.repository import exports, org_tx, videos
 from pitchvision_worker.storage import ObjectStore
 
 log = logging.getLogger(__name__)
@@ -115,6 +115,17 @@ def mark_failed(engine: Any, org: uuid.UUID, export_id: uuid.UUID, code: str, de
         "export_failed", {"code": code})
 
 
+def _presign(store: ObjectStore, key: str) -> str:
+    return str(store.client.generate_presigned_url("get_object", Params={"Bucket": store.bucket, "Key": key},
+                                                   ExpiresIn=PRESIGN_TTL_S))  # fmt: skip
+
+
+def _source_key(engine: Any, org: uuid.UUID, video_id: uuid.UUID) -> str | None:
+    with org_tx(engine, org) as conn:
+        key: str | None = conn.execute(select(videos.c.object_key).where(videos.c.id == video_id)).scalar()
+        return key
+
+
 # ---------------------------------------------------------------- render task
 @dataclass
 class ExportDeps:
@@ -146,12 +157,15 @@ def run_render_export(org_id: str, export_id: str, deps: ExportDeps, *, row_wait
         if not deps.store.exists(tracks_key) or not deps.store.exists(video_key):
             raise RenderError("EXPORT_FAILED", "the analysis files are gone (video re-analysed or deleted)",
                               retryable=False)  # fmt: skip
-        url = deps.store.client.generate_presigned_url(
-            "get_object", Params={"Bucket": deps.store.bucket, "Key": video_key}, ExpiresIn=PRESIGN_TTL_S)
+        url = _presign(deps.store, video_key)
+        # 1080p: frames from the original upload (sharper than upscaling the 720p normalized copy)
+        source_key = _source_key(deps.engine, org, row["video_id"]) if spec.out_height > spec.height else None
+        source_url = _presign(deps.store, source_key) if source_key and deps.store.exists(source_key) else None
         with tempfile.TemporaryDirectory(prefix="pv-export-", dir=deps.tmp_root) as tmp:
             tracks = deps.store.download(tracks_key, Path(tmp) / "tracks.parquet")
             out = Path(tmp) / "export.mp4"
-            res = deps.render(spec, url, tracks, out, on_progress=lambda pct: set_progress(deps.engine, org, eid, pct))
+            res = deps.render(spec, url, tracks, out, source_url=source_url,
+                              on_progress=lambda pct: set_progress(deps.engine, org, eid, pct))
             object_key = keys.export_key(org_id, vid, export_id, "mp4")
             size = deps.store.upload(object_key, out)
         if not mark_done(deps.engine, org, eid, object_key, size, spec.ttl_days):

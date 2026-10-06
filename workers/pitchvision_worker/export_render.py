@@ -10,12 +10,16 @@ Drawing follows the web overlay (apps/web/src/player/overlay.ts): team-coloured 
 players / centre of the ball). ``layout = video_map`` adds a 2D pitch panel on the right (px / py in metres;
 objects without pitch coordinates are skipped). Free plan: a translucent "PitchVision" watermark bottom-right.
 
-Limitations: 1080p is an upscale of the 720p normalized copy (source.mp4 is on another timeline); OpenCV's Hershey
-font is not the UI's Inter.
+Sharper exports (``out_height`` above the normalized copy, i.e. 1080p): frames come from the ORIGINAL upload when
+the task passes ``source_url``, put on the normalized timeline with S2's own frame selection
+(``cv_core.io.normalize.frame_select_filter``: 0 = first video frame, slot k = source frame nearest k / fps) after
+an input seek whose offset is added back — frame ``f0 + i`` is exactly the frame the tracks were computed on.
+Without a larger source the normalized copy is upscaled. OpenCV's Hershey font is not the UI's Inter.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import shutil
@@ -24,12 +28,14 @@ import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import IO, Any
 
 import cv2
 import numpy as np
 import pyarrow.compute as pc
+from cv_core.io.normalize import frame_select_filter
 from cv_core.io.parquet import read_tracks
 from cv_core.runtime.model import default_intra_op_threads
 from pitchvision_schemas import ExportSpec, ObjCls, load_pitch_template
@@ -67,6 +73,7 @@ class RenderResult:
     width: int
     height: int
     seconds: float
+    from_source: bool = False
 
 
 def hex_bgr(color: str) -> tuple[int, int, int]:
@@ -314,9 +321,49 @@ def _kill(*procs: subprocess.Popen[Any] | None) -> None:
             p.wait()
 
 
+@dataclass(frozen=True)
+class SourceInfo:
+    fps: Fraction
+    start_s: float  # pts of the first video frame (timeline 0 of normalized.mp4)
+    height: int
+
+
+def probe_source(url: str, ffprobe: str | None = None, timeout_s: float = 30.0) -> SourceInfo | None:
+    exe = ffprobe or shutil.which("ffprobe") or "ffprobe"
+    cmd = [exe, "-v", "error", "-protocol_whitelist", "file,http,https,tcp,tls", "-select_streams", "v:0",
+           "-show_entries", "stream=avg_frame_rate,r_frame_rate,start_time,height", "-of", "json", url]  # fmt: skip
+    try:
+        out = subprocess.run(cmd, capture_output=True, timeout=timeout_s, check=True).stdout
+        st = (json.loads(out).get("streams") or [{}])[0]
+        rate = st.get("avg_frame_rate") or st.get("r_frame_rate") or "0/1"
+        fps = Fraction(rate) if rate != "0/0" else Fraction(0)
+        if fps <= 0:
+            return None
+        return SourceInfo(fps=fps, start_s=float(st.get("start_time") or 0.0), height=int(st.get("height") or 0))
+    except (subprocess.SubprocessError, ValueError, ZeroDivisionError, OSError):
+        return None
+
+
+def _decoder_input(spec: ExportSpec, video_url: str, source_url: str | None, source: SourceInfo | None,
+                   start_s: float, dur_s: float, w: int, h: int) -> tuple[list[str], bool]:
+    """(ffmpeg input + filter args, used the original?)"""
+    wl = ["-protocol_whitelist", "file,http,https,tcp,tls"]
+    if source_url and source and source.height > spec.height:
+        pre = max(0.0, start_s - 5.0)  # input-seek a bit before (keyframe), select on absolute pts
+        # input -ss (relative to the stream start) rebases pts so that 0 = the seek point: + pre restores the
+        # normalized timeline (0 = first video frame) before S2's frame selection
+        vf = (f"{frame_select_filter(source.fps, spec.fps).replace('PTS-STARTPTS', f'PTS+{pre:.6f}/TB')},"
+              f"trim=start={start_s:.6f}:end={start_s + dur_s:.6f},setpts=PTS-STARTPTS,"
+              f"scale={w}:{h}:flags=lanczos")
+        return [*wl, "-ss", f"{pre:.6f}", "-i", source_url, "-map", "0:v:0",
+                "-vf", vf], True  # fmt: skip
+    return [*wl, "-ss", f"{start_s:.3f}", "-i", video_url, "-t", f"{dur_s:.3f}", "-map", "0:v:0",
+            "-vf", f"scale={w}:{h}:flags=bicubic"], False  # fmt: skip
+
+
 def render(spec: ExportSpec, video_url: str, tracks_path: Path, out_path: Path, *,
            on_progress: Callable[[float], bool] = lambda _pct: True, ffmpeg: str | None = None,
-           preset: str = "veryfast", crf: int = 21) -> RenderResult:  # fmt: skip
+           preset: str = "veryfast", crf: int = 21, source_url: str | None = None) -> RenderResult:  # fmt: skip
     """Render ``spec`` to ``out_path``. ``on_progress(pct)`` is called every ~2 s; returning False aborts
     (RenderCancelled). Raises RenderError (VIDEO_UNREADABLE when nothing could be decoded, EXPORT_FAILED else)."""
     exe = ffmpeg or shutil.which("ffmpeg") or "ffmpeg"
@@ -334,9 +381,10 @@ def render(spec: ExportSpec, video_url: str, tracks_path: Path, out_path: Path, 
     start_s, dur_s = f0 / spec.fps, n / spec.fps
     common = ["-nostdin", "-hide_banner", "-loglevel", "error"]
     url_in = ["-protocol_whitelist", "file,http,https,tcp,tls", "-ss", f"{start_s:.3f}", "-i", video_url]
-    dec_cmd = [exe, *common, *url_in, "-t", f"{dur_s:.3f}", "-map", "0:v:0",
-               "-vf", f"scale={video_w}:{out_h}:flags=bicubic", "-pix_fmt", "bgr24", "-f", "rawvideo",
-               "-frames:v", str(n), "pipe:1"]  # fmt: skip
+    source = probe_source(source_url) if source_url and out_h > spec.height else None
+    dec_in, from_source = _decoder_input(spec, video_url, source_url, source, start_s, dur_s, video_w, out_h)
+    dec_cmd = [exe, *common, *dec_in, "-pix_fmt", "bgr24", "-f", "rawvideo", "-frames:v", str(n),
+               "pipe:1"]  # fmt: skip
     enc_cmd = [exe, *common, "-y", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{painter.width}x{out_h}",
                "-r", str(spec.fps), "-i", "pipe:0", "-t", f"{dur_s:.3f}", *url_in,
                "-map", "0:v:0", "-map", "1:a:0?", "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
@@ -380,4 +428,5 @@ def render(spec: ExportSpec, video_url: str, tracks_path: Path, out_path: Path, 
         raise RenderError("EXPORT_FAILED", f"encoder failed: {enc_err}", retryable=True)
     if frames < n:
         log.info("export %s: %d of %d frames (video ends early)", spec.job_id, frames, n)
-    return RenderResult(frames=frames, width=painter.width, height=out_h, seconds=time.monotonic() - t_start)
+    return RenderResult(frames=frames, width=painter.width, height=out_h, seconds=time.monotonic() - t_start,
+                        from_source=from_source)

@@ -280,6 +280,11 @@ def _select_filter(src_fps: Fraction, fps: int) -> str:
     return f"setpts=PTS-STARTPTS+{float(delta):.9f}/TB,fps=fps={fps}:round=near"
 
 
+def frame_select_filter(src_fps: Fraction, fps: int) -> str:
+    """Public name of S2's frame selection (S11 renders 1080p exports from the original on the same frame grid)."""
+    return _select_filter(src_fps, fps)
+
+
 def build_command(src: Path, dst: Path, info: MediaInfo, *, fps: int, long_side: int, keyframe_interval_s: int,
                   encoder: str, crf: int, preset: str | None, audio: bool, threads: int | None) -> list[str]:
     w, h = target_size(info.width, info.height, long_side)

@@ -221,7 +221,9 @@ automatic retry (SCR-26 Retry re-queues the same row). `cpu.sweep_exports` (beat
 `running` rows without a heartbeat for 10 min (retryable) and deletes files of expired / deleted exports
 (`object_key → NULL`). API reads: `GET /exports?status=all|active|done&cursor` (done past `expires_at` reads
 `expired`), `GET /exports/{id}/download` (presigned attachment, 15 min; 409 `not_ready`, 410 `expired`), `POST
-…/cancel`, `POST …/retry`, `DELETE` (requester or editor+). Limitation: 1080p upscales the 720p normalized copy.
+…/cancel`, `POST …/retry`, `DELETE` (requester or editor+). 1080p reads the original upload (`videos.object_key`) through S2's frame
+selection (`cv_core.io.normalize.frame_select_filter`, seek offset added back) so frames match the tracks; it
+falls back to upscaling normalized.mp4 when the original is missing or not larger.
 
 ## Notifications (M1-BE-19, SCR-51)
 `notifications` (API migration 0006, RLS) — one row per recipient; `type` ∈ `pitchvision_schemas.NotificationType`,

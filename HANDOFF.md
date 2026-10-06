@@ -40,7 +40,7 @@ derived jobs, exports, notifications).
    Add `PV_INTERNAL_TOKEN` to `infra/compose/.env` to get notification emails in Mailpit locally.
 2. Later: Stripe (SCR-41 Choose Pro,
    B03 portal), API keys (Pro), data export / account deletion (SCR-40 privacy).
-3. Export follow-ups: 1080p from source.mp4 (now an upscale of the 720p copy); "member joined" notification.
+3. Follow-ups: "member joined" notification; data export / account deletion.
 
 ## Blocked on the PO
 - Keypoint model (tactical map): ~300 golden frames labelled (guide `training/keypoints/README.md`) + NVIDIA GPU (RunPod/4090). Until then every job reports `pitch_calibration = unavailable` (overlay works, map empty) unless calibrated manually.
