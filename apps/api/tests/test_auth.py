@@ -23,6 +23,11 @@ async def me(p: CurrentPrincipal) -> dict[str, str]:
     return {"user_id": str(p.user_id), "org_id": str(p.org_id), "role": p.role.value, "region": p.region}
 
 
+@probe.get("/plan")
+async def plan(p: CurrentPrincipal) -> dict[str, object]:
+    return {"plan": p.plan.value, "minutes": p.limits.minutes_per_month, "watermark": p.limits.export_watermark}
+
+
 @probe.get("/editor")
 async def editor(p: Annotated[Principal, Depends(require_role("editor"))]) -> dict[str, str]:
     return {"role": p.role.value}
@@ -53,6 +58,19 @@ async def test_valid_token_yields_principal(client: httpx.AsyncClient, identity:
     r = await client.get("/api/v1/_auth/me", headers=bearer(identity.token(org=org, sub=sub, role="editor")))
     assert r.status_code == 200
     assert r.json() == {"user_id": str(sub), "org_id": str(org), "role": "editor", "region": "eu"}
+
+
+@pytest.mark.parametrize(("claims", "expected"), [
+    ({}, ("free", 120, True)),                                    # older tokens: Free
+    ({"plan": "pro", "quota_min": 900}, ("pro", 900, False)),
+    ({"plan": "team", "quota_min": 3000}, ("team", 3000, False)),
+    ({"plan": "platinum", "quota_min": -5}, ("free", 120, True)),  # unknown / invalid never grants more
+    ({"plan": "pro", "quota_min": True}, ("pro", 900, False)),
+])  # fmt: skip
+async def test_plan_claims(client: httpx.AsyncClient, identity: FakeIdentity, claims: dict[str, object],
+                           expected: tuple[str, int, bool]) -> None:  # fmt: skip
+    r = await client.get("/api/v1/_auth/plan", headers=bearer(identity.token(**claims)))
+    assert tuple(r.json().values()) == expected
 
 
 async def test_jwks_is_cached(client: httpx.AsyncClient, identity: FakeIdentity) -> None:

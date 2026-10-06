@@ -41,6 +41,17 @@ async def test_create_org_and_switch_carries_org_role_region(kit: Kit) -> None:
     ]
     claims = await kit.claims(c, session)
     assert (claims["org"], claims["role"], claims["region"]) == (org["id"], "owner", "us")
+    assert (claims["plan"], claims["quota_min"]) == ("free", 120)  # no subscription row = Free
+
+    # a paid plan (and a per-org override) reach the token on the next refresh; a lapsed one falls back to Free
+    kit.db.execute("INSERT INTO subscriptions (org_id, plan, minutes_per_month) VALUES (%s, 'team', 3000)",
+                   (org["id"],))  # fmt: skip
+    claims = await kit.claims(c, (await c.post("/api/v1/auth/refresh")).json())
+    assert (claims["plan"], claims["quota_min"]) == ("team", 3000)
+    kit.db.execute("UPDATE subscriptions SET status = 'past_due'")
+    claims = await kit.claims(c, (await c.post("/api/v1/auth/refresh")).json())
+    assert (claims["plan"], claims["quota_min"]) == ("free", 120)
+    kit.db.execute("DELETE FROM subscriptions")
 
     # a plain refresh (and a fresh login) stays in / lands in the last active org
     again = (await c.post("/api/v1/auth/refresh")).json()

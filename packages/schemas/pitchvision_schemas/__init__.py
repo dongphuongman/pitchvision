@@ -14,6 +14,7 @@ from pitchvision_schemas.pitch_template import (
     TemplateLine,
     load_pitch_template,
 )
+from pitchvision_schemas.plans import PLAN_LIMITS, Plan, PlanLimits, limits_for, plan_of
 from pitchvision_schemas.shots import Shot, ShotTimeline, ShotType
 from pitchvision_schemas.tiles import TILE_MS, ObjCls, Tile, TileFrame, tile_no_for
 from pitchvision_schemas.ws import (
@@ -38,6 +39,7 @@ SCHEMA_VERSION = 1
 __all__ = [
     "JOB_KINDS",
     "JOB_TRANSITIONS",
+    "PLAN_LIMITS",
     "SCHEMA_VERSION",
     "TILE_MS",
     "CancelledEvent",
@@ -63,6 +65,8 @@ __all__ = [
     "PitchCalibration",
     "PitchStatus",
     "PitchTemplateInfo",
+    "Plan",
+    "PlanLimits",
     "PongMessage",
     "Problem",
     "ProgressData",
@@ -82,7 +86,9 @@ __all__ = [
     "TileFrame",
     "UnsubscribedMessage",
     "can_transition",
+    "limits_for",
     "load_pitch_template",
+    "plan_of",
     "shots_key",
     "tile_key",
     "tile_no_for",

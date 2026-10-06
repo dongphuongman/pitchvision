@@ -5,13 +5,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 
-from pitchvision_schemas import ErrorCode
+from pitchvision_schemas import ErrorCode, Plan, limits_for, plan_of
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pitchvision_identity import schemas
 from pitchvision_identity.context import Ctx
-from pitchvision_identity.db.models import Membership, Org, RefreshToken, User
+from pitchvision_identity.db.models import Membership, Org, RefreshToken, Subscription, User
 from pitchvision_identity.errors import ApiError
 from pitchvision_identity.security import AccessClaims, hash_token, new_token, utcnow
 
@@ -42,6 +42,15 @@ async def memberships_of(s: AsyncSession, user_id: uuid.UUID) -> list[tuple[Memb
         .order_by(Membership.created_at, Org.name)
     )
     return [(m, o) for m, o in rows]
+
+
+async def org_plan(s: AsyncSession, org_id: uuid.UUID) -> tuple[Plan, int]:
+    """(plan, monthly minutes) of an org: its active subscription, else Free."""
+    sub = await s.get(Subscription, org_id)
+    if sub is None or sub.status != "active":
+        return Plan.free, limits_for(Plan.free).minutes_per_month
+    plan = plan_of(sub.plan)
+    return plan, limits_for(plan, sub.minutes_per_month).minutes_per_month
 
 
 def membership_out(m: Membership, o: Org) -> schemas.Membership:
@@ -97,6 +106,7 @@ async def open_session(
     if org is not None and user.last_active_org_id != org.id:
         user.last_active_org_id = org.id
 
+    plan, quota_min = await org_plan(s, org.id) if org else (Plan.free, None)
     access, ttl = ctx.keys.issue_access_token(
         AccessClaims(
             user_id=user.id,
@@ -105,6 +115,8 @@ async def open_session(
             org_id=org.id if org else None,
             role=active[0].role if active else None,
             region=org.region if org else None,
+            plan=plan.value,
+            quota_min=quota_min,
         )
     )
     raw = new_token()

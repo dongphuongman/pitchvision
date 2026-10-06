@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Mapping
 
 import jwt
-from pitchvision_schemas import ErrorCode
+from pitchvision_schemas import ErrorCode, plan_of
 
 from pitchvision_api.auth.jwks import JwksClient, JwksUnavailable
 from pitchvision_api.auth.principal import Principal, Role
@@ -76,4 +76,7 @@ def principal_from_claims(claims: Mapping[str, object], settings: Settings) -> P
             "Organisation lives in another region",
             f"This API serves region {settings.region!r}; the active organisation is in {region!r}.",
         )
-    return Principal(user_id=user_id, org_id=org_id, role=role_, region=settings.region)
+    quota = claims.get("quota_min")
+    return Principal(user_id=user_id, org_id=org_id, role=role_, region=settings.region,
+                     plan=plan_of(claims.get("plan")),
+                     quota_min=quota if isinstance(quota, int) and not isinstance(quota, bool) and quota >= 0 else None)

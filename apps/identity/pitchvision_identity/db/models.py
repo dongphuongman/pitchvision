@@ -69,6 +69,22 @@ class Membership(Base):
     created_at: Mapped[datetime] = _created()
 
 
+class Subscription(Base):
+    """An org's plan (migration 0002); no row = Free. Only ``active`` grants the paid plan."""
+
+    __tablename__ = "subscriptions"
+
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orgs.id", ondelete="CASCADE"), primary_key=True
+    )
+    plan: Mapped[str] = mapped_column(Text, nullable=False, server_default="free")
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="active")
+    minutes_per_month: Mapped[int | None] = mapped_column()
+    external_id: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = _created()
+
+
 class Invite(Base):
     __tablename__ = "invites"
     __table_args__ = (Index("invites_org_id_idx", "org_id"),)

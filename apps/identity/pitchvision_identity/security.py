@@ -89,6 +89,8 @@ class AccessClaims:
     org_id: uuid.UUID | None
     role: str | None
     region: str | None
+    plan: str = "free"            # pitchvision_schemas.Plan; the API enforces its limits
+    quota_min: int | None = None  # resolved monthly minutes (plan default or the org's override)
 
 
 class KeyRing:
@@ -130,6 +132,8 @@ class KeyRing:
             "org": str(c.org_id) if c.org_id else None,
             "role": c.role,
             "region": c.region,
+            "plan": c.plan,
+            "quota_min": c.quota_min,
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(seconds=ttl)).timestamp()),
             "jti": uuid.uuid4().hex,

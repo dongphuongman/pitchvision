@@ -4,6 +4,8 @@ import uuid
 from dataclasses import dataclass
 from enum import StrEnum
 
+from pitchvision_schemas import Plan, PlanLimits, limits_for
+
 
 class Role(StrEnum):
     VIEWER = "viewer"
@@ -25,6 +27,12 @@ class Principal:
     org_id: uuid.UUID
     role: Role
     region: str
+    plan: Plan = Plan.free
+    quota_min: int | None = None  # the org's monthly minutes when identity-svc resolved an override
+
+    @property
+    def limits(self) -> PlanLimits:
+        return limits_for(self.plan, self.quota_min)
 
     def has_role(self, minimum: Role | str) -> bool:
         return self.role.rank >= Role(minimum).rank

@@ -81,7 +81,17 @@ New error codes to add to `pitchvision_schemas.ErrorCode`: `EMAIL_TAKEN`, `INVAL
 ## Regional API side (apps/api)
 - Verifies RS256 with JWKS (`PV_JWKS_URL`, cached, refetch on unknown `kid`), checks iss/aud/exp, requires
   `email_verified` and `org`. `region` claim must equal `PV_REGION` → else 409 `REGION_MISMATCH`.
-- Exposes `Principal{user_id, org_id, role, region}`; `require_role("editor")` dependency (viewer < editor < admin < owner).
+- Exposes `Principal{user_id, org_id, role, region, plan, quota_min}` (+ `limits` = `pitchvision_schemas.limits_for`);
+  `require_role("editor")` dependency (viewer < editor < admin < owner).
+
+## Plans (`subscriptions`, migration 0002)
+- One optional row per org: `plan` ∈ `free|pro|team`, `status` ∈ `active|past_due|canceled`, `minutes_per_month`
+  (per-org override, Team contracts), `external_id` (billing). No row or not `active` → Free. Written by ops / the
+  future billing webhook only; no public endpoint yet.
+- The access token carries `plan` and `quota_min` (resolved monthly minutes) for the active org; a change reaches the
+  API on the next refresh (≤ 15 min). Missing / unknown claims → Free, so older tokens never grant more.
+- Limits live in `pitchvision_schemas.plans` (Free 120 min/month, 720p exports with a watermark; Pro / Team 900 min,
+  1080p, no watermark; exports kept 7 days). Prices and the Team allowance are still open (UIUX UX-5).
 - The local dev header `X-Dev-Org` stub stays only for `PV_ENV=local` tests and is removed from the default path.
 
 ## Google OIDC
