@@ -83,3 +83,19 @@ def test_celery_app_declares_queues_and_ping_task() -> None:
 
     assert ping.name == "pitchvision_worker.ping"
     assert ping.run() == "pong"
+
+
+def test_ort_threads_split_cores_between_processes():
+    from pitchvision_worker.entrypoints.__main__ import ort_threads_per_process
+
+    assert ort_threads_per_process(["worker", "--concurrency=2"], {}, cpus=10) == 5
+    assert ort_threads_per_process(["worker", "--concurrency=16"], {}, cpus=10) == 1
+    assert ort_threads_per_process(["worker"], {}, cpus=10) is None  # no explicit concurrency → ORT default
+    assert ort_threads_per_process(["worker", "--concurrency=2"], {"PITCHVISION_ORT_THREADS": "3"}, cpus=10) is None
+
+
+def test_stage_tasks_fail_fast_when_the_worker_dies():
+    from pitchvision_worker.compute.tasks import run_cpu_stage, run_gpu_stage
+
+    assert run_gpu_stage.reject_on_worker_lost is False
+    assert run_cpu_stage.reject_on_worker_lost is False

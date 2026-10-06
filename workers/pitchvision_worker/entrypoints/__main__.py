@@ -90,6 +90,16 @@ def celery_worker_argv(role: Role, env: Mapping[str, str]) -> list[str]:
     return argv
 
 
+def ort_threads_per_process(argv: Sequence[str], env: Mapping[str, str], cpus: int | None = None) -> int | None:
+    """Cores ÷ worker processes, so N prefork children don't each start one ONNX Runtime thread per core."""
+    if env.get("PITCHVISION_ORT_THREADS"):
+        return None  # explicit setting wins
+    procs = next((int(a.split("=", 1)[1]) for a in argv if a.startswith("--concurrency=")), None)
+    if not procs:
+        return None
+    return max(1, (cpus or os.cpu_count() or 1) // procs)
+
+
 def _run_celery(argv: list[str]) -> int:  # pragma: no cover - exercised in the container
     from pitchvision_worker.celery_app import app
 
@@ -129,8 +139,13 @@ def main(
     if args.healthcheck:
         return EXIT_OK if celery_ping(role) else EXIT_UNHEALTHY
 
-    print(f"pitchvision-worker: starting role={role.value} queue={CELERY_ROLE_QUEUES[role]}", file=sys.stderr)
-    return run_celery(celery_worker_argv(role, env))
+    argv_celery = celery_worker_argv(role, env)
+    threads = ort_threads_per_process(argv_celery, env)
+    if threads and "PITCHVISION_ORT_THREADS" not in env:
+        os.environ["PITCHVISION_ORT_THREADS"] = str(threads)  # inherited by the prefork children
+    print(f"pitchvision-worker: starting role={role.value} queue={CELERY_ROLE_QUEUES[role]} "
+          f"ort_threads={os.environ.get('PITCHVISION_ORT_THREADS', 'default')}", file=sys.stderr)
+    return run_celery(argv_celery)
 
 
 if __name__ == "__main__":

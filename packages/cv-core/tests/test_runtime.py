@@ -171,3 +171,14 @@ def test_coreml_opt_in(tiny_onnx: Path) -> None:
     assert rt.provider is Provider.ort_coreml
     x = np.ones((2, 4), dtype=np.float32)
     np.testing.assert_allclose(rt.model(str(tiny_onnx)).run(x)["y"], x @ W + B, rtol=1e-3, atol=1e-3)
+
+
+def test_default_intra_op_threads_from_env(monkeypatch):
+    from cv_core.runtime.model import default_intra_op_threads
+
+    monkeypatch.delenv("PITCHVISION_ORT_THREADS", raising=False)
+    assert default_intra_op_threads() is None
+    monkeypatch.setenv("PITCHVISION_ORT_THREADS", "4")
+    assert default_intra_op_threads() == 4
+    monkeypatch.setenv("PITCHVISION_ORT_THREADS", "zero")
+    assert default_intra_op_threads() is None

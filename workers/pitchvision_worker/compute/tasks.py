@@ -28,12 +28,15 @@ log = logging.getLogger(__name__)
 Reporter = Callable[[str, str, dict[str, Any]], None]
 
 
-@app.task(name=TASK_RUN_GPU, bind=True)
+# Stage tasks: if the process dies (OOM, SIGKILL) record FAILURE at once instead of letting the broker
+# redeliver — the orchestrator owns retries (3 attempts + backoff), and a redelivered OOM task just dies again.
+# Without this the result stays STARTED and the orchestrator waits out the full stage timeout (30 min for S4).
+@app.task(name=TASK_RUN_GPU, bind=True, reject_on_worker_lost=False)
 def run_gpu_stage(self: Task, task: dict[str, Any]) -> dict[str, Any]:
     return run_and_report(GpuTask.model_validate(task), str(self.request.id))
 
 
-@app.task(name=TASK_RUN_CPU, bind=True)
+@app.task(name=TASK_RUN_CPU, bind=True, reject_on_worker_lost=False)
 def run_cpu_stage(self: Task, task: dict[str, Any]) -> dict[str, Any]:
     return run_and_report(CpuTask.model_validate(task), str(self.request.id))
 

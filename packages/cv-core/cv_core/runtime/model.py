@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -93,6 +94,16 @@ def _ort_dims(shape: Sequence[Any]) -> tuple[Dim, ...]:
     return tuple(d if isinstance(d, int | str) else None for d in shape)
 
 
+def default_intra_op_threads() -> int | None:
+    """``PITCHVISION_ORT_THREADS`` if set (>0), else None = ORT's default (one thread per core).
+
+    Several worker processes on one machine must split the cores, or each session spins one thread per core
+    and they thrash (seen on a 10-core Mac running 2 Celery processes). The worker entrypoint sets it.
+    """
+    raw = os.environ.get("PITCHVISION_ORT_THREADS", "").strip()
+    return int(raw) if raw.isdigit() and int(raw) > 0 else None
+
+
 class OrtModel(InferenceModel):
     """ONNX Runtime session on CPU / CUDA / CoreML EP."""
 
@@ -106,8 +117,9 @@ class OrtModel(InferenceModel):
         self.path = Path(path)
         so = ort.SessionOptions()
         so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        if intra_op_threads:
-            so.intra_op_num_threads = intra_op_threads
+        threads = intra_op_threads or default_intra_op_threads()
+        if threads:
+            so.intra_op_num_threads = threads
         eps: list[Any] = [ORT_EP[provider]]
         if provider is not Provider.ort_cpu:
             eps.append(ORT_EP[Provider.ort_cpu])
