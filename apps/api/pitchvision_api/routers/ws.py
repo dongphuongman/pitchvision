@@ -1,28 +1,50 @@
 """WebSocket `GET /api/v1/ws?token=<access token>` (M1-BE-12, AD §10.3): one socket per tab, topic subscriptions.
 
-client → server  {"op": "subscribe" | "unsubscribe", "topic": "job:<uuid>"} · {"op": "ping"}
-server → client  pitchvision_schemas.ws events: {"topic", "type": "progress" | "completed" | "failed", "data"}
-                 + control messages:
+client → server  pitchvision_schemas.ws.ClientOp: {"op": "subscribe" | "unsubscribe", "topic": "job:<uuid>"}
+                 · {"op": "ping"}
+server → client  pitchvision_schemas.ws.ServerEvent (JSON Schema `ws_server_event`), discriminated on `type`:
+                 job events {"topic", "type": "progress" | "completed" | "failed" | "cancelled", "data"} + control:
                  {"type": "subscribed", "topic", "data": {"status"}}  then a snapshot event of the job's current state
-                 {"type": "unsubscribed", "topic"} · {"type": "pong"} · {"type": "ping"} (heartbeat, every 25 s)
-                 {"type": "error", "topic"?, "data": {"code", "detail"}}  codes: VALIDATION_FAILED, NOT_FOUND
-                 (unknown job or another org's — indistinguishable on purpose), RATE_LIMITED
+                 {"type": "unsubscribed", "topic"} · {"type": "pong"} · {"type": "ping", "ts"} (heartbeat, every 25 s)
+                 {"type": "error", "topic": str | null, "data": {"code", "detail"}}  codes: VALIDATION_FAILED,
+                 NOT_FOUND (unknown job or another org's — indistinguishable on purpose), RATE_LIMITED
 Close codes: 4401 unauthenticated · 4403 forbidden (no org / wrong region) · 1013 identity unavailable, retry.
 """
 
 import asyncio
 import contextlib
-import json
 import logging
 import time
 import uuid
 from collections import deque
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from pitchvision_schemas import ClientOp, CompletedEvent, ErrorCode, FailedEvent, JobStatus, ProgressEvent
-from pitchvision_schemas.ws import CompletedData, FailedData, ProgressData, SegmentCounts
-from pydantic import ValidationError
+from pitchvision_schemas import (
+    CancelledEvent,
+    ClientOp,
+    CompletedEvent,
+    ErrorCode,
+    ErrorMessage,
+    FailedEvent,
+    JobEvent,
+    JobStatus,
+    PingMessage,
+    PongMessage,
+    ProgressEvent,
+    SubscribedMessage,
+    UnsubscribedMessage,
+)
+from pitchvision_schemas.ws import (
+    CancelledData,
+    CompletedData,
+    ErrorData,
+    FailedData,
+    ProgressData,
+    SegmentCounts,
+    SubscribedData,
+)
+from pydantic import BaseModel, ValidationError
 
 from pitchvision_api.auth import Principal, websocket_principal
 from pitchvision_api.db import org_session
@@ -82,9 +104,10 @@ class _Session:
             with contextlib.suppress(Exception):
                 await self.ws.close()
 
-    async def _send(self, msg: dict[str, Any] | str) -> None:
+    async def _send(self, msg: BaseModel | str) -> None:
+        """A ServerEvent model, or raw JSON already in that shape (fanned out from Redis)."""
         async with self.send_lock:
-            await self.ws.send_text(msg if isinstance(msg, str) else json.dumps(msg))
+            await self.ws.send_text(msg if isinstance(msg, str) else msg.model_dump_json())
 
     async def _forward(self) -> None:
         while True:
@@ -93,7 +116,7 @@ class _Session:
     async def _heartbeat(self) -> None:
         while True:
             await asyncio.sleep(self.settings.ws_heartbeat_s)
-            await self._send({"type": "ping", "ts": int(time.time())})
+            await self._send(PingMessage(ts=int(time.time())))
 
     async def _receive(self) -> None:
         try:
@@ -104,10 +127,7 @@ class _Session:
             return
 
     async def _error(self, code: ErrorCode, detail: str, topic: str | None = None) -> None:
-        msg: dict[str, Any] = {"type": "error", "data": {"code": code.value, "detail": detail}}
-        if topic:
-            msg["topic"] = topic
-        await self._send(msg)
+        await self._send(ErrorMessage(topic=topic, data=ErrorData(code=code, detail=detail)))
 
     async def _handle(self, raw: str) -> None:
         if len(raw) > MAX_MESSAGE_BYTES:
@@ -119,7 +139,7 @@ class _Session:
             await self._error(ErrorCode.VALIDATION_FAILED, e.errors()[0]["msg"] if e.errors() else "invalid message")
             return
         if op.op == "ping":
-            await self._send({"type": "pong"})
+            await self._send(PongMessage())
         elif op.topic is None:
             await self._error(ErrorCode.VALIDATION_FAILED, f"{op.op} needs a topic")
         elif op.op == "subscribe":
@@ -128,7 +148,7 @@ class _Session:
             if op.topic in self.topics:
                 self.topics.discard(op.topic)
                 await self.hub.unsubscribe(op.topic, self.queue)
-            await self._send({"type": "unsubscribed", "topic": op.topic})
+            await self._send(UnsubscribedMessage(topic=op.topic))
 
     def _rate_limited(self) -> bool:
         now = time.monotonic()
@@ -162,16 +182,16 @@ class _Session:
         if topic not in self.topics:
             await self.hub.subscribe(topic, self.queue)
             self.topics.add(topic)
-        await self._send({"type": "subscribed", "topic": topic, "data": {"status": job.status}})
+        await self._send(SubscribedMessage(topic=topic, data=SubscribedData(status=JobStatus(job.status))))
         if (snap := snapshot(job, topic)) is not None:
-            await self._send(snap.model_dump_json())
+            await self._send(snap)
 
     async def _job(self, job_id: uuid.UUID) -> Job | None:
         async with org_session(self.ws.app.state.sessionmaker, self.principal.org_id) as session:
             return await jobs_repo.get(session, self.principal.org_id, job_id)
 
 
-def snapshot(job: Job, topic: str) -> ProgressEvent | CompletedEvent | FailedEvent | None:
+def snapshot(job: Job, topic: str) -> JobEvent | None:
     """The job's current state as a regular event, so a client that subscribes late starts from the truth."""
     status = JobStatus(job.status)
     if status == JobStatus.done:
@@ -181,7 +201,7 @@ def snapshot(job: Job, topic: str) -> ProgressEvent | CompletedEvent | FailedEve
         code = err.code if err else ErrorCode.INTERNAL
         return FailedEvent(topic=topic, data=FailedData(code=code, retryable=bool(err and err.retryable)))
     if status == JobStatus.cancelled:
-        return None
+        return CancelledEvent(topic=topic, data=CancelledData(video_id=str(job.video_id)))
     detail = job.detail or {}
     segs = detail.get("segments")
     data = ProgressData(

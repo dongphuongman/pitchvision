@@ -6,10 +6,13 @@ import json
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import Select, select, true, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
-from pitchvision_api.db.models import Video
+from pitchvision_api.db.models import Job, Video
+
+VideoWithJob = tuple[Video, Job | None]
 
 
 def encode_cursor(v: Video) -> str:
@@ -37,18 +40,41 @@ async def get(
     return video
 
 
+def _with_latest_job(org_id: uuid.UUID) -> Select[Video, Job]:
+    """videos LEFT JOIN LATERAL (newest job of each video): one round trip for a page, no N+1 (ix_jobs_video)."""
+    newest = (
+        select(Job)
+        .where(Job.video_id == Video.id, Job.org_id == org_id)
+        .order_by(Job.created_at.desc(), Job.id.desc())
+        .limit(1)
+        .lateral("latest_job")
+    )
+    latest = aliased(Job, newest)
+    return (
+        select(Video, latest)
+        .outerjoin(newest, true())
+        .where(Video.org_id == org_id, Video.status != "deleted", Video.deleted_at.is_(None))
+    )
+
+
+async def get_with_latest_job(session: AsyncSession, org_id: uuid.UUID, video_id: uuid.UUID) -> VideoWithJob | None:
+    row = (await session.execute(_with_latest_job(org_id).where(Video.id == video_id))).first()
+    return (row[0], row[1]) if row else None
+
+
 async def page(
     session: AsyncSession, org_id: uuid.UUID, limit: int, cursor: tuple[datetime, uuid.UUID] | None
-) -> tuple[list[Video], str | None]:
-    """Newest first, keyset pagination on (created_at, id) — matches ix_videos_org_created."""
-    stmt = select(Video).where(Video.org_id == org_id, Video.status != "deleted")
+) -> tuple[list[VideoWithJob], str | None]:
+    """Newest first, keyset pagination on (created_at, id) — matches ix_videos_org_created. Each video comes with
+    its newest job (or None)."""
+    stmt = _with_latest_job(org_id)
     if cursor is not None:
         stmt = stmt.where(tuple_(Video.created_at, Video.id) < tuple_(*cursor))
     stmt = stmt.order_by(Video.created_at.desc(), Video.id.desc()).limit(limit + 1)
-    rows = list((await session.scalars(stmt)).all())
+    rows: list[VideoWithJob] = [(r[0], r[1]) for r in (await session.execute(stmt)).all()]
     more = len(rows) > limit
     rows = rows[:limit]
-    return rows, (encode_cursor(rows[-1]) if more and rows else None)
+    return rows, (encode_cursor(rows[-1][0]) if more and rows else None)
 
 
 async def add(session: AsyncSession, video: Video) -> Video:

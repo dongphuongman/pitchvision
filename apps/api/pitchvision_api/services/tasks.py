@@ -4,7 +4,10 @@ Task contract (implemented in workers/pitchvision_worker/tasks.py):
 - `ingest.probe_url`  queue `ingest`, kwargs {url}  → {"ok": true, "info": {...}} | {"ok": false, "reason", "detail"}
 - `ingest.download`   queue `ingest`, kwargs {video_id, org_id, url} → worker updates the videos row itself
 - `orchestrate.start_job`  queue `orchestrate`, kwargs {job_id, org_id} → drives the job DAG (also used by retry)
-- `orchestrate.cancel_job` queue `orchestrate`, kwargs {job_id, org_id} → revokes the job's dispatched tasks
+- `orchestrate.cancel_job` queue `orchestrate`, kwargs {job_id, org_id} → revokes the job's dispatched tasks and
+                           publishes the WS `cancelled` event
+- `cpu.delete_video_objects` queue `cpu`, kwargs {org_id, video_id} → deletes every object under
+                           pitchvision_schemas.keys.video_prefixes once the videos row is `deleted` (AD §14 erasure)
 """
 
 import asyncio
@@ -23,6 +26,8 @@ TASK_DOWNLOAD = "ingest.download"
 QUEUE_ORCHESTRATE = "orchestrate"
 TASK_START_JOB = "orchestrate.start_job"
 TASK_CANCEL_JOB = "orchestrate.cancel_job"
+QUEUE_CPU = "cpu"
+TASK_DELETE_VIDEO_OBJECTS = "cpu.delete_video_objects"
 
 
 class TaskUnavailable(Exception):

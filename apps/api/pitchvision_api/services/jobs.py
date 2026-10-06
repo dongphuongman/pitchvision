@@ -130,6 +130,26 @@ async def cancel(session: AsyncSession, tasks: TaskQueue, principal: Principal, 
         raise not_found()
     if not can_transition(JobStatus(job.status), JobStatus.cancelled):
         raise ApiError(ErrorCode.CONFLICT, 409, "Job can't be cancelled", f"Job is already {job.status}.")
+    await _cancel(session, tasks, job)
+    return job
+
+
+async def cancel_active_for_video(
+    session: AsyncSession, tasks: TaskQueue, principal: Principal, video_id: uuid.UUID
+) -> Job | None:
+    """DELETE /videos/{id}: cancel the video's non-terminal job, if any (same path as POST /jobs/{id}/cancel)."""
+    active = await repo.active_for_video(session, principal.org_id, video_id)
+    if active is None:
+        return None
+    job = await repo.get(session, principal.org_id, active.id, for_update=True)
+    if job is None or not can_transition(JobStatus(job.status), JobStatus.cancelled):
+        return None
+    await _cancel(session, tasks, job)
+    return job
+
+
+async def _cancel(session: AsyncSession, tasks: TaskQueue, job: Job) -> None:
+    """→ cancelled; `orchestrate.cancel_job` revokes dispatched tasks and publishes the WS `cancelled` event."""
     job.status = JobStatus.cancelled.value
     job.finished_at = datetime.now(UTC)
     await session.flush()
@@ -137,7 +157,6 @@ async def cancel(session: AsyncSession, tasks: TaskQueue, principal: Principal, 
         await tasks.send(TASK_CANCEL_JOB, {"job_id": str(job.id), "org_id": str(job.org_id)}, QUEUE_ORCHESTRATE)
     except TaskUnavailable:
         log.warning("cancel %s: queue unavailable; the orchestrator sweep will revoke its tasks", job.id)
-    return job
 
 
 async def retry(session: AsyncSession, tasks: TaskQueue, principal: Principal, job_id: uuid.UUID) -> Job:

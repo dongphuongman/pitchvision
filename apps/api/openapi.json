@@ -345,6 +345,123 @@
             "description": "Server Error"
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "videos"
+        ],
+        "summary": "Update Video",
+        "description": "Rename (`title`, 1–200 characters after trimming).",
+        "operationId": "update_video_api_v1_videos__video_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "videos"
+        ],
+        "summary": "Delete Video",
+        "description": "Delete the video: its active job is cancelled, an in-progress upload aborted, and every stored object (source,\nmedia, segments, results, tiles, exports) is erased in the background. The video then returns 404.",
+        "operationId": "delete_video_api_v1_videos__video_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
       }
     },
     "/api/v1/videos/uploads": {
@@ -1362,6 +1479,84 @@
         ],
         "title": "JobStatus"
       },
+      "LatestJob": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "progress": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobCoverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pitch_calibration": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "degraded",
+                  "manual"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pitch Calibration",
+            "description": "Manifest `pitch.status` of the finished analysis (`degraded` → \"Low pitch quality\"). null until the job has calibrated the pitch (written by the orchestrator from W4, M1-CV-11/12)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "progress",
+          "stage",
+          "error",
+          "coverage",
+          "pitch_calibration"
+        ],
+        "title": "LatestJob",
+        "description": "Summary of a video's newest job, embedded in VideoOut so lists need no per-video job calls."
+      },
       "Meta": {
         "properties": {
           "version": {
@@ -2014,6 +2209,17 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "latest_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestJob"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The video's newest job (any status); null = never analysed. Live updates: WS topic job:{id}"
           }
         },
         "type": "object",
@@ -2030,7 +2236,8 @@
           "thumbnail_url",
           "error",
           "rights_confirmed_at",
-          "created_at"
+          "created_at",
+          "latest_job"
         ],
         "title": "VideoOut"
       },
@@ -2061,6 +2268,22 @@
           "items"
         ],
         "title": "VideoPage"
+      },
+      "VideoUpdate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "description": "1–200 characters after trimming whitespace"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "VideoUpdate"
       }
     },
     "securitySchemes": {

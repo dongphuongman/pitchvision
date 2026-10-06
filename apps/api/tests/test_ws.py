@@ -136,6 +136,27 @@ def test_terminal_snapshots(client: TestClient, identity: FakeIdentity, migrated
         ws.receive_json()
         assert ws.receive_json() == {"topic": f"job:{failed}", "type": "failed",
                                      "data": {"code": "NO_WIDE_SHOTS", "retryable": False}}  # fmt: skip
+    cancelled = seed_job(migrated, org, status="cancelled")
+    with connect(client, identity.token(org=org)) as ws:
+        ws.send_json({"op": "subscribe", "topic": f"job:{cancelled}"})
+        assert ws.receive_json()["data"] == {"status": "cancelled"}
+        snap = ws.receive_json()
+        assert snap["topic"] == f"job:{cancelled}" and snap["type"] == "cancelled" and snap["data"]["video_id"]
+
+
+def test_every_frame_is_a_typed_server_event(client: TestClient, identity: FakeIdentity, migrated: Db) -> None:
+    from pitchvision_schemas import ServerEvent
+    from pydantic import TypeAdapter
+
+    frames = TypeAdapter(ServerEvent)
+    jid = seed_job(migrated, org := uuid.uuid4())
+    with connect(client, identity.token(org=org)) as ws:
+        ws.send_text("nope")
+        ws.send_json({"op": "subscribe", "topic": f"job:{jid}"})
+        ws.send_json({"op": "ping"})
+        ws.send_json({"op": "unsubscribe", "topic": f"job:{jid}"})
+        got = [frames.validate_python(ws.receive_json()).type for _ in range(5)]
+    assert got == ["error", "subscribed", "progress", "pong", "unsubscribed"]
 
 
 def test_validation_and_rate_limit(migrated: Db, redis_url: str, identity: FakeIdentity) -> None:

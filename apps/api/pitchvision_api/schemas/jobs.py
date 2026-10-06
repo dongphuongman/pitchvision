@@ -3,7 +3,7 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pitchvision_schemas import ErrorCode, JobStatus
 from pydantic import BaseModel, Field
@@ -34,6 +34,38 @@ class SegmentCounts(BaseModel):
 
 class JobCoverage(BaseModel):
     main_wide_pct: float = Field(ge=0, le=100, description="% of the duration in analysable wide shots (S2b)")
+
+
+PitchCalibrationStatus = Literal["ok", "degraded", "manual"]
+
+
+class LatestJob(BaseModel):
+    """Summary of a video's newest job, embedded in VideoOut so lists need no per-video job calls."""
+
+    id: uuid.UUID
+    status: JobStatus
+    progress: float = Field(ge=0, le=100)
+    stage: str | None
+    error: JobError | None
+    coverage: JobCoverage | None
+    pitch_calibration: PitchCalibrationStatus | None = Field(
+        description="Manifest `pitch.status` of the finished analysis (`degraded` → \"Low pitch quality\"). "
+        "null until the job has calibrated the pitch (written by the orchestrator from W4, M1-CV-11/12)."
+    )
+
+    @classmethod
+    def of(cls, job: Job) -> "LatestJob":
+        detail = job.detail or {}
+        pitch = detail.get("pitch_calibration")
+        return cls(
+            id=job.id,
+            status=JobStatus(job.status),
+            progress=float(job.progress),
+            stage=job.stage,
+            error=job_error(job.error),
+            coverage=JobCoverage.model_validate(job.coverage) if job.coverage else None,
+            pitch_calibration=pitch if pitch in ("ok", "degraded", "manual") else None,
+        )
 
 
 class JobOut(BaseModel):

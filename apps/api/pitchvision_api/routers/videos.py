@@ -1,4 +1,4 @@
-"""/api/v1/videos — list/get + presigned multipart uploads (M1-BE-07, AD §8.1)."""
+"""/api/v1/videos — list/get/rename/delete + presigned multipart uploads (M1-BE-07, AD §8.1, §14)."""
 
 import uuid
 from typing import Annotated
@@ -19,9 +19,12 @@ from pitchvision_api.schemas.videos import (
     UploadState,
     VideoOut,
     VideoPage,
+    VideoUpdate,
 )
 from pitchvision_api.services import uploads
+from pitchvision_api.services import videos as service
 from pitchvision_api.services.storage import Storage
+from pitchvision_api.services.tasks import TaskQueue
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
@@ -29,6 +32,11 @@ router = APIRouter(prefix="/videos", tags=["videos"])
 def _storage(request: Request) -> Storage:
     storage: Storage = request.app.state.storage
     return storage
+
+
+def _tasks(request: Request) -> TaskQueue:
+    tasks: TaskQueue = request.app.state.tasks
+    return tasks
 
 
 @router.get("")
@@ -42,16 +50,32 @@ async def list_videos(
         after = repo.decode_cursor(cursor) if cursor else None
     except ValueError:
         raise ApiError(ErrorCode.VALIDATION_FAILED, 422, "Invalid cursor") from None
+    """Newest first. Every item carries `latest_job` (its newest job, or null) from the same query."""
     rows, next_cursor = await repo.page(session, principal.org_id, limit, after)
-    return VideoPage(items=[VideoOut.of(v) for v in rows], next_cursor=next_cursor)
+    return VideoPage(items=[VideoOut.of(v, job) for v, job in rows], next_cursor=next_cursor)
 
 
 @router.get("/{video_id}")
 async def get_video(video_id: uuid.UUID, principal: CurrentPrincipal, session: DbSession) -> VideoOut:
-    video = await repo.get(session, principal.org_id, video_id)
-    if video is None:
-        raise ApiError(ErrorCode.NOT_FOUND, 404, "Video not found")
-    return VideoOut.of(video)
+    return VideoOut.of(*await service.get(session, principal, video_id))
+
+
+@router.patch("/{video_id}")
+async def update_video(
+    video_id: uuid.UUID, body: VideoUpdate, principal: EditorPrincipal, session: DbSession
+) -> VideoOut:
+    """Rename (`title`, 1–200 characters after trimming)."""
+    return VideoOut.of(*await service.rename(session, principal, video_id, body.title))
+
+
+@router.delete("/{video_id}", status_code=204)
+async def delete_video(
+    video_id: uuid.UUID, request: Request, principal: EditorPrincipal, session: DbSession
+) -> Response:
+    """Delete the video: its active job is cancelled, an in-progress upload aborted, and every stored object (source,
+    media, segments, results, tiles, exports) is erased in the background. The video then returns 404."""
+    await service.delete(session, _storage(request), _tasks(request), principal, video_id)
+    return Response(status_code=204)
 
 
 @router.post("/uploads", status_code=201)

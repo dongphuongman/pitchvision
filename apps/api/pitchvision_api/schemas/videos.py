@@ -2,11 +2,12 @@
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
-from pitchvision_api.db.models import Video
+from pitchvision_api.db.models import Job, Video
+from pitchvision_api.schemas.jobs import LatestJob
 
 VideoStatus = Literal["uploading", "ingesting", "ready", "processing", "done", "failed", "deleted"]
 SourceType = Literal["upload", "youtube", "rtsp", "import"]
@@ -33,9 +34,12 @@ class VideoOut(BaseModel):
     error: VideoError | None
     rights_confirmed_at: datetime | None
     created_at: datetime
+    latest_job: LatestJob | None = Field(
+        description="The video's newest job (any status); null = never analysed. Live updates: WS topic job:{id}"
+    )
 
     @classmethod
-    def of(cls, v: Video) -> "VideoOut":
+    def of(cls, v: Video, latest_job: Job | None = None) -> "VideoOut":
         return cls(
             id=v.id,
             title=v.title,
@@ -51,12 +55,19 @@ class VideoOut(BaseModel):
             error=VideoError.model_validate(v.error) if v.error else None,
             rights_confirmed_at=v.rights_confirmed_at,
             created_at=v.created_at,
+            latest_job=LatestJob.of(latest_job) if latest_job is not None else None,
         )
 
 
 class VideoPage(BaseModel):
     items: list[VideoOut]
     next_cursor: str | None = Field(None, description="Pass as ?cursor= for the next page; null = last page")
+
+
+class VideoUpdate(BaseModel):
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)] = Field(
+        description="1–200 characters after trimming whitespace"
+    )
 
 
 # ---------------------------------------------------------------- uploads (M1-BE-07)
