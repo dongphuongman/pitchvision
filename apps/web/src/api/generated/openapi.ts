@@ -99,6 +99,55 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/results/{video_id}/calibration': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Calibration
+     * @description Pitch calibration state for SCR-15: the latest analysis' status, a running job, the last manual points.
+     */
+    get: operations['get_calibration_api_v1_results__video_id__calibration_get'];
+    put?: never;
+    /**
+     * Post Calibration
+     * @description Manual 4–8 point calibration (SCR-15 E09): starts a CPU-only `recalibrate` job (re-projection with the manual
+     *     homography → tiles under a new revision → positions → new manifest; ~1–2 min). Track it like any job (WS topic
+     *     `job:{id}`); the current manifest stays served until the new one is live. Requires `Idempotency-Key`.
+     *     422 `reason`: frame_ms (points on different frames) · duplicate_landmark · collinear · not_analysed_shot.
+     */
+    post: operations['post_calibration_api_v1_results__video_id__calibration_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/results/{video_id}/calibration/frame': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Calibration Frame
+     * @description A still of the normalized video at `t_ms` (snapped to 25 fps) as a presigned JPEG URL (SCR-14 manual mode,
+     *     SCR-15). Extracted by a worker on first use (may take a few seconds), cached afterwards. 503 when the worker
+     *     is busy / down (retry), 404 `reason: no_video` before S2, 422 `reason: out_of_range` past the end.
+     */
+    get: operations['get_calibration_frame_api_v1_results__video_id__calibration_frame_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/results/{video_id}/manifest': {
     parameters: {
       query?: never;
@@ -121,6 +170,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/results/{video_id}/media': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Media
+     * @description Presigned URL of the normalized video (25 fps) for the workspace player, valid `expires_in` s
+     *     (`PV_MEDIA_URL_TTL_S`, 6 h) — fetch again on a media error. 404 `reason: not_normalized` before S2 wrote it.
+     */
+    get: operations['get_media_api_v1_results__video_id__media_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/results/{video_id}/teams': {
     parameters: {
       query?: never;
@@ -130,11 +200,61 @@ export interface paths {
     };
     /**
      * Get Teams
-     * @description Teams of the video's analysis (one per team-model cluster; name / colour editable later).
+     * @description Teams of the video's analysis (one per team-model cluster) + sample crops per team: `sample_sheet.url` is
+     *     one image (S3's crop grid) and each team's `samples` are rectangles in it (≤ 8).
      */
     get: operations['get_teams_api_v1_results__video_id__teams_get'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Patch Teams
+     * @description Confirm teams (SCR-14 E09): names (1–40 chars), colours (#rrggbb), optional swap of name + colour between the
+     *     two clusters. Display-only — tiles keep the cluster number, the manifest maps it — so nothing is reprocessed.
+     *     409 `reason: no_teams` before the analysis finished.
+     */
+    patch: operations['patch_teams_api_v1_results__video_id__teams_patch'];
+    trace?: never;
+  };
+  '/api/v1/results/{video_id}/teams/candidates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Team Candidates
+     * @description Player boxes on team detection's sample frames (SCR-14 manual mode): show the frame
+     *     (`GET …/calibration/frame?t_ms=`) and let the user click boxes per team. Also after TEAM_SEPARATION_FAILED.
+     */
+    get: operations['get_team_candidates_api_v1_results__video_id__teams_candidates_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/results/{video_id}/teams/manual': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Post Manual Teams
+     * @description Re-run team detection seeded with ≥ 2 picked players per team (SCR-14 E13): a new job of kind `team_rerun`
+     *     (reuses normalize / shots of the latest job; re-runs calibrate → infer → …). Requires `Idempotency-Key`.
+     *     409: an active job (`job_id`), or no analysis yet (`reason: no_analysis`).
+     */
+    post: operations['post_manual_teams_api_v1_results__video_id__teams_manual_post'];
     delete?: never;
     options?: never;
     head?: never;
@@ -153,6 +273,27 @@ export interface paths {
      * @description 5 Hz positions for analysts (AD §10.2) — the player uses the manifest + tiles instead. Keyset-paged.
      */
     get: operations['get_tracks_api_v1_results__video_id__tracks_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/results/pitch-template': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Pitch Template
+     * @description The 32 pitch landmarks (index, name, kind, metres) + painted lines of the FIFA 105 × 68 template — SCR-15
+     *     landmark menu (E03) and pitch diagram / line preview (E05). Static.
+     */
+    get: operations['get_pitch_template_api_v1_results_pitch_template_get'];
     put?: never;
     post?: never;
     delete?: never;
@@ -412,6 +553,85 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** CalibrationAccepted */
+    CalibrationAccepted: {
+      /**
+       * Correction Id
+       * Format: uuid
+       */
+      correction_id: string;
+      /** @description the `recalibrate` job — progress over WS topic job:{id}, like any job */
+      job: components['schemas']['JobOut'];
+      /**
+       * Revision
+       * @description tiles revision the new manifest will carry
+       */
+      revision: number;
+    };
+    /**
+     * CalibrationIn
+     * @description SCR-15 E09. Scope ``shot``: the manual H replaces every frame of the analysed shot containing ``frame_ms``.
+     *     ``video``: also every analysed frame of other shots whose automatic H is missing / weak.
+     */
+    CalibrationIn: {
+      /** Points */
+      points: components['schemas']['CalibrationPoint'][];
+      /**
+       * Scope
+       * @default shot
+       * @enum {string}
+       */
+      scope: 'shot' | 'video';
+    };
+    /** CalibrationPoint */
+    CalibrationPoint: {
+      /**
+       * Frame Ms
+       * @description the frame the point was clicked on (all points: the same frame)
+       */
+      frame_ms: number;
+      /**
+       * Template Index
+       * @description GET /results/pitch-template keypoint index
+       */
+      template_index: number;
+      /**
+       * X
+       * @description pixel on the normalized video frame
+       */
+      x: number;
+      /** Y */
+      y: number;
+    };
+    /** CalibrationState */
+    CalibrationState: {
+      /** @description the video's running job, if any (e.g. a recalibrate job) */
+      active_job: components['schemas']['JobOut'] | null;
+      /**
+       * Job Id
+       * @description latest finished analysis
+       */
+      job_id: string | null;
+      /** @description the latest manual calibration (prefill / Reset) */
+      last_manual: components['schemas']['ManualCalibration'] | null;
+      /**
+       * Pitch Calibration
+       * @description of the latest finished analysis
+       */
+      pitch_calibration: ('ok' | 'degraded' | 'manual' | 'unavailable') | null;
+    };
+    /** CandidateFrame */
+    CandidateFrame: {
+      /**
+       * Boxes
+       * @description player candidates [x1, y1, x2, y2]
+       */
+      boxes: [number, number, number, number][];
+      /** Frame Idx */
+      frame_idx: number;
+      /** T Ms */
+      t_ms: number;
+    };
     /** CompletedPart */
     CompletedPart: {
       /** Etag */
@@ -468,6 +688,21 @@ export interface components {
       msg: string;
       /** Type */
       type: string;
+    };
+    /** FrameOut */
+    FrameOut: {
+      /** Expires In */
+      expires_in: number;
+      /**
+       * T Ms
+       * @description snapped to the 25 fps frame grid
+       */
+      t_ms: number;
+      /**
+       * Url
+       * @description presigned GET of a JPEG of normalized.mp4 at t_ms
+       */
+      url: string;
     };
     /** FromUrlIn */
     FromUrlIn: {
@@ -562,6 +797,18 @@ export interface components {
       /** Image Tag */
       image_tag: string;
       /**
+       * Kind
+       * @description analyze · team_rerun (SCR-14 manual teams: re-runs S3 with the user's seeds, then S4…) · recalibrate (SCR-15 manual pitch calibration: CPU re-projection + new tiles revision, no GPU)
+       * @default analyze
+       * @enum {string}
+       */
+      kind: 'analyze' | 'team_rerun' | 'recalibrate';
+      /**
+       * Parent Job Id
+       * @description derived jobs: the job whose finished stages they reuse
+       */
+      parent_job_id?: string | null;
+      /**
        * Progress
        * @description Weighted over stages; S4 infer is 80 %
        */
@@ -570,7 +817,7 @@ export interface components {
       segments?: components['schemas']['SegmentCounts'] | null;
       /**
        * Stage
-       * @description Current stage: ingest, normalize, shots, plan, calibrate, infer, stitch, tiles, load_db
+       * @description Current stage: ingest, normalize, shots, plan, calibrate, infer, stitch, recompute, tiles, load_db, manifest
        */
       stage?: string | null;
       /** Started At */
@@ -660,6 +907,59 @@ export interface components {
       /** Width */
       width: number;
     };
+    /** ManualCalibration */
+    ManualCalibration: {
+      /**
+       * Correction Id
+       * Format: uuid
+       */
+      correction_id: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Frame Ms */
+      frame_ms: number;
+      /** Points */
+      points: components['schemas']['CalibrationPoint'][];
+      /** Revision */
+      revision: number;
+      /**
+       * Scope
+       * @enum {string}
+       */
+      scope: 'shot' | 'video';
+    };
+    /**
+     * ManualTeamsIn
+     * @description SCR-14 manual mode (E11/E13): ≥ 2 players per team picked on sample frames.
+     */
+    ManualTeamsIn: {
+      /**
+       * Samples
+       * @description {"0": [{t_ms, box} ×≥2], "1": [...]} — key = the team (cluster) the player belongs to
+       */
+      samples: {
+        [key: string]: components['schemas']['SeedBox'][];
+      };
+    };
+    /** MediaOut */
+    MediaOut: {
+      /** Expires In */
+      expires_in: number;
+      /** Fps */
+      fps: number;
+      /** Height */
+      height: number;
+      /**
+       * Video Url
+       * @description presigned GET of normalized.mp4 (H.264, 25 fps); re-fetch on media error
+       */
+      video_url: string;
+      /** Width */
+      width: number;
+    };
     /** Meta */
     Meta: {
       /** Schema Version */
@@ -693,6 +993,17 @@ export interface components {
        */
       width_m: number;
     };
+    /** PitchTemplateInfo */
+    PitchTemplateInfo: {
+      /** Keypoints */
+      keypoints: components['schemas']['TemplateKeypoint'][];
+      /** Length M */
+      length_m: number;
+      /** Lines */
+      lines: components['schemas']['TemplateLine'][];
+      /** Width M */
+      width_m: number;
+    };
     /**
      * ProblemDetails
      * @description OpenAPI shape of every 4xx/5xx body: Problem + optional extensions.
@@ -713,6 +1024,50 @@ export interface components {
       title: string;
       /** Type */
       type: string;
+    };
+    /**
+     * SampleCrop
+     * @description One player crop inside ``TeamList.sample_sheet`` (CSS sprite: ``background-position: -x px -y px``).
+     */
+    SampleCrop: {
+      /** H */
+      h: number;
+      /** W */
+      w: number;
+      /** X */
+      x: number;
+      /** Y */
+      y: number;
+    };
+    /**
+     * SampleSheet
+     * @description S3's crop grid (``team_samples.jpg``): one row of crops per team, most typical first.
+     */
+    SampleSheet: {
+      /** Expires In */
+      expires_in: number;
+      /** Height */
+      height: number;
+      /**
+       * Url
+       * @description presigned GET, expires (re-fetch /teams after `expires_in` s)
+       */
+      url: string;
+      /** Width */
+      width: number;
+    };
+    /** SeedBox */
+    SeedBox: {
+      /**
+       * Box
+       * @description [x1, y1, x2, y2] pixels on the normalized video
+       */
+      box: [number, number, number, number];
+      /**
+       * T Ms
+       * @description time of the frame on the normalized video (snapped to 25 fps)
+       */
+      t_ms: number;
     };
     /** SegmentCounts */
     SegmentCounts: {
@@ -759,6 +1114,31 @@ export interface components {
       /** Size */
       size: number;
     };
+    /**
+     * TeamCandidates
+     * @description Clickable player boxes on S3's sample frames (SCR-14 manual mode E10/E11); frame images via
+     *     GET /results/{id}/calibration/frame?t_ms=.
+     */
+    TeamCandidates: {
+      /** Fps */
+      fps: number;
+      /** Frames */
+      frames: components['schemas']['CandidateFrame'][];
+      /**
+       * Job Id
+       * Format: uuid
+       */
+      job_id: string;
+    };
+    /** TeamEdit */
+    TeamEdit: {
+      /** Cluster */
+      cluster: number;
+      /** Color */
+      color: string;
+      /** Name */
+      name: string;
+    };
     /** TeamInfo */
     TeamInfo: {
       /** Cluster */
@@ -777,12 +1157,18 @@ export interface components {
     TeamList: {
       /** Items */
       items: components['schemas']['TeamOut'][];
+      /**
+       * Job Id
+       * @description analysis the teams / samples come from (latest done job)
+       */
+      job_id?: string | null;
+      sample_sheet?: components['schemas']['SampleSheet'] | null;
     };
     /** TeamOut */
     TeamOut: {
       /**
        * Cluster
-       * @description team-model cluster (0 / 1) the team was created from
+       * @description team-model cluster (0 / 1) the team was created from — the `team` value in tiles / tracks; never changes for a video's analysis
        */
       cluster: number | null;
       /**
@@ -799,6 +1185,77 @@ export interface components {
       id: string;
       /** Name */
       name: string | null;
+      /**
+       * Samples
+       * @description ≤ 8 crops of this cluster in `sample_sheet`
+       */
+      samples?: components['schemas']['SampleCrop'][];
+    };
+    /**
+     * TeamsPatch
+     * @description SCR-14 E02/E03/E04/E09. ``teams`` edits are applied by cluster first; then ``swap`` exchanges name + colour
+     *     of the two clusters. Send the final mapping with ``swap: false`` (recommended), or the pre-swap values with
+     *     ``swap: true``. Clusters (= tile ``team`` values) never move, so no tile is regenerated.
+     */
+    TeamsPatch: {
+      /**
+       * Confirmed
+       * @default true
+       */
+      confirmed: boolean;
+      /**
+       * Swap
+       * @default false
+       */
+      swap: boolean;
+      /** Teams */
+      teams?: components['schemas']['TeamEdit'][];
+    };
+    /** TemplateKeypoint */
+    TemplateKeypoint: {
+      /** Index */
+      index: number;
+      /**
+       * Kind
+       * @description intersection / arc on the halfway line = precise; spot; virtual = not painted (extrapolated, noisier); circle_left/right are tangent points (imprecise along x)
+       * @enum {string}
+       */
+      kind: 'intersection' | 'arc' | 'spot' | 'virtual';
+      /**
+       * Name
+       * @description e.g. corner_tl, l_box_front_far, half_circle_near
+       */
+      name: string;
+      /**
+       * X
+       * @description metres
+       */
+      x: number;
+      /**
+       * Y
+       * @description metres
+       */
+      y: number;
+    };
+    /** TemplateLine */
+    TemplateLine: {
+      /**
+       * Closed
+       * @default false
+       */
+      closed: boolean;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'segment' | 'arc' | 'spot';
+      /** Name */
+      name: string;
+      /**
+       * Points
+       * @description polyline in metres
+       */
+      points: [number, number][];
     };
     /** TrackPage */
     TrackPage: {
@@ -1228,6 +1685,135 @@ export interface operations {
       };
     };
   };
+  get_calibration_api_v1_results__video_id__calibration_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CalibrationState'];
+        };
+      };
+    };
+  };
+  post_calibration_api_v1_results__video_id__calibration_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Required. Unique per request. */
+        'Idempotency-Key'?: string | null;
+      };
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CalibrationIn'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CalibrationAccepted'];
+        };
+      };
+    };
+  };
+  get_calibration_frame_api_v1_results__video_id__calibration_frame_get: {
+    parameters: {
+      query: {
+        t_ms: number;
+      };
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FrameOut'];
+        };
+      };
+    };
+  };
   get_manifest_api_v1_results__video_id__manifest_get: {
     parameters: {
       query?: never;
@@ -1268,6 +1854,46 @@ export interface operations {
       };
     };
   };
+  get_media_api_v1_results__video_id__media_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MediaOut'];
+        };
+      };
+    };
+  };
   get_teams_api_v1_results__video_id__teams_get: {
     parameters: {
       query?: never;
@@ -1304,6 +1930,137 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['TeamList'];
+        };
+      };
+    };
+  };
+  patch_teams_api_v1_results__video_id__teams_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TeamsPatch'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamList'];
+        };
+      };
+    };
+  };
+  get_team_candidates_api_v1_results__video_id__teams_candidates_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamCandidates'];
+        };
+      };
+    };
+  };
+  post_manual_teams_api_v1_results__video_id__teams_manual_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Required. Unique per request. */
+        'Idempotency-Key'?: string | null;
+      };
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ManualTeamsIn'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['JobOut'];
         };
       };
     };
@@ -1350,6 +2107,44 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['TrackPage'];
+        };
+      };
+    };
+  };
+  get_pitch_template_api_v1_results_pitch_template_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PitchTemplateInfo'];
         };
       };
     };

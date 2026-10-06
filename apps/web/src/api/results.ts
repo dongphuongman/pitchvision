@@ -33,12 +33,7 @@ export function mediaQuery(videoId: string) {
   return queryOptions({
     queryKey: ['results', videoId, 'media'] as const,
     queryFn: async ({ signal }): Promise<Media> => {
-      // TODO(merge SCR-14/15 backend): drop the cast once openapi.json has /media.
-      const get = api.GET as unknown as (
-        path: string,
-        init: { params: { path: { video_id: string } }; signal?: AbortSignal },
-      ) => Promise<{ data?: Media }>;
-      const { data } = await get('/api/v1/results/{video_id}/media', {
+      const { data } = await api.GET('/api/v1/results/{video_id}/media', {
         params: { path: { video_id: videoId } },
         signal,
       });

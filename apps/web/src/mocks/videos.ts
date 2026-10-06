@@ -68,6 +68,8 @@ export function mockJob(video: Pick<Video, 'id'>, partial: Partial<MockJob> = {}
     coverage: null,
     image_tag: 'mock',
     config: {},
+    kind: 'analyze',
+    parent_job_id: null,
     created_at: '2026-10-05T09:00:00Z',
     started_at: '2026-10-05T09:00:05Z',
     finished_at: null,
