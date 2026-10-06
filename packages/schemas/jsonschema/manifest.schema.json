@@ -32,10 +32,12 @@
           "type": "number"
         },
         "status": {
+          "description": "ok \u00b7 degraded (> 30 % of main_wide frames below h_quality 0.5) \u00b7 manual (user calibrated) \u00b7 unavailable (no pitch keypoint model: px/py are null, no tactical map)",
           "enum": [
             "ok",
             "degraded",
-            "manual"
+            "manual",
+            "unavailable"
           ],
           "title": "Status",
           "type": "string"
@@ -184,7 +186,7 @@
       "type": "integer"
     },
     "tile_url_template": {
-      "description": "e.g. https://tiles.\u2026/{tile_no}.json.gz?sig=\u2026 \u2014 {tile_no} is 6-digit",
+      "description": "e.g. /api/v1/tiles/{video}/{job}/r0/{tile_no}.json.gz?exp=\u2026&sig=\u2026 \u2014 {tile_no} is 6-digit. Signed, expires (re-fetch the manifest on 403). The stored manifest.json holds the object-key template.",
       "title": "Tile Url Template",
       "type": "string"
     },

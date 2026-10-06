@@ -25,6 +25,9 @@ x-pv-env: &pv-env
   # (tenant-guarded by a trigger on app.org_id, which workers SET per tx). migrate enables its login.
   PV_WORKER_DB_PASSWORD: ${PV_WORKER_DB_PASSWORD:-pv-worker-local-only}
   PV_WORKER_DATABASE_URL: postgresql+psycopg://pv_worker:${PV_WORKER_DB_PASSWORD:-pv-worker-local-only}@postgres:5432/${POSTGRES_DB:?set in .env}
+  # HMAC key for signed playback-tile URLs (AD §14; api /api/v1/tiles route self-host, Cloudflare Worker later).
+  PV_TILE_SIGNING_KEY: ${PV_TILE_SIGNING_KEY:-}
+  PV_TILE_URL_TTL_S: ${PV_TILE_URL_TTL_S:-21600}
   # Pipeline (M1-BE-09…11). Jobs pin the image tag; workers refuse tasks built for another tag (AD §7).
   PV_IMAGE_TAG: ${TAG:-dev}
   # Queue LocalGpuBackend sends GPU stages to: `gpu` (gpu-local profile) or `cpu` on a CPU-only box (slow, same code).

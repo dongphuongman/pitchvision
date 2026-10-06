@@ -19,8 +19,13 @@ class Coverage(BaseModel):
     homography_ok_pct: float = Field(..., ge=0, le=100, description="% of main_wide frames with h_quality ≥ 0.5")
 
 
+PitchStatus = Literal["ok", "degraded", "manual", "unavailable"]
+
+
 class PitchCalibration(BaseModel):
-    status: Literal["ok", "degraded", "manual"]
+    status: PitchStatus = Field(
+        ..., description="ok · degraded (> 30 % of main_wide frames below h_quality 0.5) · manual (user calibrated) · "
+        "unavailable (no pitch keypoint model: px/py are null, no tactical map)")
     length_m: float = 105.0
     width_m: float = 68.0
 
@@ -40,7 +45,8 @@ class Manifest(BaseModel):
     tile_ms: int = TILE_MS
     tile_count: int
     tile_url_template: str = Field(
-        ..., description="e.g. https://tiles.…/{tile_no}.json.gz?sig=… — {tile_no} is 6-digit")
+        ..., description="e.g. /api/v1/tiles/{video}/{job}/r0/{tile_no}.json.gz?exp=…&sig=… — {tile_no} is 6-digit. "
+        "Signed, expires (re-fetch the manifest on 403). The stored manifest.json holds the object-key template.")
     shots: list[Shot]
     coverage: Coverage
     teams: list[TeamInfo]

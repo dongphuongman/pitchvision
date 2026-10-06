@@ -36,7 +36,8 @@ class JobCoverage(BaseModel):
     main_wide_pct: float = Field(ge=0, le=100, description="% of the duration in analysable wide shots (S2b)")
 
 
-PitchCalibrationStatus = Literal["ok", "degraded", "manual"]
+PitchCalibrationStatus = Literal["ok", "degraded", "manual", "unavailable"]
+PITCH_STATUSES = frozenset(("ok", "degraded", "manual", "unavailable"))
 
 
 class LatestJob(BaseModel):
@@ -49,8 +50,9 @@ class LatestJob(BaseModel):
     error: JobError | None
     coverage: JobCoverage | None
     pitch_calibration: PitchCalibrationStatus | None = Field(
-        description="Manifest `pitch.status` of the finished analysis (`degraded` → \"Low pitch quality\"). "
-        "null until the job has calibrated the pitch (written by the orchestrator from W4, M1-CV-11/12)."
+        description="Manifest `pitch.status` of the analysis (`degraded` → \"Low pitch quality\"; `unavailable` → no "
+        "pitch keypoint model, so no pitch coordinates / tactical map). null until S5 has run (the orchestrator "
+        "writes jobs.detail.pitch_calibration, M1-CV-11/12)."
     )
 
     @classmethod
@@ -64,7 +66,7 @@ class LatestJob(BaseModel):
             stage=job.stage,
             error=job_error(job.error),
             coverage=JobCoverage.model_validate(job.coverage) if job.coverage else None,
-            pitch_calibration=pitch if pitch in ("ok", "degraded", "manual") else None,
+            pitch_calibration=pitch if pitch in PITCH_STATUSES else None,
         )
 
 
