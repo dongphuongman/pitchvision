@@ -24,13 +24,15 @@ def build_manifest(*, org_id: uuid.UUID, video_id: uuid.UUID, job_id: uuid.UUID,
                    media: Mapping[str, Any], timeline: ShotTimeline, team_model: Mapping[str, Any] | None,
                    stitch: Mapping[str, Any], tiles: Mapping[str, Any]) -> Manifest:  # fmt: skip
     """``media`` = the S2 normalize result manifest (fps, width, height, duration_ms, frame_count); ``stitch`` /
-    ``tiles`` = those tasks' result payloads (pitch summary; tile_count + revision)."""
+    ``tiles`` = those tasks' result payloads (pitch summary; tile_count + revision). For a ``recalibrate`` job
+    ``stitch`` is the ``recompute`` result (same ``pitch`` shape, status ``manual``)."""
     fps = round(float(media.get("fps") or config.target_fps))
     duration_ms = int(media.get("duration_ms") or (timeline.shots[-1].t1_ms if timeline.shots else 0))
     frame_count = int(media.get("frame_count") or math.ceil(duration_ms * fps / 1000))
     revision = int(tiles.get("revision") or 0)
     pitch = stitch.get("pitch") or {}
-    status = pitch.get("status") if pitch.get("status") in ("ok", "degraded", "unavailable") else "unavailable"
+    status = pitch.get("status") if pitch.get("status") in ("ok", "degraded", "manual", "unavailable") \
+        else "unavailable"
     return Manifest(
         video_id=str(video_id),
         job_id=str(job_id),

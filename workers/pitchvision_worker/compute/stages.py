@@ -93,7 +93,11 @@ def _shots(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutp
 def _calibrate(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
     run_calibrate = contract_fn("calibrate", "run_calibrate")
     timeline = ShotTimeline.model_validate_json(inputs["shots"].read_text())
-    out = run_calibrate(inputs["normalized"], timeline, out_dir, task.config)
+    if "seeds" in inputs:  # job kind team_rerun (SCR-14 manual teams): user-picked seed boxes per team
+        seeds = json.loads(inputs["seeds"].read_text())
+        out = run_calibrate(inputs["normalized"], timeline, out_dir, task.config, seeds=seeds)
+    else:
+        out = run_calibrate(inputs["normalized"], timeline, out_dir, task.config)
     return StageOutput(jsonable(out) if out is not None else {})
 
 
@@ -166,6 +170,18 @@ def _stitch(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOut
     return StageOutput(result if isinstance(result, dict) else {"output": result})
 
 
+def _recompute(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
+    """Manual pitch calibration (job kind recalibrate): parent tracks + shots + params.calibration → tracks.parquet
+    with re-projected px/py under this job's tracks/ prefix (same place S5 writes)."""
+    run_recompute = contract_fn("recompute", "run_recompute")
+    cal = _task_params(task).get("calibration") or {}
+    timeline = ShotTimeline.model_validate_json(inputs["shots"].read_text())
+    out = run_recompute(inputs["tracks"], timeline, out_dir, task.config, points=cal.get("points") or [],
+                        frame_ms=int(cal.get("frame_ms") or 0), scope=cal.get("scope") or "shot")
+    result = jsonable(out)
+    return StageOutput(result if isinstance(result, dict) else {"output": result})
+
+
 def _tiles(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
     """S7: tiles go to keys.tile_key(org, video, job, revision, n) — outside the task's output_prefix."""
     run_tiles = contract_fn("tiles", "run_tiles")
@@ -218,6 +234,7 @@ STAGES: dict[str, StageFn] = {
     "infer": _infer,
     "pitch": _pitch,
     "stitch": _stitch,
+    "recompute": _recompute,
     "tiles": _tiles,
     "load_db": LoadDbStage(),
 }
