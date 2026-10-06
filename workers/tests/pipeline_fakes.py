@@ -101,11 +101,18 @@ NO_WIDE = ShotTimeline(shots=[Shot(t0_ms=0, t1_ms=DURATION_MS, type=ShotType.clo
 
 @dataclass
 class DevFakeStages:
-    """DEV FAKE stages (test only). `fail` maps stage/segment key → callable raising; `calls` counts runs."""
+    """DEV FAKE stages (test only). `fail` maps stage/segment key → callable raising; `calls` counts runs.
+
+    normalize / shots / calibrate / infer / pitch are fakes (no ffmpeg, no models) but write REAL artefacts
+    (detections.parquet, team_model.json, homography.parquet), so the REAL post-processing chain (stitch, tiles,
+    load_db — the latter writing through `db`) runs on them.
+    """
 
     timeline: ShotTimeline = field(default_factory=lambda: WIDE)
     fail: dict[str, Callable[[], None]] = field(default_factory=dict)
     calls: dict[str, int] = field(default_factory=dict)
+    db: Any = None  # sqlalchemy Engine for load_db (pv_worker)
+    pitch_quality: float = 0.9
 
     def _run(self, key: str) -> None:
         self.calls[key] = self.calls.get(key, 0) + 1
@@ -128,19 +135,36 @@ class DevFakeStages:
 
     def calibrate(self, task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
         self._run("calibrate")
-        (out_dir / "team_model.json").write_text(json.dumps({"teams": 2}))
+        (out_dir / "team_model.json").write_text(team_model_json())
         return StageOutput({"teams": 2})
 
     def infer(self, task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
         segment = task_segment(task, inputs)  # GpuTask.segment (the orchestrator no longer ships segments.json)
         assert "segments" not in inputs and task.task_id.endswith(f":{segment.index:03d}")
         self._run(f"infer:{segment.index:03d}")
-        assert inputs["team_model"].read_text() == json.dumps({"teams": 2})
-        (out_dir / "detections.parquet").write_bytes(b"PAR1-fake")
+        assert inputs["team_model"].read_text() == team_model_json()
+        synthetic_detections(out_dir / "detections.parquet", segment, players=2)
         return StageOutput({"frames": 10})
 
+    def pitch(self, task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
+        """Fake keypoints → a constant image→pitch H (20 px per metre) with quality `pitch_quality`."""
+        import numpy as np
+        from cv_core.io.parquet import write_homography
+
+        segment = task_segment(task, inputs)
+        assert set(inputs) == {"normalized", "shots"}
+        self._run(f"pitch:{segment.index:03d}")
+        f0, f1 = segment.t0_ms * 25 // 1000, -(-segment.t1_ms * 25 // 1000)
+        H = np.repeat(np.diag([0.05, 0.05, 1.0])[None], f1 - f0, axis=0)
+        write_homography(out_dir / "homography.parquet", np.arange(f0, f1), H, np.full(f1 - f0, self.pitch_quality))
+        return StageOutput({"status": "ok", "segment": segment.model_dump()})
+
     def registry(self) -> dict[str, Any]:
-        return {"normalize": self.normalize, "shots": self.shots, "calibrate": self.calibrate, "infer": self.infer}
+        from pitchvision_worker.compute.stages import STAGES, LoadDbStage
+
+        return {"normalize": self.normalize, "shots": self.shots, "calibrate": self.calibrate, "infer": self.infer,
+                "pitch": self.pitch, "stitch": STAGES["stitch"], "tiles": STAGES["tiles"],
+                "load_db": LoadDbStage(lambda: self.db)}  # fmt: skip
 
 
 def plan_every_120s(timeline: ShotTimeline, duration_ms: int, config: PipelineConfig) -> list[Segment]:
