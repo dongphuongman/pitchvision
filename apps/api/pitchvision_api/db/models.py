@@ -23,6 +23,8 @@ from sqlalchemy.dialects.postgresql import JSONB, REAL, TIMESTAMP, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 TZ = TIMESTAMP(timezone=True)
+JOB_ACTIVE = ("queued", "ingesting", "calibrating", "inferring", "postprocessing")
+JOB_ACTIVE_SQL = ", ".join(f"'{s}'" for s in JOB_ACTIVE)
 GEN_UUID = text("gen_random_uuid()")
 
 
@@ -87,6 +89,8 @@ class Job(Base):
         ),
         Index("ix_jobs_video", "video_id"),
         Index("ix_jobs_org_status", "org_id", "status"),
+        # 0003: one non-terminal job per video
+        Index("ux_jobs_video_active", "video_id", unique=True, postgresql_where=text(f"status IN ({JOB_ACTIVE_SQL})")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, server_default=GEN_UUID)
@@ -102,6 +106,11 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     started_at: Mapped[datetime | None]
     finished_at: Mapped[datetime | None]
+    # 0003: orchestration bookkeeping
+    created_by: Mapped[uuid.UUID | None]
+    stage: Mapped[str | None]
+    detail: Mapped[dict[str, Any] | None]
+    coverage: Mapped[dict[str, Any] | None]
 
 
 class JobTask(Base):
@@ -121,6 +130,11 @@ class JobTask(Base):
     error: Mapped[str | None]
     started_at: Mapped[datetime | None]
     finished_at: Mapped[datetime | None]
+    # 0003
+    payload: Mapped[dict[str, Any] | None]
+    not_before: Mapped[datetime | None]
+    dispatched_at: Mapped[datetime | None]
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
 class Team(Base):

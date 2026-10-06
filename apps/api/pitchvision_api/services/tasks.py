@@ -3,6 +3,8 @@
 Task contract (implemented in workers/pitchvision_worker/tasks.py):
 - `ingest.probe_url`  queue `ingest`, kwargs {url}  → {"ok": true, "info": {...}} | {"ok": false, "reason", "detail"}
 - `ingest.download`   queue `ingest`, kwargs {video_id, org_id, url} → worker updates the videos row itself
+- `orchestrate.start_job`  queue `orchestrate`, kwargs {job_id, org_id} → drives the job DAG (also used by retry)
+- `orchestrate.cancel_job` queue `orchestrate`, kwargs {job_id, org_id} → revokes the job's dispatched tasks
 """
 
 import asyncio
@@ -18,6 +20,9 @@ log = logging.getLogger(__name__)
 QUEUE_INGEST = "ingest"
 TASK_PROBE_URL = "ingest.probe_url"
 TASK_DOWNLOAD = "ingest.download"
+QUEUE_ORCHESTRATE = "orchestrate"
+TASK_START_JOB = "orchestrate.start_job"
+TASK_CANCEL_JOB = "orchestrate.cancel_job"
 
 
 class TaskUnavailable(Exception):

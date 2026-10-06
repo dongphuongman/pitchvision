@@ -12,7 +12,7 @@ from pitchvision_api.auth import DEV_ORG_HEADER, DEV_ROLE_HEADER, DEV_USER_HEADE
 from pitchvision_api.db import make_engine, make_sessionmaker
 from pitchvision_api.errors import PROBLEM_JSON, ProblemDetails, install_error_handlers
 from pitchvision_api.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
-from pitchvision_api.routers import health, ingest, meta, videos
+from pitchvision_api.routers import health, ingest, jobs, meta, videos
 from pitchvision_api.services.idempotency import IDEMPOTENCY_HEADER, REPLAYED_HEADER, install_idempotency
 from pitchvision_api.services.storage import Storage
 from pitchvision_api.services.tasks import CeleryTaskQueue
@@ -28,6 +28,7 @@ def api_router() -> APIRouter:
     router.include_router(meta.router)
     router.include_router(ingest.router)
     router.include_router(videos.router)
+    router.include_router(jobs.router)
     return router
 
 

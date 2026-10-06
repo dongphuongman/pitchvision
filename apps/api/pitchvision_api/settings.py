@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     presign_ttl_s: int = 900  # AD §14: presigned URLs live 15 min
     max_upload_bytes: int = 10 * GIB
 
+    # --- jobs (M1-BE-09): every job pins the image it runs on; workers refuse tasks for another tag (AD §7) ---
+    image_tag: str = "dev"
+
+    # --- WebSocket (M1-BE-12, AD §10.3) ---
+    ws_heartbeat_s: float = 25.0
+    ws_max_topics: int = 50  # subscriptions per connection
+    ws_subscribe_burst: int = 20  # subscribe ops allowed per window
+    ws_subscribe_window_s: float = 10.0
+
     # --- YouTube ingest (M1-BE-08) ---
     probe_timeout_s: float = 20.0
     max_video_duration_s: int = 3 * 3600

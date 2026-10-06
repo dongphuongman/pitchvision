@@ -147,9 +147,10 @@ async def test_no_org_context_sees_nothing(sm: async_sessionmaker[AsyncSession])
 
 async def test_status_and_shot_checks(sm: async_sessionmaker[AsyncSession]) -> None:
     vid = await _video(sm, ORG_A)
+    vids = [await _video(sm, ORG_A) for _ in JobStatus]  # 0003: one active job per video
     async with org_session(sm, ORG_A) as s:
-        for st in JobStatus:
-            s.add(Job(video_id=vid, org_id=ORG_A, image_tag="t", config={}, status=st))
+        for v, st in zip(vids, JobStatus, strict=True):
+            s.add(Job(video_id=v, org_id=ORG_A, image_tag="t", config={}, status=st))
         for i, t in enumerate(ShotType):
             s.add(ShotRow(video_id=vid, org_id=ORG_A, t0_ms=i * 10, t1_ms=i * 10 + 10, type=t, conf=1.0))
     bad = [
