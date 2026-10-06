@@ -1,33 +1,33 @@
 import { http, HttpResponse, ws, type WebSocketHandler } from 'msw';
-import type { Job } from '@/api/jobs';
-import type { Manifest, WsServerEvent } from '@/api/types';
+import { toLatestJob, type Job, type LatestJob, type PitchCalibration } from '@/api/jobs';
+import type { WsControlMessage, WsJobEvent, WsServerEvent } from '@/api/types';
 import type { Video } from '@/api/videos';
-import { mockManifest } from './player';
 
 /**
- * In-memory videos + jobs API and the `/api/v1/ws` socket (AD §10.3). Shared by Vitest
- * (msw/node) and the dev server (msw/browser). Endpoints not yet in apps/api/openapi.json follow
- * the assumptions documented in src/api/jobs.ts / src/api/videos.ts.
+ * In-memory videos + jobs API and the `/api/v1/ws` socket (AD §10.3), shaped like
+ * apps/api/openapi.json and packages/schemas `ws_server_event`. Shared by Vitest (msw/node) and
+ * the dev server (msw/browser).
  */
 
 type WsClient = Parameters<
   Parameters<ReturnType<typeof ws.link>['addEventListener']>[1]
 >[0]['client'];
 
+/** A JobOut plus the pitch calibration the orchestrator stores for `latest_job` (W4). */
+export type MockJob = Job & { pitch_calibration?: PitchCalibration | null };
+
 export interface MockVideoDb {
-  /** Any order; the list endpoint sorts newest first. */
+  /** Any order; the list endpoint sorts newest first. `latest_job` is derived from `jobs`. */
   videos: Video[];
-  jobs: Job[];
+  jobs: MockJob[];
   /** Request log for assertions, e.g. "DELETE /api/v1/videos/v-1". */
   log: string[];
   /** Live sockets → subscribed topics. */
   sockets: Map<WsClient, Set<string>>;
-  /** Manifests for done videos (default: generated from the video). */
-  manifests: Record<string, Manifest>;
 }
 
 export function createVideoDb(partial: Partial<MockVideoDb> = {}): MockVideoDb {
-  return { videos: [], jobs: [], log: [], sockets: new Map(), manifests: {}, ...partial };
+  return { videos: [], jobs: [], log: [], sockets: new Map(), ...partial };
 }
 
 let seq = 0;
@@ -48,11 +48,12 @@ export function mockVideo(partial: Partial<Video> = {}): Video {
     error: null,
     rights_confirmed_at: '2026-10-01T09:00:00Z',
     created_at: new Date(Date.UTC(2026, 9, 1, 9, 0, seq)).toISOString(),
+    latest_job: null,
     ...partial,
   };
 }
 
-export function mockJob(video: Pick<Video, 'id'>, partial: Partial<Job> = {}): Job {
+export function mockJob(video: Pick<Video, 'id'>, partial: Partial<MockJob> = {}): MockJob {
   return {
     id: `00000000-0000-4000-9000-${video.id.slice(-12)}`,
     video_id: video.id,
@@ -73,6 +74,20 @@ export function mockJob(video: Pick<Video, 'id'>, partial: Partial<Job> = {}): J
   };
 }
 
+/** `VideoOut.latest_job` of a mock job (what GET /videos returns for it). */
+export function mockLatestJob(job: MockJob): LatestJob {
+  const live = toLatestJob(job);
+  return {
+    id: live.id,
+    status: live.status,
+    progress: live.progress,
+    stage: live.stage,
+    error: live.error,
+    coverage: live.coverage,
+    pitch_calibration: job.pitch_calibration ?? null,
+  };
+}
+
 const RUNNING_JOB: readonly Job['status'][] = [
   'queued',
   'ingesting',
@@ -82,46 +97,38 @@ const RUNNING_JOB: readonly Job['status'][] = [
 ];
 
 /** The event the server sends right after `subscribed` (current state of the job). */
-export function jobSnapshotEvent(job: Job): WsServerEvent | null {
+export function jobSnapshotEvent(job: Job): WsJobEvent | null {
   const topic = `job:${job.id}`;
   if (job.status === 'done') return { topic, type: 'completed', data: { video_id: job.video_id } };
-  if (job.status === 'failed' && job.error) {
+  if (job.status === 'cancelled') {
+    return { topic, type: 'cancelled', data: { video_id: job.video_id } };
+  }
+  if (job.status === 'failed') {
     return {
       topic,
       type: 'failed',
-      data: { code: job.error.code, retryable: job.error.retryable },
+      data: { code: job.error?.code ?? 'INTERNAL', retryable: job.error?.retryable ?? false },
     };
   }
-  // Queued: `subscribed` already carries the status; progress starts with the first stage.
-  if (job.status === 'queued' || !RUNNING_JOB.includes(job.status)) return null;
   return {
     topic,
     type: 'progress',
     data: {
-      stage: job.stage ?? 'ingest',
+      stage: job.stage ?? job.status,
       pct: job.progress,
-      fps: job.fps,
-      eta_s: job.eta_s,
-      segments: job.segments,
+      fps: job.fps ?? null,
+      eta_s: job.eta_s ?? null,
+      segments: job.segments ?? null,
     },
   };
 }
 
-/** Manifest for a finished video: synthetic shots/tiles (./player); coverage drives the chip. */
-export function stubManifest(video: Video, partial: Partial<Manifest> = {}): Manifest {
-  return {
-    ...mockManifest({ videoId: video.id, durationMs: video.duration_ms ?? 60_000 }),
-    coverage: { main_wide_pct: 71, homography_ok_pct: 88 },
-    ...partial,
-  };
-}
-
-/** Push a server event to every socket subscribed to `topic`. Returns the number of receivers. */
-export function emitWs(db: MockVideoDb, event: WsServerEvent): number {
+/** Push a job event to every socket subscribed to its topic. Returns the number of receivers. */
+export function emitWs(db: MockVideoDb, event: WsJobEvent): number {
   let n = 0;
   for (const [client, topics] of db.sockets) {
     if (topics.has(event.topic)) {
-      client.send(JSON.stringify(event));
+      send(client, event);
       n += 1;
     }
   }
@@ -131,6 +138,10 @@ export function emitWs(db: MockVideoDb, event: WsServerEvent): number {
 /** Topics currently subscribed by any socket. */
 export function wsTopics(db: MockVideoDb): string[] {
   return [...new Set([...db.sockets.values()].flatMap((t) => [...t]))];
+}
+
+function send(client: WsClient, frame: WsServerEvent): void {
+  client.send(JSON.stringify(frame));
 }
 
 function problem(status: number, code: string, title: string) {
@@ -151,6 +162,17 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
     db.jobs
       .filter((j) => j.video_id === videoId)
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  /** VideoOut as the API returns it: `latest_job` from the same "query". */
+  const out = (v: Video): Video => {
+    const latest = jobsOf(v.id)[0];
+    return { ...v, latest_job: latest ? mockLatestJob(latest) : null };
+  };
+  /** Same as the API's cancel path: → cancelled, then the orchestrator publishes `cancelled`. */
+  const cancel = (job: MockJob) => {
+    job.status = 'cancelled';
+    job.finished_at = new Date().toISOString();
+    emitWs(db, { topic: `job:${job.id}`, type: 'cancelled', data: { video_id: job.video_id } });
+  };
   const socket = ws.link('*/api/v1/ws');
 
   const wsHandler: WebSocketHandler = socket.addEventListener('connection', ({ client }) => {
@@ -161,34 +183,37 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
     const topics = new Set<string>();
     db.sockets.set(client, topics);
     db.log.push('WS connect');
+    const control = (m: WsControlMessage) => send(client, m);
     client.addEventListener('message', (e) => {
       if (typeof e.data !== 'string') return;
       let op: { op?: string; topic?: string };
       try {
         op = JSON.parse(e.data) as typeof op;
       } catch {
+        control({ type: 'error', topic: null, data: { code: 'VALIDATION_FAILED' } });
         return;
       }
       if (op.op === 'subscribe' && op.topic) {
         const job = db.jobs.find((j) => `job:${j.id}` === op.topic);
         if (!job) {
-          client.send(
-            JSON.stringify({ type: 'error', topic: op.topic, data: { code: 'NOT_FOUND' } }),
-          );
+          control({
+            type: 'error',
+            topic: op.topic,
+            data: { code: 'NOT_FOUND', detail: 'job not found' },
+          });
           return;
         }
         topics.add(op.topic);
         db.log.push(`WS subscribe ${op.topic}`);
-        client.send(
-          JSON.stringify({ type: 'subscribed', topic: op.topic, data: { status: job.status } }),
-        );
+        control({ type: 'subscribed', topic: op.topic, data: { status: job.status } });
         const snapshot = jobSnapshotEvent(job);
-        if (snapshot) client.send(JSON.stringify(snapshot));
+        if (snapshot) send(client, snapshot);
       } else if (op.op === 'unsubscribe' && op.topic) {
         topics.delete(op.topic);
         db.log.push(`WS unsubscribe ${op.topic}`);
+        control({ type: 'unsubscribed', topic: op.topic });
       } else if (op.op === 'ping') {
-        client.send(JSON.stringify({ type: 'pong' }));
+        control({ type: 'pong' });
       }
     });
     client.addEventListener('close', () => db.sockets.delete(client));
@@ -204,32 +229,39 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
       const all = db.videos
         .filter((v) => v.status !== 'deleted')
         .sort((a, b) => b.created_at.localeCompare(a.created_at));
-      const items = all.slice(offset, offset + limit);
+      const items = all.slice(offset, offset + limit).map(out);
       const next = offset + limit < all.length ? String(offset + limit) : null;
       db.log.push(`GET /api/v1/videos cursor=${url.searchParams.get('cursor') ?? ''}`);
       return HttpResponse.json({ items, next_cursor: next });
     }),
     http.get('*/api/v1/videos/:id/jobs', ({ params }) => {
+      db.log.push(`GET /api/v1/videos/${String(params.id)}/jobs`);
       if (!find(String(params.id))) return problem(404, 'NOT_FOUND', 'Video not found');
       return HttpResponse.json({ items: jobsOf(String(params.id)) });
     }),
     http.get('*/api/v1/videos/:id', ({ params }) => {
       const v = find(String(params.id));
-      return v ? HttpResponse.json(v) : problem(404, 'NOT_FOUND', 'Video not found');
+      db.log.push(`GET /api/v1/videos/${String(params.id)}`);
+      return v ? HttpResponse.json(out(v)) : problem(404, 'NOT_FOUND', 'Video not found');
     }),
     http.patch('*/api/v1/videos/:id', async ({ params, request }) => {
       const v = find(String(params.id));
       if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
       const body = (await request.json()) as { title?: string };
       db.log.push(`PATCH /api/v1/videos/${v.id} ${JSON.stringify(body)}`);
-      if (!body.title?.trim()) return problem(422, 'VALIDATION_FAILED', 'Title required');
-      v.title = body.title.trim();
-      return HttpResponse.json(v);
+      const title = body.title?.trim() ?? '';
+      if (title.length < 1 || title.length > 200) {
+        return problem(422, 'VALIDATION_FAILED', 'Title must be 1–200 characters');
+      }
+      v.title = title;
+      return HttpResponse.json(out(v));
     }),
     http.delete('*/api/v1/videos/:id', ({ params }) => {
       const v = find(String(params.id));
       if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
       db.log.push(`DELETE /api/v1/videos/${v.id}`);
+      const active = jobsOf(v.id).find((j) => RUNNING_JOB.includes(j.status));
+      if (active) cancel(active);
       v.status = 'deleted';
       return new HttpResponse(null, { status: 204 });
     }),
@@ -237,18 +269,16 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
       const job = db.jobs.find((j) => j.id === params.id);
       return job ? HttpResponse.json(job) : problem(404, 'NOT_FOUND', 'Job not found');
     }),
-    http.post('*/api/v1/jobs/:id/retry', ({ params, request }) => {
+    http.post('*/api/v1/jobs/:id/retry', ({ params }) => {
       const job = db.jobs.find((j) => j.id === params.id);
       if (!job) return problem(404, 'NOT_FOUND', 'Job not found');
-      if (!request.headers.get('Idempotency-Key')) {
-        return problem(400, 'IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key required');
-      }
       if (job.status !== 'failed' || job.error?.retryable === false) {
         return problem(409, 'CONFLICT', 'Job is not retryable');
       }
       db.log.push(`POST /api/v1/jobs/${job.id}/retry`);
       Object.assign(job, {
         status: 'queued',
+        stage: null,
         error: null,
         eta_s: null,
         finished_at: null,
@@ -260,14 +290,8 @@ export function videoHandlers(db: MockVideoDb, opts: VideoHandlerOptions = {}) {
       if (!job) return problem(404, 'NOT_FOUND', 'Job not found');
       if (!RUNNING_JOB.includes(job.status)) return problem(409, 'CONFLICT', 'Job not running');
       db.log.push(`POST /api/v1/jobs/${job.id}/cancel`);
-      job.status = 'cancelled';
+      cancel(job);
       return HttpResponse.json(job);
-    }),
-    http.get('*/api/v1/results/:videoId/manifest', ({ params }) => {
-      const v = find(String(params.videoId));
-      const done = v && jobsOf(v.id).find((j) => j.status === 'done');
-      if (!v || !done) return problem(404, 'NOT_FOUND', 'No finished analysis');
-      return HttpResponse.json(db.manifests[v.id] ?? stubManifest(v));
     }),
     wsHandler,
   ];
@@ -292,6 +316,7 @@ function startSimulation(db: MockVideoDb, tickMs: number): void {
       if (p >= 100) {
         job.status = 'done';
         job.coverage = { main_wide_pct: 74 };
+        job.pitch_calibration = 'ok';
         job.finished_at = new Date().toISOString();
         emitWs(db, { topic, type: 'completed', data: { video_id: job.video_id } });
         continue;

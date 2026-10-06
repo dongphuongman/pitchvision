@@ -1,21 +1,27 @@
-import { idempotencyKey, requestJson } from './pending';
-import type { ServerErrorCode } from './errors';
-import type { JobStatus } from '@/ui/status';
+import { api } from './client';
+import type { components } from './generated/openapi';
 
 /**
- * Jobs API (backend M1 W3, final shapes; not yet in apps/api/openapi.json — move to the
- * generated client when the spec lands at merge):
+ * Jobs API (apps/api/openapi.json, generated client):
  *
- *   POST /api/v1/jobs {video_id, config?}       → 202 Job  (Idempotency-Key; 409 job_id | reason)
- *   GET  /api/v1/jobs/{id}                       → Job
- *   GET  /api/v1/videos/{video_id}/jobs          → { items: Job[] } newest first
- *   POST /api/v1/jobs/{id}/cancel                → 200 Job
- *   POST /api/v1/jobs/{id}/retry                 → 202 Job  (409 if not failed / not retryable)
- *   WS   topic `job:{id}`                        → progress | completed | failed (AD §10.3)
+ *   POST /api/v1/jobs {video_id, config?}       → 202 JobOut  (Idempotency-Key; 409 job_id | reason)
+ *   GET  /api/v1/jobs/{id}                       → JobOut
+ *   GET  /api/v1/videos/{video_id}/jobs          → { items: JobOut[] } newest first
+ *   POST /api/v1/jobs/{id}/cancel                → 200 JobOut
+ *   POST /api/v1/jobs/{id}/retry                 → 202 JobOut  (409 if not failed / not retryable)
+ *   WS   topic `job:{id}`                        → progress | completed | failed | cancelled (AD §10.3)
  *
- * Video status is not changed by jobs: the library derives "analyzing / ready / failed" from the
- * latest job of each video.
+ * Lists don't fetch jobs: every `VideoOut` carries `latest_job` (a `LatestJob` summary) and the
+ * library keeps it live over the WebSocket.
  */
+export type Job = components['schemas']['JobOut'];
+export type LatestJob = components['schemas']['LatestJob'];
+export type JobStatus = components['schemas']['JobStatus'];
+export type PitchCalibration = NonNullable<LatestJob['pitch_calibration']>;
+
+/** `LatestJob` plus the live-only fields WS progress events carry (absent from list responses). */
+export type LiveJob = LatestJob & Partial<Pick<Job, 'eta_s' | 'fps' | 'segments'>>;
+
 export type JobStage =
   | 'ingest'
   | 'normalize'
@@ -26,25 +32,6 @@ export type JobStage =
   | 'stitch'
   | 'tiles'
   | 'load_db';
-
-export interface Job {
-  id: string;
-  video_id: string;
-  status: JobStatus;
-  /** 0–100. */
-  progress: number;
-  stage: JobStage | null;
-  segments: { done: number; running: number; total: number } | null;
-  fps: number | null;
-  eta_s: number | null;
-  error: { code: ServerErrorCode; retryable: boolean; detail?: string | null } | null;
-  coverage: { main_wide_pct: number } | null;
-  image_tag?: string | null;
-  config?: Record<string, unknown> | null;
-  created_at: string;
-  started_at?: string | null;
-  finished_at?: string | null;
-}
 
 /** Stage name (ProgressEvent.data.stage) → job status (AD §16.1, pipeline-stages.md). */
 export const STAGE_STATUS: Record<JobStage, JobStatus> = {
@@ -59,29 +46,52 @@ export const STAGE_STATUS: Record<JobStage, JobStatus> = {
   load_db: 'postprocessing',
 };
 
-export async function getLatestJob(videoId: string, signal?: AbortSignal): Promise<Job | null> {
-  const page = await requestJson<{ items: Job[] }>(
-    'GET',
-    `/api/v1/videos/${encodeURIComponent(videoId)}/jobs`,
-    { signal },
-  );
-  return page.items[0] ?? null;
+/**
+ * A full job (e.g. the retry response) as the `latest_job` summary of its video. JobOut has no
+ * pitch calibration: keep the one the cache already knows (same job) or null.
+ */
+export function toLatestJob(job: Job, previous?: LatestJob | null): LiveJob {
+  return {
+    id: job.id,
+    status: job.status,
+    progress: job.progress,
+    stage: job.stage ?? null,
+    error: job.error ?? null,
+    coverage: job.coverage ?? null,
+    pitch_calibration: previous?.id === job.id ? previous.pitch_calibration : null,
+    eta_s: job.eta_s ?? null,
+    fps: job.fps ?? null,
+    segments: job.segments ?? null,
+  };
 }
 
-export function getJob(jobId: string, signal?: AbortSignal): Promise<Job> {
-  return requestJson<Job>('GET', `/api/v1/jobs/${encodeURIComponent(jobId)}`, { signal });
+function required<T>(data: T | undefined, what: string): T {
+  if (data === undefined) throw new Error(`Empty ${what} response`);
+  return data;
 }
 
-export function retryJob(jobId: string): Promise<Job> {
-  return requestJson<Job>('POST', `/api/v1/jobs/${encodeURIComponent(jobId)}/retry`, {
-    headers: { 'Idempotency-Key': idempotencyKey() },
+export async function getJob(jobId: string, signal?: AbortSignal): Promise<Job> {
+  const { data } = await api.GET('/api/v1/jobs/{job_id}', {
+    params: { path: { job_id: jobId } },
+    signal,
   });
+  return required(data, 'job');
 }
 
-export function cancelJob(jobId: string): Promise<Job> {
-  return requestJson<Job>('POST', `/api/v1/jobs/${encodeURIComponent(jobId)}/cancel`);
+export async function retryJob(jobId: string): Promise<Job> {
+  const { data } = await api.POST('/api/v1/jobs/{job_id}/retry', {
+    params: { path: { job_id: jobId } },
+  });
+  return required(data, 'retry');
 }
 
-export function canRetry(job: Pick<Job, 'status' | 'error'> | null | undefined): boolean {
+export async function cancelJob(jobId: string): Promise<Job> {
+  const { data } = await api.POST('/api/v1/jobs/{job_id}/cancel', {
+    params: { path: { job_id: jobId } },
+  });
+  return required(data, 'cancel');
+}
+
+export function canRetry(job: Pick<LatestJob, 'status' | 'error'> | null | undefined): boolean {
   return job?.status === 'failed' && job.error?.retryable !== false;
 }

@@ -22,7 +22,13 @@ export type ShotTimeline = ShotTimelineSchema.ShotTimeline;
 export type Shot = ShotTimelineSchema.Shot;
 export type ShotType = ShotTimelineSchema.ShotType;
 export type WsClientOp = WsClientOpSchema.ClientOp;
+/** Every server → client frame: job events + socket control messages (discriminated on `type`). */
 export type WsServerEvent = WsServerEventSchema.WsServerEvent;
 export type JobProgressEvent = WsServerEventSchema.ProgressEvent;
 export type JobCompletedEvent = WsServerEventSchema.CompletedEvent;
 export type JobFailedEvent = WsServerEventSchema.FailedEvent;
+export type JobCancelledEvent = WsServerEventSchema.CancelledEvent;
+/** Events published on a `job:{id}` topic (what topic listeners receive). */
+export type WsJobEvent = JobProgressEvent | JobCompletedEvent | JobFailedEvent | JobCancelledEvent;
+/** The socket session's own frames: subscribed · unsubscribed · ping · pong · error. */
+export type WsControlMessage = Exclude<WsServerEvent, WsJobEvent>;

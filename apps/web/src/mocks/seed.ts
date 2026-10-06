@@ -1,5 +1,5 @@
 import { createMockDb, mockOrg, mockUser, type MockDb } from './identity';
-import { createVideoDb, mockJob, mockVideo, stubManifest, type MockVideoDb } from './videos';
+import { createVideoDb, mockJob, mockVideo, type MockVideoDb } from './videos';
 
 /**
  * Demo data for `VITE_MOCK_API=1 pnpm dev` (password for every account: "correct horse battery"):
@@ -125,11 +125,9 @@ export function demoVideoDb(): MockVideoDb {
           progress: 100,
           stage: 'load_db',
           coverage: { main_wide_pct: 58 + ((i * 7) % 30) },
+          pitch_calibration: i === 9 ? 'degraded' : 'ok', // card 10: "Ready · Low pitch quality"
         }),
       );
-      db.manifests[v.id] = stubManifest(v, {
-        pitch: { status: i === 9 ? 'degraded' : 'ok' },
-      });
     }
   }
   return db;

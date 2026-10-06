@@ -1,7 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { API_BASE_URL } from './client';
 import { getAccessToken, refreshAccessToken } from './http';
-import type { WsClientOp, WsServerEvent } from './types';
+import type { WsClientOp, WsControlMessage, WsJobEvent, WsServerEvent } from './types';
 
 /**
  * WebSocket client (AD §10.3): one socket per tab, `wss://…/api/v1/ws?token=…`, topic
@@ -15,14 +15,17 @@ import type { WsClientOp, WsServerEvent } from './types';
  * - Close codes: 4401 unauthenticated → refresh the token, then reconnect; 4403 forbidden /
  *   wrong region → stop (a reconnect can't succeed; the next subscribe() tries again);
  *   1013 identity unavailable and anything else → reconnect with backoff.
- * - Server frames other than job events (`subscribed`, `error`, `ping`, `pong`) only feed the
- *   heartbeat timer; the server's snapshot event after `subscribed` is a normal job event.
+ * - Frames are the generated `WsServerEvent` union (packages/schemas `ws_server_event`). Job events
+ *   (`progress` / `completed` / `failed` / `cancelled`) go to the topic's listeners; control
+ *   messages (`subscribed`, `unsubscribed`, `ping`, `pong`, `error`) only feed the heartbeat timer
+ *   and `onControl` listeners. The server's snapshot after `subscribed` is a normal job event.
  */
 
 export const HEARTBEAT_MS = 25_000;
 
 export type WsStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
-export type WsListener = (event: WsServerEvent) => void;
+export type WsListener = (event: WsJobEvent) => void;
+export type WsControlListener = (message: WsControlMessage) => void;
 export type WsStatusListener = (status: WsStatus, previous: WsStatus) => void;
 
 /** The subset of the browser WebSocket the client uses (lets tests inject a fake). */
@@ -52,18 +55,35 @@ export interface WsClientOptions {
 const OPEN = 1;
 const AUTH_CLOSE_CODES = new Set([4401]);
 const TERMINAL_CLOSE_CODES = new Set([4403]);
-const SERVER_EVENT_TYPES = new Set(['progress', 'completed', 'failed']);
+// Records (not lists) so the compiler flags a frame type added to packages/schemas but not here.
+const JOB_EVENT_TYPES: Record<WsJobEvent['type'], true> = {
+  progress: true,
+  completed: true,
+  failed: true,
+  cancelled: true,
+};
+const CONTROL_TYPES: Record<WsControlMessage['type'], true> = {
+  subscribed: true,
+  unsubscribed: true,
+  ping: true,
+  pong: true,
+  error: true,
+};
 
-function isServerEvent(v: unknown): v is WsServerEvent {
-  if (typeof v !== 'object' || v === null) return false;
+/** Shape check of a parsed frame against the generated union (unknown types are dropped). */
+export function parseServerFrame(v: unknown): WsServerEvent | null {
+  if (typeof v !== 'object' || v === null) return null;
   const o = v as Record<string, unknown>;
-  return (
-    typeof o.topic === 'string' &&
-    typeof o.type === 'string' &&
-    SERVER_EVENT_TYPES.has(o.type) &&
-    typeof o.data === 'object' &&
-    o.data !== null
-  );
+  if (typeof o.type !== 'string') return null;
+  if (Object.hasOwn(JOB_EVENT_TYPES, o.type)) {
+    const ok = typeof o.topic === 'string' && typeof o.data === 'object' && o.data !== null;
+    return ok ? (o as unknown as WsJobEvent) : null;
+  }
+  return Object.hasOwn(CONTROL_TYPES, o.type) ? (o as unknown as WsControlMessage) : null;
+}
+
+export function isJobEvent(frame: WsServerEvent): frame is WsJobEvent {
+  return Object.hasOwn(JOB_EVENT_TYPES, frame.type);
 }
 
 export class WsClient {
@@ -71,6 +91,7 @@ export class WsClient {
     Pick<WsClientOptions, 'refreshToken'>;
   private readonly topics = new Map<string, Set<WsListener>>();
   private readonly statusListeners = new Set<WsStatusListener>();
+  private readonly controlListeners = new Set<WsControlListener>();
   private socket: WebSocketLike | null = null;
   private status: WsStatus = 'idle';
   private attempt = 0;
@@ -128,6 +149,12 @@ export class WsClient {
   onStatus(listener: WsStatusListener): () => void {
     this.statusListeners.add(listener);
     return () => this.statusListeners.delete(listener);
+  }
+
+  /** Control messages (e.g. `error` NOT_FOUND / RATE_LIMITED for a topic). */
+  onControl(listener: WsControlListener): () => void {
+    this.controlListeners.add(listener);
+    return () => this.controlListeners.delete(listener);
   }
 
   dispose(): void {
@@ -217,11 +244,16 @@ export class WsClient {
     } catch {
       return;
     }
-    // Heartbeats / pongs / unknown frames only feed the stale timer.
-    if (!isServerEvent(msg)) return;
-    const listeners = this.topics.get(msg.topic);
+    // Every frame (even an unknown one) has already fed the stale timer.
+    const frame = parseServerFrame(msg);
+    if (!frame) return;
+    if (!isJobEvent(frame)) {
+      for (const l of [...this.controlListeners]) l(frame);
+      return;
+    }
+    const listeners = this.topics.get(frame.topic);
     if (!listeners) return;
-    for (const l of [...listeners]) l(msg);
+    for (const l of [...listeners]) l(frame);
   }
 
   private startHeartbeat(): void {

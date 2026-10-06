@@ -1,19 +1,17 @@
-import { useInfiniteQuery, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi, Link } from '@tanstack/react-router';
 import { LayoutGrid, List, Search, Upload, Video } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Page, PageHeader } from '@/app/Page';
 import { isApiError } from '@/api/errors';
-import { retryJob, type Job } from '@/api/jobs';
-import { latestJobQuery, videoKeys, videosInfiniteQuery, type Video as VideoT } from '@/api/videos';
+import { retryJob, toLatestJob, type LatestJob } from '@/api/jobs';
+import { patchLatestJobInCache, videosInfiniteQuery, type Video as VideoT } from '@/api/videos';
 import { RequireRole } from '@/auth/RequireRole';
 import { Banner, Button, EmptyState, Input, SegmentedControl, Select, Skeleton, toast } from '@/ui';
 import { YoutubeIcon } from '@/ui/icons';
 import {
   applyLibraryFilters,
-  cardStatus,
-  hasJobs,
   hasActiveFilters,
   SORTS,
   SOURCE_FILTERS,
@@ -56,20 +54,9 @@ export function LibraryPage() {
     () => (query.data?.pages.flatMap((p) => p.items) ?? []).filter((v) => !pending.has(v.id)),
     [query.data, pending],
   );
-  // Filtering by status group only needs VideoOut.status (queued vs analyzing, degraded vs
-  // ready stay in the same group), so job / manifest caches aren't consulted here.
-  // The status filter needs each video's latest job (shared cache keys with the cards).
-  // API request: a list-level `latest_job` on VideoOut would save these per-video calls.
-  const jobs = useQueries({
-    queries: loaded.map((v) => ({ ...latestJobQuery(v.id), enabled: hasJobs(v) })),
-    combine: (results) => results.map((r) => r.data),
-  });
-  const visible = useMemo(() => {
-    const byId = new Map(loaded.map((v, i) => [v.id, jobs[i]]));
-    return applyLibraryFilters(loaded, search, (v) =>
-      cardStatus(v, hasJobs(v) ? byId.get(v.id) : null),
-    );
-  }, [loaded, search, jobs]);
+  // Each list item carries its `latest_job` (kept live over WS by the cards), so filtering by
+  // status needs no per-video job requests.
+  const visible = useMemo(() => applyLibraryFilters(loaded, search), [loaded, search]);
 
   const setSearch = (patch: Partial<typeof search>) =>
     void navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
@@ -83,17 +70,17 @@ export function LibraryPage() {
     }
   };
 
-  const onAction = (action: VideoAction, video: VideoT, job?: Job) => {
+  const onAction = (action: VideoAction, video: VideoT) => {
     if (action === 'retry') {
-      if (job) void retry(video, job);
+      if (video.latest_job) void retry(video, video.latest_job);
     } else setDialog({ kind: action, video });
   };
 
-  const retry = async (video: VideoT, job: Job) => {
+  const retry = async (video: VideoT, job: LatestJob) => {
     try {
       const next = await retryJob(job.id);
       // The card re-subscribes to job:{id} once the job runs again.
-      qc.setQueryData(videoKeys.latestJob(video.id), next);
+      patchLatestJobInCache(qc, video.id, (prev) => toLatestJob(next, prev));
       toast({ title: t('retry.started'), tone: 'success' });
     } catch (e) {
       toast({

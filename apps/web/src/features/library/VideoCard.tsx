@@ -9,7 +9,7 @@ import {
   Video,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { canRetry, type Job } from '@/api/jobs';
+import { canRetry, type LiveJob } from '@/api/jobs';
 import { isJobRunning, useJobProgress } from '@/api/useJobProgress';
 import type { Video as VideoT } from '@/api/videos';
 import { can } from '@/auth/roles';
@@ -36,7 +36,8 @@ export type VideoAction = 'rename' | 'retry' | 'delete';
 export interface VideoCardProps {
   video: VideoT;
   view: 'grid' | 'list';
-  onAction: (action: VideoAction, video: VideoT, job?: Job) => void;
+  /** `retry` acts on `video.latest_job`. */
+  onAction: (action: VideoAction, video: VideoT) => void;
 }
 
 /** One library item (SCR-10 E06 card / list row, E07 ⋮ menu). */
@@ -47,16 +48,17 @@ export function VideoCard({ video, view, onAction }: VideoCardProps) {
   const fmt = useFormat();
   const role = useRole();
   const navigate = useNavigate();
-  // Latest job (shared cache with the page's filter): status, progress over WS, coverage.
-  const jobs = useJobProgress(video.id, { enabled: hasJobs(video) });
-  const job = hasJobs(video) ? jobs.job : null;
-  const status = cardStatus(video, jobs.isLoading ? undefined : job);
+  // `latest_job` from the list, kept live over WS (status, progress, coverage, pitch quality).
+  const { job } = useJobProgress(video, { enabled: hasJobs(video) });
+  const status = cardStatus(video, job);
   const target = cardTarget(video.id, status);
   const title = videoTitle(video, t('card.untitled'));
   const live = isJobRunning(job);
   const pct = live && job ? Math.round(job.progress) : null;
   const coveragePct =
-    status === 'ready' && job?.coverage ? fmt.percent(job.coverage.main_wide_pct) : null;
+    (status === 'ready' || status === 'ready_degraded') && job?.coverage
+      ? fmt.percent(job.coverage.main_wide_pct)
+      : null;
 
   const badgeLabel =
     status === 'analyzing' && pct !== null
@@ -94,7 +96,7 @@ export function VideoCard({ video, view, onAction }: VideoCardProps) {
         node: (
           <DropdownMenuItem
             icon={<RotateCcw size={15} />}
-            onSelect={() => job && onAction('retry', video, job)}
+            onSelect={() => onAction('retry', video)}
           >
             {t('menu.retry')}
           </DropdownMenuItem>
@@ -327,7 +329,7 @@ function Thumb({
 function metaLine(
   video: VideoT,
   status: VideoStatus,
-  job: Job | null,
+  job: LiveJob | null,
   {
     t,
     te,
@@ -350,8 +352,9 @@ function metaLine(
     case 'analyzing': {
       if (!job || job.status === 'queued') return date;
       const parts = [fmt.percent(Math.round(job.progress))];
-      if (job.eta_s !== null && job.eta_s > 0) {
-        const eta = fmt.number(Math.max(1, Math.round(job.eta_s / 60)), {
+      const etaS = job.eta_s ?? 0;
+      if (etaS > 0) {
+        const eta = fmt.number(Math.max(1, Math.round(etaS / 60)), {
           style: 'unit',
           unit: 'minute',
           unitDisplay: 'narrow',

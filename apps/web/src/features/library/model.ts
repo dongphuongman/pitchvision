@@ -1,4 +1,4 @@
-import type { Job } from '@/api/jobs';
+import type { LatestJob } from '@/api/jobs';
 import type { Video } from '@/api/videos';
 import type { VideoStatus } from '@/ui';
 
@@ -20,14 +20,15 @@ export interface LibraryFilters {
 }
 
 /**
- * Card badge (UIUX SCR-10 E10) from `VideoOut.status` + the video's latest job. Jobs don't change
- * the video status: while the source is `ready`, the job tells "queued / analyzing / ready /
- * failed / cancelled"; no job yet = "Not analyzed". `job === undefined` means "not loaded yet".
- * `processing` / `done` video statuses are honoured too in case the API starts setting them.
+ * Card badge (UIUX SCR-10 E10) from `VideoOut.status` + its `latest_job`. Jobs don't change the
+ * video status: while the source is `ready`, the job tells "queued / analyzing / ready / failed /
+ * cancelled"; no job = "Not analyzed". A finished job whose pitch calibration is `degraded` shows
+ * "Ready · Low pitch quality". `processing` / `done` video statuses are honoured too in case the
+ * API starts setting them.
  */
 export function cardStatus(
   video: Pick<Video, 'status'>,
-  job?: Pick<Job, 'status'> | null,
+  job?: (Pick<LatestJob, 'status'> & Partial<Pick<LatestJob, 'pitch_calibration'>>) | null,
 ): VideoStatus {
   switch (video.status) {
     case 'uploading':
@@ -50,7 +51,7 @@ export function cardStatus(
     case 'postprocessing':
       return 'analyzing';
     case 'done':
-      return 'ready';
+      return job.pitch_calibration === 'degraded' ? 'ready_degraded' : 'ready';
     case 'failed':
       return 'failed';
     case 'cancelled':
@@ -64,7 +65,7 @@ export function cardStatus(
   }
 }
 
-/** Videos whose latest job matters (source available). */
+/** Videos whose latest job matters (source available; an ingesting / failed source decides). */
 export function hasJobs(video: Pick<Video, 'status'>): boolean {
   return video.status === 'ready' || video.status === 'processing' || video.status === 'done';
 }
@@ -102,7 +103,7 @@ export function normalizeSearch(s: string): string {
 export function applyLibraryFilters(
   videos: readonly Video[],
   filters: LibraryFilters,
-  statusOf: (v: Video) => VideoStatus = (v) => cardStatus(v),
+  statusOf: (v: Video) => VideoStatus = (v) => cardStatus(v, hasJobs(v) ? v.latest_job : null),
 ): Video[] {
   const q = normalizeSearch(filters.q ?? '');
   const status = filters.status ?? 'all';

@@ -1,6 +1,6 @@
 import { canRetry } from '@/api/jobs';
 import { applyJobEvent } from '@/api/useJobProgress';
-import { mockJob, mockVideo } from '@/mocks/videos';
+import { mockJob, mockLatestJob, mockVideo } from '@/mocks/videos';
 import { applyLibraryFilters, cardStatus, cardTarget } from './model';
 
 describe('library model', () => {
@@ -49,8 +49,27 @@ describe('library model', () => {
     expect(titles({ q: '  ZET ' })).toEqual(['Zeta']);
   });
 
+  it('shows "Low pitch quality" for a finished job with degraded calibration', () => {
+    const ready = { status: 'ready' } as const;
+    expect(cardStatus(ready, { status: 'done', pitch_calibration: 'degraded' })).toBe(
+      'ready_degraded',
+    );
+    expect(cardStatus(ready, { status: 'done', pitch_calibration: 'ok' })).toBe('ready');
+    expect(cardStatus(ready, { status: 'done', pitch_calibration: null })).toBe('ready');
+    expect(cardTarget('v', 'ready_degraded')).toEqual({ kind: 'workspace', videoId: 'v' });
+    // The status filter reads `latest_job` straight from the list item.
+    const v = mockVideo({
+      status: 'ready',
+      latest_job: mockLatestJob(
+        mockJob(mockVideo(), { status: 'done', pitch_calibration: 'degraded' }),
+      ),
+    });
+    expect(applyLibraryFilters([v], { status: 'ready' })).toEqual([v]);
+    expect(applyLibraryFilters([v], { status: 'failed' })).toEqual([]);
+  });
+
   it('applies WS events to a job snapshot', () => {
-    const job = mockJob(mockVideo(), { status: 'queued', progress: 0, stage: null });
+    const job = mockLatestJob(mockJob(mockVideo(), { status: 'queued', progress: 0, stage: null }));
     const p = applyJobEvent(job, {
       topic: 't',
       type: 'progress',
@@ -72,6 +91,9 @@ describe('library model', () => {
     expect(
       applyJobEvent(p, { topic: 't', type: 'failed', data: { code: 'INTERNAL', retryable: true } }),
     ).toMatchObject({ status: 'failed', error: { code: 'INTERNAL', retryable: true } });
+    expect(
+      applyJobEvent(p, { topic: 't', type: 'cancelled', data: { video_id: 'v' } }),
+    ).toMatchObject({ status: 'cancelled', eta_s: null, progress: 12.5 });
     expect(canRetry({ status: 'failed', error: { code: 'INTERNAL', retryable: false } })).toBe(
       false,
     );

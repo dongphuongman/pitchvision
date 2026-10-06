@@ -1,4 +1,4 @@
-import type { WsServerEvent } from './types';
+import type { WsControlMessage, WsJobEvent, WsServerEvent } from './types';
 import { WsClient, wsEndpoint, type WebSocketLike, type WsStatus } from './ws';
 
 class FakeSocket implements WebSocketLike {
@@ -215,6 +215,41 @@ describe('WsClient', () => {
     expect(last().closed).toBeNull();
     last().receive(progress('job:a1a1a1a1', 50)); // snapshot after subscribed
     expect(got).toEqual([progress('job:a1a1a1a1', 50)]);
+  });
+
+  it('routes `cancelled` to the topic and typed control messages to onControl', async () => {
+    const got: WsJobEvent[] = [];
+    const control: WsControlMessage[] = [];
+    const c = makeClient();
+    c.subscribe('job:a1a1a1a1', (e) => got.push(e));
+    const off = c.onControl((m) => control.push(m));
+    await flush();
+    last().open();
+    const frames: WsControlMessage[] = [
+      { type: 'subscribed', topic: 'job:a1a1a1a1', data: { status: 'inferring' } },
+      {
+        type: 'error',
+        topic: 'job:b2b2b2b2',
+        data: { code: 'NOT_FOUND', detail: 'job not found' },
+      },
+      { type: 'ping', ts: 1_791_000_000 },
+      { type: 'pong' },
+      { type: 'unsubscribed', topic: 'job:b2b2b2b2' },
+    ];
+    for (const f of frames) last().receive(f);
+    const cancelled: WsJobEvent = {
+      topic: 'job:a1a1a1a1',
+      type: 'cancelled',
+      data: { video_id: 'v1' },
+    };
+    last().receive(cancelled);
+    last().receive({ type: 'exploded', topic: 'job:a1a1a1a1', data: {} }); // unknown: dropped
+    last().receive({ type: 'progress', topic: 'job:a1a1a1a1' }); // malformed job event: dropped
+    expect(got).toEqual([cancelled]);
+    expect(control).toEqual(frames);
+    off();
+    last().receive({ type: 'pong' });
+    expect(control).toHaveLength(frames.length);
   });
 
   it('does not connect without a token', async () => {

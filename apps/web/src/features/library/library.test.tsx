@@ -2,9 +2,8 @@ import { QueryClient } from '@tanstack/react-query';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { applySession } from '@/auth/session';
-import type { Job } from '@/api/jobs';
 import type { Video } from '@/api/videos';
-import { emitWs, mockJob, mockVideo, wsTopics } from '@/mocks/videos';
+import { emitWs, mockJob, mockVideo, wsTopics, type MockJob } from '@/mocks/videos';
 import { setupIdentityMock } from '@/test/msw';
 import { renderApp, testSession } from '@/test/renderApp';
 import { scheduleDelete, usePendingDeletes } from './pendingDeletes';
@@ -12,7 +11,7 @@ import { scheduleDelete, usePendingDeletes } from './pendingDeletes';
 const mock = setupIdentityMock();
 
 /** A source-ready video whose latest job is `job` (jobs don't change the video status). */
-function seed(title: string, job?: Partial<Job>, video: Partial<Video> = {}) {
+function seed(title: string, job?: Partial<MockJob>, video: Partial<Video> = {}) {
   const v = mockVideo({ title, status: 'ready', ...video });
   mock.videos.videos.push(v);
   const j = job ? mockJob(v, job) : null;
@@ -20,7 +19,7 @@ function seed(title: string, job?: Partial<Job>, video: Partial<Video> = {}) {
   return { v, j };
 }
 
-const DONE: Partial<Job> = { status: 'done', progress: 100, coverage: { main_wide_pct: 71 } };
+const DONE: Partial<MockJob> = { status: 'done', progress: 100, coverage: { main_wide_pct: 71 } };
 
 function seedDone(n: number) {
   for (let i = 0; i < n; i += 1) {
@@ -66,6 +65,42 @@ describe('SCR-10 Library', () => {
     expect(screen.getByText('26 matches')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
     expect(mock.videos.log).toContain('GET /api/v1/videos cursor=20');
+    // Cards read `latest_job` from the list: no per-video job / video requests.
+    expect(mock.videos.log.filter((l) => !l.startsWith('GET /api/v1/videos cursor='))).toEqual([]);
+  });
+
+  it('shows "Low pitch quality" when the finished job has a degraded pitch calibration', async () => {
+    const { v } = seed('Night game', { ...DONE, pitch_calibration: 'degraded' });
+    seed('Day game', { ...DONE, pitch_calibration: 'ok' });
+    renderApp('/library');
+    const card = await screen.findByRole('article', { name: 'Night game' });
+    expect(within(card).getByText('Ready · Low pitch quality')).toBeInTheDocument();
+    expect(within(card).getByText('71% wide')).toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: 'Night game' })).toHaveAttribute(
+      'href',
+      `/videos/${v.id}/overview`,
+    );
+    const day = screen.getByRole('article', { name: 'Day game' });
+    expect(within(day).getByText('Ready')).toBeInTheDocument();
+    expect(within(day).queryByText(/Low pitch quality/)).not.toBeInTheDocument();
+  });
+
+  it('marks the card cancelled on the `cancelled` WS event and unsubscribes', async () => {
+    const { v, j } = seed('Abandoned', { status: 'inferring', progress: 30 });
+    const job = j ?? mockJob(v);
+    renderApp('/library');
+    const card = await screen.findByRole('article', { name: 'Abandoned' });
+    await waitFor(() => expect(wsTopics(mock.videos)).toEqual([`job:${job.id}`]));
+    act(() => {
+      emitWs(mock.videos, {
+        topic: `job:${job.id}`,
+        type: 'cancelled',
+        data: { video_id: v.id },
+      });
+    });
+    expect(await within(card).findByText('Cancelled')).toBeInTheDocument();
+    expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument();
+    await waitFor(() => expect(wsTopics(mock.videos)).toEqual([]));
   });
 
   it('shows the coverage chip and opens the workspace for done videos', async () => {
@@ -87,7 +122,8 @@ describe('SCR-10 Library', () => {
     renderApp('/library');
     const card = await screen.findByRole('article', { name: 'U17 vs Ajax' });
     expect(await within(card).findByText('Analyzing 42%')).toBeInTheDocument();
-    expect(within(card).getByText('42% · ETA 9m')).toBeInTheDocument();
+    // ETA isn't in `latest_job`: it arrives with the server's progress snapshot after `subscribed`.
+    expect(await within(card).findByText('42% · ETA 9m')).toBeInTheDocument();
     expect(within(card).getByRole('link', { name: 'U17 vs Ajax' })).toHaveAttribute(
       'href',
       `/videos/${v.id}/processing`,
@@ -116,8 +152,9 @@ describe('SCR-10 Library', () => {
       });
     });
     expect(await within(card).findByText('Ready')).toBeInTheDocument();
-    // The finished job is refetched for its coverage.
+    // The finished video is re-read once (GET /videos/{id}) for its job's coverage.
     expect(await within(card).findByText('64% wide')).toBeInTheDocument();
+    expect(mock.videos.log).toContain(`GET /api/v1/videos/${v.id}`);
     // Finished jobs are unsubscribed.
     await waitFor(() => expect(wsTopics(mock.videos)).toEqual([]));
   });
@@ -268,6 +305,22 @@ describe('pending deletes (DLG-01 10 s window)', () => {
     expect(mock.videos.log).toEqual([]);
     await waitFor(() => expect(onDeleted).toHaveBeenCalled());
     expect(mock.videos.log).toEqual([`DELETE /api/v1/videos/${v.id}`]);
+    expect(usePendingDeletes.getState().ids.has(v.id)).toBe(false);
+  });
+
+  it('DELETE of a video with a running job cancels it server-side; a failure restores the card', async () => {
+    applySession(testSession());
+    const { v, j } = seed('Running', { status: 'inferring', progress: 20 });
+    const onDeleted = vi.fn();
+    scheduleDelete(new QueryClient(), v.id, { onDeleted }, 10);
+    await waitFor(() => expect(onDeleted).toHaveBeenCalled());
+    expect(j?.status).toBe('cancelled');
+    expect(mock.videos.videos.find((x) => x.id === v.id)?.status).toBe('deleted');
+
+    const onError = vi.fn();
+    scheduleDelete(new QueryClient(), v.id, { onError }, 10); // already gone → 404 problem
+    await waitFor(() => expect(onError).toHaveBeenCalled());
+    expect(onError.mock.calls[0]?.[0]).toMatchObject({ code: 'NOT_FOUND' });
     expect(usePendingDeletes.getState().ids.has(v.id)).toBe(false);
   });
 
