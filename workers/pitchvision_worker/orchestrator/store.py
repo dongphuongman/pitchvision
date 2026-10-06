@@ -28,6 +28,12 @@ def lock_job(conn: Connection, job_id: uuid.UUID) -> Row | None:
     return dict(row) if row else None
 
 
+def get_job(conn: Connection, job_id: uuid.UUID) -> Row | None:
+    """Read a job without locking it (a derived job reading its parent)."""
+    row = conn.execute(select(jobs).where(jobs.c.id == job_id)).mappings().first()
+    return dict(row) if row else None
+
+
 def update_job(conn: Connection, job_id: uuid.UUID, **values: Any) -> None:
     if "progress" in values:
         values["progress"] = Decimal(str(round(float(values["progress"]), 2)))

@@ -1,4 +1,4 @@
-# Pipeline stages contract (M1 W3: M1-BE-09…12, M1-CV-08…10; W4: M1-CV-11…13, M1-BE-13…16)
+# Pipeline stages contract (M1 W3: M1-BE-09…12, M1-CV-08…10; W4: M1-CV-11…13, M1-BE-13…16; SCR-14/15: M1-BE-20)
 
 Source of truth between the **orchestrator / task layer** (`workers/pitchvision_worker/{orchestrator,compute,tasks.py}`)
 and the **stage functions** (`workers/pitchvision_worker/stages/*.py`, built on `cv_core`). Change both in one PR.
@@ -18,10 +18,11 @@ and the **stage functions** (`workers/pitchvision_worker/stages/*.py`, built on 
 | calibrating | S2 normalise | `normalize.run_normalize(original, out_dir, config) -> NormalizeOutput` (exists) | cpu | source → `keys.normalized_key`, probe fields into `videos` |
 | calibrating | S2b shots | `shots.run_shots(normalized, config) -> ShotTimeline` (exists) | gpu (light) | normalized → table `shots` + `keys.shots_key` (`media/…/shots.json`) |
 | calibrating | segment plan | `segments.plan_segments(timeline, duration_ms, config) -> list[Segment]` | cpu (in orchestrator) | ShotTimeline → segments (main_wide only, cut on shot boundaries, merged up to `segment_target_s`) |
-| calibrating | S3 calibrate | `calibrate.run_calibrate(normalized, timeline, out_dir, config) -> CalibrateOutput` | gpu | → `results/…/jobs/{job}/models/team_model.json` (+ sample crops grid) |
+| calibrating | S3 calibrate | `calibrate.run_calibrate(normalized, timeline, out_dir, config, *, seeds=None) -> CalibrateOutput` | gpu | → `results/…/jobs/{job}/models/team_model.json` + `team_samples.jpg` (crop grid) + `team_candidates.json`; optional input `seeds` (job kind `team_rerun`) |
 | inferring | S4 infer (fan-out per segment) | `infer.run_infer(normalized, segment, team_model, out_dir, config) -> InferOutput` | gpu | `GpuTask.segment` + inputs `normalized`, `team_model` → `keys.segment_prefix(...)/detections.parquet` + `_SUCCESS` |
 | inferring | pitch (OPTIONAL, fan-out per segment, task key `pitch:NNN`) | `pitch.run_pitch(normalized, segment, out_dir, config, *, cuts_ms) -> PitchOutput` | gpu | `GpuTask(stage="pitch").segment` + inputs `normalized`, `shots` → `keys.segment_prefix(...)` + `pitch/homography.parquet` + `pitch/_SUCCESS`; result `status` `ok` / `unavailable` |
 | postprocessing | S5 stitch | `stitch.run_stitch(segments: list[SegmentInput], timeline, out_dir, config) -> StitchOutput` | cpu (`CpuTask` stage `stitch`) | inputs `shots`, `detections_NNN`, `homography_NNN` (only segments whose pitch task is done with `ok`), `params.segments` = plan → `results/…/jobs/{job}/tracks/tracks.parquet` + `_SUCCESS`; result `pitch` = {status, homography_ok_pct, …} |
+| postprocessing | recompute (job kind `recalibrate` only, replaces S5) | `recompute.run_recompute(tracks, timeline, out_dir, config, *, points, frame_ms, scope) -> RecomputeOutput` | cpu (`recompute`) | inputs `tracks` (the PARENT job's tracks.parquet), `shots`; `params.calibration` = {points, frame_ms, scope} → this job's `results/…/tracks/tracks.parquet` + `_SUCCESS`; result `pitch` = {status: `manual`, homography_ok_pct} |
 | postprocessing | S7 tiles | `tiles.run_tiles(tracks, timeline, out_dir, config, *, duration_ms, frame_count) -> TilesOutput` | cpu (`tiles`) | inputs `tracks`, `shots`; `params` org/video/job/revision/duration_ms/frame_count → `keys.tile_key(org, video, job, revision, n)` for every 10 s of the video; `_SUCCESS` under `results/…/stages/tiles/` |
 | postprocessing | S8 load-db | `load_db.prepare_load(tracks, team_model, config) -> LoadBatch` + task-layer writer `results_db.write_results` | cpu (`load_db`) | inputs `tracks`, `team_model`; `params` org/video/job/revision → tables `positions` (5 Hz), `teams`, `players`; `_SUCCESS` under `results/…/stages/load_db/` |
 | postprocessing | manifest | `orchestrator.manifest.build_manifest(...)` | orchestrator (inline, LAST) | normalize/stitch/tiles results + shots + team model → `keys.manifest_key` (`media/…/manifest.json`), job_task `manifest` |
@@ -99,6 +100,14 @@ while the first job runs or when the stored manifest belongs to a newer job; 404
 - `run_calibrate` writes `team_model.json` (`pv-team-model/v1`, portable JSON — replaces AD's `team_model.pkl`) and
   `team_samples.jpg`; raises `calibrate.NoWideShots` (`code = NO_WIDE_SHOTS`) or `cv_core.teams.TeamSeparationFailed`
   (`code = TEAM_SEPARATION_FAILED`, `.reason` ∈ too_few_crops / imbalanced / not_separable) — both permanent.
+- Calibrate also writes `team_candidates.json` = `{"fps", "frames": [{"frame_idx", "t_ms", "boxes": [[x1, y1, x2,
+  y2], …]}]}` (≤ 20 sample frames, player candidates — SCR-14 manual mode) and `team_model.json` `stats.grid`
+  (`tile_w/tile_h/label_w/per_row/width/height`, `rows: [{label, cluster, count}]`: where each crop sits in
+  `team_samples.jpg`). On `TEAM_SEPARATION_FAILED` both files go to `out_dir/diagnostics/`; the executor uploads
+  `diagnostics/` of a FAILING stage (never `_SUCCESS`) → `…/models/diagnostics/`.
+- Seeded calibrate (`seeds = {"0": [{"t_ms", "box"}, …], "1": […]}`, ≥ 2 per team): seed torso crops are embedded
+  and `cv_core.teams.fit_seeded_team_model` starts from the seed centroids — cluster j IS the user's team j, no
+  separability gate, `stats.seeded`, `stats.seed_agreement`. Without seeds the default path is unchanged.
 - `run_infer` returns `InferOutput(paths={"detections": …}, frames, fps_measured, stats)`; models resolve through
   `models/registry.yaml` (`dfine-m-obj2coco-640`, `siglip-base-p16-224`); `PV_RUNTIME_PROVIDER` picks the provider.
 
@@ -129,6 +138,54 @@ model in M1) means no pitch coordinates / tactical map.
 
 Results API (M1-BE-15/16): `GET /api/v1/results/{video}/manifest`, `/teams`, `/tracks?from_ms&to_ms&limit&cursor`
 (5 Hz rows from `positions_org`, window ≤ 10 min, keyset cursor) and the signed tile route above.
+
+## Derived jobs: SCR-14 manual teams, SCR-15 manual calibration (M1-BE-20)
+`jobs.detail.kind` (`pitchvision_schemas.JobKind`; absent = `analyze`) + `detail.parent_job_id`, created by the API as
+ordinary jobs (same one-active-job rule, `orchestrate.start_job`, WS topic `job:{id}`, `JobOut.kind/parent_job_id`).
+On its first step the orchestrator INHERITS the parent's finished stages: their `job_tasks` rows are copied as `done`
+(`backend = "inherited"`, `external_id` = the job that produced the objects) and `detail.inherit = {task_key:
+job_id}` makes `_prefix(key)` read that job's objects (chains resolve to the real producer). `detail` keys `kind,
+parent_job_id, inherit, team_seeds, calibration, correction_id` survive progress updates.
+
+| kind | inherits | runs | API |
+|---|---|---|---|
+| `team_rerun` | normalize, shots, plan (when done in the parent — e.g. the job that failed `TEAM_SEPARATION_FAILED`) | calibrate with input `seeds` (`detail.team_seeds` → `results/…/jobs/{job}/inputs/team_seeds.json`), then infer / pitch / stitch / tiles / load_db / manifest as usual (GPU) | `POST /results/{v}/teams/manual` |
+| `recalibrate` | normalize, shots, plan, calibrate (parent must be `done`) | `recompute` (CPU) → tiles → load_db → manifest; no GPU stage | `POST /results/{v}/calibration` |
+
+**Revisions.** `POST /calibration` bumps `videos.revision` (AD §8.4) in the same transaction as its `corrections` row
+and the job; the recalibrate job's tiles go to `keys.tile_key(org, video, NEW job, revision, n)` and the new manifest
+carries that revision. Tile keys stay write-once. Until the new manifest is written (last step, job → done) the API
+keeps serving the previous `done` job's manifest + tiles; a failed / cancelled recalibration leaves them live.
+Team renames / colours / swaps (`PATCH /teams`) never touch tiles: tiles and positions carry the CLUSTER (`team`
+0 / 1), the manifest's `teams` (from the `teams` table) maps cluster → name / colour, so **a swap exchanges name +
+colour between the cluster-0 and cluster-1 rows** and the player re-colours on the next manifest fetch. No revision
+bump; the change is recorded as a `corrections` row (`type = "teams"`). `team_samples` / `calibration` rows record the
+other two actions (with `job_id`).
+
+**Manual H (recompute).** `cv_core.pitch.fit_homography` on the ≥ 4 (≤ 8) image ↔ template pairs (all clicked on
+one frame `frame_ms`); refused with `HOMOGRAPHY_UNAVAILABLE` (permanent) when degenerate or RMSE > 5 m. Scope `shot`:
+every frame of the analysed shot containing `frame_ms` gets the manual H (overrides automatic H there). Scope `video`:
+plus every analysed frame of other shots whose automatic H is missing or `h_quality` < 0.5. Projection = S5's
+(`project_rows`: bottom-centre, ≤ 15 m off the pitch). Manual frames get `h_quality = 1 − RMSE/2 m` (clipped).
+Verdict `manual`; `homography_ok_pct` recomputed (frames in scope count as ok). **Limitation:** broadcast cameras
+pan / zoom inside a shot, so one H per shot is right only near `frame_ms` and drifts with the camera; scope `video`
+reuses it on other shots (only fits similar framings). cv_core has no frame-to-frame registration yet — follow-up:
+propagate H between frames (feature / line tracking) or the licensed keypoint model (M1-CV-05) + HomographySmoother.
+
+**Stills.** `cpu.extract_frame {org_id, video_id, t_ms}` (`pitchvision_worker.frames`): t snapped to the 25 fps grid,
+ffmpeg input-seeks normalized.mp4 through a 5-min presigned URL, JPEG cached at `keys.frame_key` (`media/…/frames/
+{t_ms:09d}.jpg`, erased with the video). The API calls it synchronously (`PV_FRAME_TASK_TIMEOUT_S`, 20 s) only when
+the object is missing.
+
+**Pitch template.** `packages/schemas/pitchvision_schemas/pitch_template.json` is generated from
+`cv_core.pitch.template` (`uv run python -m cv_core.pitch.export_template [--check]`, drift-tested in cv-core) and
+served by `GET /api/v1/results/pitch-template` (the API never imports cv_core).
+
+API (all under `/api/v1/results/{video_id}`, problem+json, RLS; writes editor+, reads viewer+): `GET /teams`
+(+ `sample_sheet` presigned URL + per-team `samples` rectangles), `PATCH /teams`, `GET /teams/candidates`,
+`POST /teams/manual` (Idempotency-Key, 202 JobOut), `GET|POST /calibration` (POST: Idempotency-Key, 202
+`{job, correction_id, revision}`), `GET /calibration/frame?t_ms=`, `GET /media` (presigned normalized.mp4,
+`PV_MEDIA_URL_TTL_S` 6 h); plus `GET /api/v1/results/pitch-template`.
 
 ## Video deletion (AD §14)
 `DELETE /api/v1/videos/{id}` cancels the active job (→ `orchestrate.cancel_job`), soft-deletes the row and enqueues

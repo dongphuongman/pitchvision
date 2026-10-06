@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pitchvision_schemas import ErrorCode, JobStatus
+from pitchvision_schemas import JOB_KINDS, ErrorCode, JobKind, JobStatus
 from pydantic import BaseModel, Field
 
 from pitchvision_api.db.models import Job
@@ -70,14 +70,26 @@ class LatestJob(BaseModel):
         )
 
 
+def _uuid(raw: object) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(str(raw)) if raw else None
+    except ValueError:
+        return None
+
+
 class JobOut(BaseModel):
     id: uuid.UUID
     video_id: uuid.UUID
     status: JobStatus
     progress: float = Field(ge=0, le=100, description="Weighted over stages; S4 infer is 80 %")
     stage: str | None = Field(
-        None, description="Current stage: ingest, normalize, shots, plan, calibrate, infer, stitch, tiles, load_db"
+        None, description="Current stage: ingest, normalize, shots, plan, calibrate, infer, stitch, recompute, tiles, "
+        "load_db, manifest"
     )
+    kind: JobKind = Field("analyze", description="analyze · team_rerun (SCR-14 manual teams: re-runs S3 with the "
+                          "user's seeds, then S4…) · recalibrate (SCR-15 manual pitch calibration: CPU re-projection "
+                          "+ new tiles revision, no GPU)")
+    parent_job_id: uuid.UUID | None = Field(None, description="derived jobs: the job whose finished stages they reuse")
     segments: SegmentCounts | None = Field(None, description="S4 fan-out, once segments are planned")
     fps: float | None = None
     eta_s: int | None = None
@@ -98,6 +110,8 @@ class JobOut(BaseModel):
             status=JobStatus(job.status),
             progress=float(job.progress),
             stage=job.stage,
+            kind=detail.get("kind") if detail.get("kind") in JOB_KINDS else "analyze",
+            parent_job_id=_uuid(detail.get("parent_job_id")),
             segments=SegmentCounts.model_validate(detail["segments"]) if detail.get("segments") else None,
             fps=detail.get("fps"),
             eta_s=detail.get("eta_s"),

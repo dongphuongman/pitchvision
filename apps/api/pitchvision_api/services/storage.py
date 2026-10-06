@@ -171,10 +171,10 @@ class Storage:
         finally:
             obj.body.close()
 
-    def presign_get(self, key: str) -> str:
+    def presign_get(self, key: str, ttl_s: int | None = None) -> str:
         return str(
             self.presigner.generate_presigned_url(
-                "get_object", Params={"Bucket": self.bucket, "Key": key}, ExpiresIn=self.presign_ttl_s
+                "get_object", Params={"Bucket": self.bucket, "Key": key}, ExpiresIn=ttl_s or self.presign_ttl_s
             )
         )
 

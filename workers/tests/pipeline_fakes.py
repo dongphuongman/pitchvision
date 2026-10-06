@@ -163,7 +163,8 @@ class DevFakeStages:
         from pitchvision_worker.compute.stages import STAGES, LoadDbStage
 
         return {"normalize": self.normalize, "shots": self.shots, "calibrate": self.calibrate, "infer": self.infer,
-                "pitch": self.pitch, "stitch": STAGES["stitch"], "tiles": STAGES["tiles"],
+                "pitch": self.pitch, "stitch": STAGES["stitch"], "recompute": STAGES["recompute"],
+                "tiles": STAGES["tiles"],
                 "load_db": LoadDbStage(lambda: self.db)}  # fmt: skip
 
 

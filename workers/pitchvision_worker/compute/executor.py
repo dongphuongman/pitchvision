@@ -50,7 +50,11 @@ def execute(task: StageTask, store: ObjectStore, *, image_tag: str, stages: Mapp
                  for name, key in task.inputs.items()}  # fmt: skip
         out_dir = root / "out"
         out_dir.mkdir()
-        output = fn(task, local, out_dir)
+        try:
+            output = fn(task, local, out_dir)
+        except Exception:
+            _upload_diagnostics(task, store, out_dir)
+            raise
         if output.uploads is not None:
             uploads = output.uploads
         else:
@@ -62,3 +66,21 @@ def execute(task: StageTask, store: ObjectStore, *, image_tag: str, stages: Mapp
         store.put_bytes(marker, json.dumps(result).encode())  # last: the checkpoint
     log.info("%s: %s done in %.1fs, %d object(s)", task.task_id, task.stage, result["elapsed_s"], len(uploads))
     return result
+
+
+DIAGNOSTICS_DIR = "diagnostics"
+
+
+def _upload_diagnostics(task: StageTask, store: ObjectStore, out_dir: Path) -> None:
+    """A failing stage may leave files under ``out_dir/diagnostics/`` (e.g. S3's candidate boxes for SCR-14 manual
+    teams after TEAM_SEPARATION_FAILED): upload them under ``{output_prefix}diagnostics/``, never ``_SUCCESS``."""
+    diag = out_dir / DIAGNOSTICS_DIR
+    if not diag.is_dir():
+        return
+    prefix = task.output_prefix.rstrip("/") + "/"
+    for p in sorted(diag.rglob("*")):
+        if p.is_file():
+            try:
+                store.upload(prefix + p.relative_to(out_dir).as_posix(), p)
+            except Exception as e:  # best effort: the stage failure is what matters
+                log.warning("%s: diagnostics upload of %s failed: %r", task.task_id, p.name, e)

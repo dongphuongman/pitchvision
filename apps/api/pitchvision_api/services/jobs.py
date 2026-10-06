@@ -19,7 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pitchvision_api.auth import Principal
-from pitchvision_api.db.models import Job
+from pitchvision_api.db.models import Job, Video
 from pitchvision_api.errors import ApiError
 from pitchvision_api.repositories import jobs as repo
 from pitchvision_api.repositories import videos as videos_repo
@@ -109,6 +109,39 @@ async def create(
         raise ApiError(ErrorCode.CONFLICT, 409, "Video already has an active job") from None
     await _start(tasks, job)
     return job
+
+
+async def create_derived(session: AsyncSession, tasks: TaskQueue, settings: Settings, principal: Principal,
+                         video: Video, parent: Job, kind: str, detail: dict[str, object]) -> Job:
+    """A job that reuses ``parent``'s finished stages (``detail.kind`` team_rerun / recalibrate; the orchestrator
+    copies them, docs/contracts/pipeline-stages.md "Derived jobs"). ``video`` must be locked FOR UPDATE by the caller;
+    same rules as ``create``: ready video, one active job per video, start message before commit."""
+    if video.status != "ready":
+        raise ApiError(ErrorCode.CONFLICT, 409, "Video is not ready", f"Video is {video.status}.",
+                       extensions={"reason": "video_not_ready"})  # fmt: skip
+    await ensure_no_active(session, principal, video.id)
+    try:
+        job = await repo.add(
+            session,
+            Job(
+                video_id=video.id,
+                org_id=principal.org_id,
+                created_by=principal.user_id,
+                image_tag=settings.image_tag,
+                config=parent.config,
+                status=JobStatus.queued.value,
+                detail={"kind": kind, "parent_job_id": str(parent.id), **detail},
+            ),
+        )
+    except IntegrityError:  # lost a race on ux_jobs_video_active
+        raise ApiError(ErrorCode.CONFLICT, 409, "Video already has an active job") from None
+    await _start(tasks, job)
+    return job
+
+
+async def ensure_no_active(session: AsyncSession, principal: Principal, video_id: uuid.UUID) -> None:
+    if (active := await repo.active_for_video(session, principal.org_id, video_id)) is not None:
+        raise _active_conflict(active)
 
 
 async def get(session: AsyncSession, principal: Principal, job_id: uuid.UUID) -> Job:

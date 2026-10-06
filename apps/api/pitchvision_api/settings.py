@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     tile_signing_key: str = ""
     tile_url_ttl_s: int = 6 * 3600  # manifest-issued tile URLs expire; the player re-fetches the manifest on 403
     tile_base_url: str | None = None  # None = this API's route (/api/v1/tiles); the Worker's origin later
+    # GET /results/{id}/media: presigned normalized.mp4 for the workspace player (re-fetched on media error)
+    media_url_ttl_s: int = 6 * 3600
+    # GET /results/{id}/calibration/frame: wait this long for the cpu worker to extract a missing still
+    frame_task_timeout_s: float = 20.0
 
     # --- WebSocket (M1-BE-12, AD §10.3) ---
     ws_heartbeat_s: float = 25.0

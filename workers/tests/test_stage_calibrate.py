@@ -7,8 +7,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
-from cv_core.teams import TeamModel, TeamSeparationFailed
+from cv_core.teams import TeamModel, TeamSeparationFailed, torso_crop
+from cv_core.teams.calibrate import read_frames
 from pitchvision_schemas import PipelineConfig, Shot, ShotTimeline, ShotType
 from pitchvision_worker.stages.calibrate import CalibrateOutput, NoWideShots, run_calibrate
 from synth_pitch_clip import FakeDetector, FakeEmbedder, write_clip
@@ -67,6 +69,43 @@ def test_calibrate_team_separation_failed(tmp_path: Path) -> None:
         run_calibrate(clip, tl, tmp_path / "m", PipelineConfig(), n_frames=30, detector=FakeDetector(),
                       embedder=FakeEmbedder())
     assert ei.value.code == "TEAM_SEPARATION_FAILED" and ei.value.reason in ("imbalanced", "not_separable")
-    assert (tmp_path / "m" / "team_samples.jpg").exists()
+    # diagnostics (uploaded by the executor although the task fails): grid + SCR-14 manual-mode candidates
+    assert (tmp_path / "m" / "diagnostics" / "team_samples.jpg").exists()
+    cand = json.loads((tmp_path / "m" / "diagnostics" / "team_candidates.json").read_text())
+    assert cand["frames"] and all(len(b) == 4 for f in cand["frames"] for b in f["boxes"])
 
 
+
+
+def _colour_of(clip: Path, t_ms: int, box: list[int]) -> str:
+    (_, img), = read_frames(clip, [round(t_ms * 25 / 1000)])
+    x1, y1, x2, y2 = box
+    b, _, r = img[y1:y2, x1:x2].reshape(-1, 3).mean(0)
+    return "red" if r > b else "blue"
+
+
+def test_calibrate_with_seeds_follows_the_user(clip: Path, calibrated: CalibrateOutput, tmp_path: Path) -> None:
+    """SCR-14 manual mode: seed boxes from team_candidates.json; red players → team "0" (the default run put the
+    larger / first cluster wherever it liked) — the seeded model must put red in cluster 0 and blue in 1."""
+    cand = json.loads((calibrated.team_model.parent / "team_candidates.json").read_text())
+    assert cand["fps"] == 25 and 0 < len(cand["frames"]) <= 20
+    seeds: dict[str, list[dict[str, object]]] = {"0": [], "1": []}
+    for f in cand["frames"]:
+        for box in f["boxes"]:
+            colour = _colour_of(clip, f["t_ms"], box)
+            team = "0" if colour == "red" else "1"
+            if len(seeds[team]) < 3:
+                seeds[team].append({"t_ms": f["t_ms"], "box": box})
+    assert all(len(v) == 3 for v in seeds.values())
+    for mapping in ({"0": "0", "1": "1"}, {"0": "1", "1": "0"}):
+        s = {mapping[k]: v for k, v in seeds.items()}
+        out = run_calibrate(clip, WIDE, tmp_path / mapping["0"], PipelineConfig(), n_frames=30,
+                            detector=FakeDetector(), embedder=FakeEmbedder(), seeds=s)
+        model = TeamModel.load(out.team_model)
+        assert model.stats["seeded"] and model.stats["seed_agreement"] == 1.0
+        emb = FakeEmbedder()
+        for team, picks in s.items():
+            for pk in picks:
+                (_, img), = read_frames(clip, [round(int(pk["t_ms"]) * 25 / 1000)])  # type: ignore[call-overload]
+                crop = torso_crop(img, np.asarray(pk["box"], np.float32))
+                assert int(model.predict(emb([crop]))[0]) == int(team)

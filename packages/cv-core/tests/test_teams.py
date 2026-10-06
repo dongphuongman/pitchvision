@@ -11,6 +11,7 @@ from cv_core.teams import (
     FitParams,
     TeamModel,
     TeamSeparationFailed,
+    fit_seeded_team_model,
     fit_team_model,
     kmeans,
     preprocess,
@@ -122,3 +123,35 @@ def test_crops_and_preprocess() -> None:
     assert torso_crop(img, [0, 0, 4, 4]) is None
     x = preprocess([c, img])
     assert x.shape == (2, 3, 224, 224) and x.dtype == np.float32 and x.min() >= -1.0 and x.max() <= 1.0
+
+
+def test_seeded_fit_follows_the_user_seeds() -> None:
+    """SCR-14 manual mode: cluster j = the user's team j, whatever the canonical (larger-first) order would be."""
+    emb, truth = _clusters(300, 120, n_out=6, seed=3)
+    for flip in (False, True):
+        seed_idx = np.r_[np.flatnonzero(truth == 0)[:3], np.flatnonzero(truth == 1)[:2]]
+        seed_lab = truth[seed_idx] if not flip else 1 - truth[seed_idx]
+        model = fit_seeded_team_model(emb, emb[seed_idx], seed_lab, embedder="test")
+        pred = model.predict(emb)
+        want = truth if not flip else np.where(truth >= 0, 1 - truth, truth)
+        m = truth >= 0
+        assert (pred[m] == want[m]).mean() > 0.98
+        assert model.stats["seeded"] and model.stats["seeds"] == ([3, 2] if not flip else [2, 3])
+        assert model.stats["seed_agreement"] == 1.0
+        assert TeamModel.from_dict(json.loads(json.dumps(model.to_dict()))).predict(emb[:5]).shape == (5,)
+
+
+def test_seeded_fit_works_without_sampled_crops_and_needs_two_seeds_per_team() -> None:
+    emb, truth = _clusters(10, 10, seed=4)
+    model = fit_seeded_team_model(np.zeros((0, D)), emb, truth, embedder="test")
+    assert (model.predict(emb) == truth).mean() >= 0.9
+    with pytest.raises(TeamSeparationFailed) as ei:
+        fit_seeded_team_model(emb, emb[:3], [0, 0, 1], embedder="test")
+    assert ei.value.reason == "too_few_seeds"
+
+
+def test_template_json_is_current() -> None:
+    """packages/schemas/…/pitch_template.json (served by the API) is generated from cv_core.pitch.template."""
+    from cv_core.pitch.export_template import OUT, render
+
+    assert OUT.read_text() == render(), "run `uv run python -m cv_core.pitch.export_template`"

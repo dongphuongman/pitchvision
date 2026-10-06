@@ -460,3 +460,104 @@ def test_post_stage_failure_fails_job_and_retry_reuses_tracks(h: Harness) -> Non
     assert [t.stage for _, t in h.backend.submitted] == ["tiles"]
     h.run_submitted()
     assert h.job()["status"] == "done" and h.stages.calls["infer:000"] == 1
+
+
+def _derived(h: Harness, kind: str, detail: dict[str, Any], *, bump_revision: bool = False) -> Harness:
+    """A child job of ``h``'s (finished / failed) job, as the API creates it (jobs.detail.kind + parent_job_id)."""
+    child = Harness(h.db, org=h.org, video_id=h.video_id, store=h.store, backend=h.backend, clock=h.clock,
+                    redis=h.redis, stages=h.stages)  # fmt: skip
+    with org_tx(h.db, h.org) as c:
+        if bump_revision:
+            c.execute(text("UPDATE videos SET revision = revision + 1 WHERE id = :v"), {"v": h.video_id})
+        c.execute(text("INSERT INTO jobs (id, video_id, org_id, image_tag, config, detail) "
+                       "VALUES (:j, :v, :o, :t, :c, :d)"),
+                  {"j": child.job_id, "v": h.video_id, "o": h.org, "t": TAG, "c": json.dumps({"segment_target_s": 120}),
+                   "d": json.dumps({"kind": kind, "parent_job_id": str(h.job_id), **detail})})  # fmt: skip
+    return child
+
+
+CAL_POINTS = [{"template_index": i, "x": x, "y": y, "frame_ms": 1000}
+              for i, x, y in ((0, 0.0, 0.0), (24, 1050.0, 0.0), (29, 1050.0, 680.0), (5, 0.0, 680.0))]  # 10 px / m
+
+
+def test_recalibrate_job_reprojects_on_cpu_under_a_new_revision(h: Harness) -> None:
+    h.setup()
+    h.advance()
+    h.run_submitted()
+    assert h.job()["detail"]["pitch_calibration"] == "unavailable"
+    assert h.sql("SELECT count(px) FROM positions_org WHERE video_id = :v")[0][0] == 0
+    calls_before = dict(h.stages.calls)
+
+    c = _derived(h, "recalibrate", {"calibration": {"points": CAL_POINTS, "frame_ms": 1000, "scope": "shot"},
+                                    "correction_id": str(uuid.uuid4())}, bump_revision=True)  # fmt: skip
+    c.advance()
+    # only CPU work: no normalize / shots / calibrate / infer re-run
+    assert [t.stage for _, t in c.backend.submitted] == ["recompute"]
+    rec = c.backend.submitted[0][1]
+    org, vid, parent, job_id = str(h.org), str(h.video_id), str(h.job_id), str(c.job_id)
+    assert rec.inputs["tracks"] == keys.job_results_prefix(org, vid, parent) + "tracks/tracks.parquet"
+    assert rec.params["calibration"]["scope"] == "shot"
+    c.run_submitted()
+    job = c.job()
+    assert job["status"] == "done" and float(job["progress"]) == 100
+    assert job["detail"]["pitch_calibration"] == "manual" and job["detail"]["kind"] == "recalibrate"
+    assert job["detail"]["inherit"] == {k: parent for k in ("normalize", "shots", "plan", "calibrate")}
+    assert h.stages.calls == calls_before
+    tasks = c.tasks()
+    assert set(tasks) == {"normalize", "shots", "plan", "calibrate", "recompute", "tiles", "load_db", "manifest"}
+    assert tasks["calibrate"]["backend"] == "inherited" and tasks["calibrate"]["external_id"] == parent
+    # tiles of the NEW revision under the new job; the parent's r0 tiles are still there
+    assert keys.tile_key(org, vid, job_id, 1, 0) in h.store.objects
+    assert keys.tile_key(org, vid, parent, 0, 0) in h.store.objects
+    m = Manifest.model_validate_json(h.store.objects[keys.manifest_key(org, vid)])
+    assert (m.job_id, m.revision, m.pitch.status, m.tile_count) == (job_id, 1, "manual", 60)
+    assert m.coverage.homography_ok_pct == 100.0
+    tile = Tile.model_validate_json(gzip.decompress(h.store.objects[keys.tile_key(org, vid, job_id, 1, 1)]))
+    o = next(o for o in tile.frames[0].objs if o[0] == 1)
+    assert o[8] == pytest.approx((o[3] + o[5]) / 2 / 10, abs=0.05) and o[9] == pytest.approx(o[6] / 10, abs=0.05)
+    xy = h.sql("SELECT count(*), count(px), min(py), max(py) FROM positions_org WHERE video_id = :v")[0]
+    assert xy[0] == xy[1] == 6000 and 30 < xy[2] <= xy[3] < 45
+
+
+def test_recalibrate_with_bad_points_fails_permanently(h: Harness) -> None:
+    h.setup()
+    h.advance()
+    h.run_submitted()
+    bad = [{**p, "x": 10.0 * k, "y": 5.0} for k, p in enumerate(CAL_POINTS)]  # all on one image line
+    c = _derived(h, "recalibrate", {"calibration": {"points": bad, "frame_ms": 1000, "scope": "shot"}})
+    c.advance()
+    c.run_submitted()
+    job = c.job()
+    assert job["status"] == "failed" and job["error"]["code"] == "HOMOGRAPHY_UNAVAILABLE"
+    assert job["error"]["retryable"] is False
+    m = Manifest.model_validate_json(h.store.objects[keys.manifest_key(str(h.org), str(h.video_id))])
+    assert m.job_id == str(h.job_id)  # the previous result stays live
+
+
+def test_team_rerun_inherits_ingest_and_seeds_calibrate(h: Harness) -> None:
+    class TeamSeparationError(RuntimeError):
+        code = "TEAM_SEPARATION_FAILED"
+
+    def bad() -> None:
+        raise TeamSeparationError("one colour cluster")
+
+    h.stages.fail["calibrate"] = bad
+    h.setup()
+    h.advance()
+    h.run_submitted()
+    assert h.job()["error"]["code"] == "TEAM_SEPARATION_FAILED"
+    del h.stages.fail["calibrate"]
+    seeds = {"0": [{"t_ms": 1000, "box": [10, 10, 30, 60]}] * 2, "1": [{"t_ms": 2000, "box": [50, 10, 70, 60]}] * 2}
+    c = _derived(h, "team_rerun", {"team_seeds": seeds})
+    c.advance()
+    assert [t.stage for _, t in c.backend.submitted] == ["calibrate"]
+    cal = c.backend.submitted[0][1]
+    seeds_key = keys.job_results_prefix(str(h.org), str(h.video_id), str(c.job_id)) + "inputs/team_seeds.json"
+    assert cal.inputs["seeds"] == seeds_key and json.loads(h.store.objects[seeds_key]) == seeds
+    parent_shots = keys.job_results_prefix(str(h.org), str(h.video_id), str(h.job_id)) + "stages/shots/shots.json"
+    assert cal.inputs["shots"] == parent_shots
+    c.run_submitted()
+    job = c.job()
+    assert job["status"] == "done" and job["detail"]["team_seeds"] == seeds
+    assert set(job["detail"]["inherit"]) == {"normalize", "shots", "plan"}
+    assert h.stages.calls["normalize"] == 1 and h.stages.calls["calibrate"] == 2

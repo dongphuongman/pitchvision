@@ -28,6 +28,12 @@ def manifest_key(org_id: str, video_id: str) -> str:
     return _video("media", org_id, video_id) + "manifest.json"
 
 
+def frame_key(org_id: str, video_id: str, t_ms: int) -> str:
+    """A still of normalized.mp4 at ``t_ms`` (snapped to a 25 fps frame) for SCR-14 manual teams / SCR-15
+    calibration; extracted on demand by the cpu worker (``cpu.extract_frame``) and cached here."""
+    return _video("media", org_id, video_id) + f"frames/{t_ms:09d}.jpg"
+
+
 def shots_key(org_id: str, video_id: str) -> str:
     """S2b ShotTimeline JSON of the video's latest analysis (the DB `shots` table holds the same rows)."""
     return _video("media", org_id, video_id) + "shots.json"

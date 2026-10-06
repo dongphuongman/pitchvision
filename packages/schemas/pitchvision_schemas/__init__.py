@@ -4,10 +4,16 @@ A change here is a contract change: API, workers and the web client must agree o
 """
 from pitchvision_schemas.compute import Capacity, CpuStage, CpuTask, GpuStage, GpuTask, TaskHandle, TaskStatus
 from pitchvision_schemas.errors import ErrorCode, Problem
-from pitchvision_schemas.jobs import JOB_TRANSITIONS, JobStatus, can_transition
+from pitchvision_schemas.jobs import JOB_KINDS, JOB_TRANSITIONS, JobKind, JobStatus, can_transition
 from pitchvision_schemas.keys import shots_key, tile_key
 from pitchvision_schemas.manifest import Coverage, Manifest, PitchCalibration, PitchStatus, TeamInfo
 from pitchvision_schemas.pipeline import PipelineConfig, Segment
+from pitchvision_schemas.pitch_template import (
+    PitchTemplateInfo,
+    TemplateKeypoint,
+    TemplateLine,
+    load_pitch_template,
+)
 from pitchvision_schemas.shots import Shot, ShotTimeline, ShotType
 from pitchvision_schemas.tiles import TILE_MS, ObjCls, Tile, TileFrame, tile_no_for
 from pitchvision_schemas.ws import (
@@ -30,6 +36,7 @@ from pitchvision_schemas.ws import (
 SCHEMA_VERSION = 1
 
 __all__ = [
+    "JOB_KINDS",
     "JOB_TRANSITIONS",
     "SCHEMA_VERSION",
     "TILE_MS",
@@ -47,6 +54,7 @@ __all__ = [
     "GpuStage",
     "GpuTask",
     "JobEvent",
+    "JobKind",
     "JobStatus",
     "Manifest",
     "ObjCls",
@@ -54,6 +62,7 @@ __all__ = [
     "PipelineConfig",
     "PitchCalibration",
     "PitchStatus",
+    "PitchTemplateInfo",
     "PongMessage",
     "Problem",
     "ProgressData",
@@ -67,10 +76,13 @@ __all__ = [
     "TaskHandle",
     "TaskStatus",
     "TeamInfo",
+    "TemplateKeypoint",
+    "TemplateLine",
     "Tile",
     "TileFrame",
     "UnsubscribedMessage",
     "can_transition",
+    "load_pitch_template",
     "shots_key",
     "tile_key",
     "tile_no_for",
