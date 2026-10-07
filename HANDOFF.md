@@ -83,12 +83,18 @@ derived jobs, exports, notifications).
   unreachable frames keep the fixed H at h_quality ≤ 0.3, undecodable video → fixed H with a warning). Scope
   `video` still reuses the fixed H on other shots. Synthetic 4 px/frame pan: max error 0.18 m (fixed H > 5 m).
   Not yet run on Compose with a real broadcast clip.
+- M1-CV-20 line refinement (2026-10-07, night): `cv_core.pitch.refine.refine_homography` (Gauss-Newton on the
+  smoothed, truncated distance transform of the white-line mask; accepted only if line alignment rises). Pitch
+  stage refines every keypoint estimate (`run_pitch(refine=True)`, `stats.estimates_refined`); recompute re-anchors
+  the camera chain on the lines every 25 frames + on the clicked frame (`track_manual_h(anchor=True)`,
+  `stats.line_anchors`). Real frames: mean h_quality 0.666 → 0.738 per frame; a 30 s pitch-stage run 0.552 → 0.567
+  (smoothing/interpolated frames dilute it); ~50 ms per keyframe. Sloppy clicks (~6 px) → 14 px → 2.7 px over a shot.
 - Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
 0. Pick up from here: label frames with the tool (needs a person, ~300 frames) → GPU run (README recipe) to replace
-   PnLCalib; try a recalibrate job on Compose with a real clip (camera-tracked manual H); line re-alignment
-   against drift (M1-CV-20); first stats from positions (M3, distance/speed/heatmaps); mobile bottom sheets.
+   PnLCalib; try a recalibrate job on Compose with a real clip (camera-tracked, line-anchored manual H); first stats
+   from positions (M3, distance/speed/heatmaps); mobile bottom sheets.
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.

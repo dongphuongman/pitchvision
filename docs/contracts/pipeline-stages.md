@@ -173,14 +173,26 @@ other two actions (with `job_id`).
 one frame `frame_ms`); refused with `HOMOGRAPHY_UNAVAILABLE` (permanent) when degenerate or RMSE > 5 m. Scope `shot`:
 every frame of the analysed shot containing `frame_ms` gets the manual H (overrides automatic H there), **moved with
 the camera**: recompute decodes that shot of `normalized.mp4` (input `normalized`), `cv_core.pitch.motion.CameraMotion`
-estimates frame-to-frame motion and `propagate` chains the clicked H forwards / backwards. `h_quality` = `1 − RMSE/2 m`
+estimates frame-to-frame motion and `propagate` chains the clicked H forwards / backwards. Line re-anchoring
+(M1-CV-20): on the clicked frame and every 25th frame the chained H is refined onto the painted lines
+(`cv_core.pitch.refine.refine_homography`); accepted refinements with line alignment ≥ 0.5 become extra keyframes
+(quality = their alignment; the clicked frame keeps the click quality) and the chain is recomputed — this also
+corrects imprecise clicks. `h_quality` = `1 − RMSE/2 m`
 (clipped) on the clicked frame, minus 0.002 per chained frame; frames the chain can't reach keep the fixed H with
 `h_quality` ≤ 0.3. If the video can't be decoded the whole shot gets the fixed H (warning, job still succeeds).
 Scope `video`: plus every analysed frame of other shots whose automatic H is missing or `h_quality` < 0.5 — those get
 the fixed H (nothing to track from there). Projection = S5's (`project_rows`: bottom-centre, ≤ 15 m off the pitch).
-Verdict `manual`; `homography_ok_pct` recomputed from the per-frame qualities. Result `stats.camera_tracked_frames`.
-**Limitation:** chained motion drifts slowly (no line re-alignment yet, M1-CV-20); scope `video` only fits shots
-framed like the calibrated one.
+Verdict `manual`; `homography_ok_pct` recomputed from the per-frame qualities. Result `stats.camera_tracked_frames`,
+`stats.line_anchors`. **Limitation:** where no markings are visible (a tight shot of the middle third) anchors are
+rejected and the chain alone carries the H; scope `video` only fits shots framed like the calibrated one.
+
+**Line refinement (M1-CV-20).** `cv_core.pitch.refine.refine_homography(mask, H_pitch→image)`: template markings
+sampled every 0.5 m, projected, kept on visible grass; damped Gauss-Newton on the truncated, smoothed distance
+transform of the white-line mask (point-to-line), coarse-to-fine τ 24 → 3 px @1280, markings weighted √n, markings
+with < 10 observable samples dropped. Accepted only if `line_alignment` quality rises by ≥ 0.005; otherwise the input
+comes back. Used by the pitch stage on every keypoint estimate (`stats.estimates_refined`) and by recompute (above).
+Measured: synthetic perturbations 7–36 px → 0.8–2.3 px; 15 real golden frames (PnLCalib keypoints) mean h_quality
+0.666 → 0.738, ~50 ms per frame incl. the line mask.
 
 **Stills.** `cpu.extract_frame {org_id, video_id, t_ms}` (`pitchvision_worker.frames`): t snapped to the 25 fps grid,
 ffmpeg input-seeks normalized.mp4 through a 5-min presigned URL, JPEG cached at `keys.frame_key` (`media/…/frames/
