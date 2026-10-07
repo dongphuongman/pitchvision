@@ -19,7 +19,7 @@ from typing import Any
 from sqlalchemy import Engine, delete, insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from pitchvision_worker.repository import org_tx, players, teams
+from pitchvision_worker.repository import org_tx, players, stats_player, teams
 from pitchvision_worker.stages.load_db import POSITION_COLUMNS, LoadBatch
 
 COPY_SQL = "COPY positions (video_id, org_id, ts_ms, track_id, team, px, py, vx, vy, q) FROM STDIN"
@@ -37,7 +37,8 @@ def attack_for(cluster0: str | None, cluster: int) -> str | None:
     return "left" if cluster0 == "right" else "right"
 
 
-def write_results(engine: Engine, org_id: uuid.UUID, video_id: uuid.UUID, batch: LoadBatch) -> dict[str, int]:
+def write_results(engine: Engine, org_id: uuid.UUID, video_id: uuid.UUID, batch: LoadBatch, revision: int = 0
+                  ) -> dict[str, int]:  # fmt: skip
     with org_tx(engine, org_id) as conn:
         deleted = int(conn.execute(text("SELECT pv_delete_positions(:v)"), {"v": video_id}).scalar_one())
         p = batch.positions
@@ -80,5 +81,15 @@ def write_results(engine: Engine, org_id: uuid.UUID, video_id: uuid.UUID, batch:
         if rows:
             stale = stale.where(players.c.track_id.not_in([r["track_id"] for r in rows]))
         removed = conn.execute(stale).rowcount
+
+        # S9 physical stats per player row (= per track in M1); the API sums them into teams with the current
+        # team / role, so team fixes made later still count. Replaced wholesale: they belong to this revision.
+        conn.execute(delete(stats_player).where(stats_player.c.video_id == video_id))
+        ids = {r.track_id: r.id for r in conn.execute(
+            select(players.c.track_id, players.c.id).where(players.c.video_id == video_id))}  # fmt: skip
+        stat_rows = [{"video_id": video_id, "org_id": org_id, "player_id": ids[s.track_id], "revision": revision,
+                      "metrics": s.metrics()} for s in batch.track_stats if s.track_id in ids]  # fmt: skip
+        for s in range(0, len(stat_rows), PLAYER_CHUNK):
+            conn.execute(insert(stats_player).values(stat_rows[s:s + PLAYER_CHUNK]))
     return {"positions": len(cols[0]), "positions_replaced": deleted, "teams": len(team_ids),
-            "players": len(rows), "players_removed": int(removed or 0)}
+            "players": len(rows), "players_removed": int(removed or 0), "stats_players": len(stat_rows)}

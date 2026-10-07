@@ -359,6 +359,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/results/{video_id}/heatmap': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Heatmap
+     * @description Where the people were (SCR-20c, FR-503): 5 Hz positions binned on the pitch (no ball, no referees), by team
+     *     (`cluster`) / track / time window. Uses the current team assignment.
+     */
+    get: operations['get_heatmap_api_v1_results__video_id__heatmap_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/results/{video_id}/manifest': {
     parameters: {
       query?: never;
@@ -445,6 +466,29 @@ export interface paths {
      *     HOMOGRAPHY_UNAVAILABLE when no pitch model is available here. Requires `Idempotency-Key`. 409 `no_analysis`.
      */
     post: operations['post_repitch_api_v1_results__video_id__repitch_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/results/{video_id}/stats': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Stats
+     * @description Physical stats (M3, SCR-20a): per team distance, speed zones, sprints, top speed — over the OBSERVED time
+     *     (`observed_player_s`; `main_wide_ms` = time on the main camera). `estimated_distance_m` extrapolates to the
+     *     whole video and must be shown as an estimate. `players` = tracks seen ≥ `min_observed_s` with their average
+     *     position + spread (SCR-20c). `available: false` when the analysis predates stats.
+     */
+    get: operations['get_stats_api_v1_results__video_id__stats_get'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1241,6 +1285,38 @@ export interface components {
        */
       status: 'ok';
     };
+    /**
+     * HeatmapOut
+     * @description Occupancy grid over the 105 × 68 m pitch from the 5 Hz positions (FR-503). ``counts`` is row-major
+     *     (``rows`` × ``cols``, row 0 = y 0 m); each count is 0.2 s of one person in that cell. Smooth on the client.
+     */
+    HeatmapOut: {
+      /** Cell M */
+      cell_m: number;
+      /** Cols */
+      cols: number;
+      /** Counts */
+      counts: number[];
+      /**
+       * Length M
+       * @default 105
+       */
+      length_m: number;
+      /** Rows */
+      rows: number;
+      /**
+       * Sample S
+       * @default 0.2
+       */
+      sample_s: number;
+      /** Total */
+      total: number;
+      /**
+       * Width M
+       * @default 68
+       */
+      width_m: number;
+    };
     /** JobCoverage */
     JobCoverage: {
       /**
@@ -1649,6 +1725,37 @@ export interface components {
       /** Changes */
       changes: components['schemas']['PlayerFix'][];
     };
+    /** PlayerStats */
+    PlayerStats: {
+      /**
+       * Avg X
+       * @description average position, pitch metres (FR-504)
+       */
+      avg_x: number | null;
+      /** Avg Y */
+      avg_y: number | null;
+      /** Cluster */
+      cluster: number | null;
+      /**
+       * Cov
+       * @description [σxx², σyy², σxy] m² — the spread ellipse
+       */
+      cov: number[] | null;
+      /** Distance M */
+      distance_m: number;
+      /** Observed S */
+      observed_s: number;
+      /** Role */
+      role: string | null;
+      /** Sprints */
+      sprints: number;
+      /** Top Speed Kmh */
+      top_speed_kmh: number | null;
+      /** Top Speed Ms */
+      top_speed_ms: number | null;
+      /** Track Id */
+      track_id: number;
+    };
     /**
      * PrivacySummary
      * @description What the active org holds in this region (DLG-08 "N videos will be deleted") + the caller's latest export.
@@ -1787,6 +1894,35 @@ export interface components {
       /** Part Numbers */
       part_numbers: number[];
     };
+    /** StatsOut */
+    StatsOut: {
+      /**
+       * Available
+       * @description false: the analysis predates stats (re-analyse / Map the pitch to get them)
+       */
+      available: boolean;
+      /** Duration Ms */
+      duration_ms: number | null;
+      /**
+       * Main Wide Ms
+       * @description time on the main (wide) camera — where positions can exist
+       */
+      main_wide_ms: number;
+      /**
+       * Players
+       * @description tracks observed ≥ min_observed_s, longest first
+       */
+      players: components['schemas']['PlayerStats'][];
+      /** Revision */
+      revision: number;
+      /** Teams */
+      teams: components['schemas']['TeamStats'][];
+      /**
+       * Top Speeds
+       * @description fastest tracks, fastest first (players + goalkeepers)
+       */
+      top_speeds: components['schemas']['TopSpeed'][];
+    };
     /** StoredPartOut */
     StoredPartOut: {
       /** Etag */
@@ -1913,6 +2049,44 @@ export interface components {
       /** Teams */
       teams?: components['schemas']['TeamEdit'][];
     };
+    /** TeamStats */
+    TeamStats: {
+      /** Cluster */
+      cluster: number;
+      /** Color */
+      color: string | null;
+      /**
+       * Distance M
+       * @description observed distance (only what was seen)
+       */
+      distance_m: number;
+      /**
+       * Estimated Distance M
+       * @description ESTIMATE: m_per_min × 11 players × video minutes — label it as estimated
+       */
+      estimated_distance_m: number | null;
+      /**
+       * M Per Min
+       * @description distance per observed player-minute (intensity)
+       */
+      m_per_min: number | null;
+      /** Name */
+      name: string | null;
+      /**
+       * Observed Player S
+       * @description Σ observed seconds over the team's tracks
+       */
+      observed_player_s: number;
+      /** Sprints */
+      sprints: number;
+      top_speed: components['schemas']['TopSpeed'] | null;
+      /**
+       * Tracks
+       * @description tracks with observed positions (M1–M2: one per on-screen stretch, not per player)
+       */
+      tracks: number;
+      zones_m: components['schemas']['ZonesM'];
+    };
     /** TemplateKeypoint */
     TemplateKeypoint: {
       /** Index */
@@ -1958,6 +2132,20 @@ export interface components {
        * @description polyline in metres
        */
       points: [number, number][];
+    };
+    /** TopSpeed */
+    TopSpeed: {
+      /**
+       * At Ms
+       * @description video time of the top speed (seek the player there)
+       */
+      at_ms: number;
+      /** Cluster */
+      cluster?: number | null;
+      /** Kmh */
+      kmh: number;
+      /** Track Id */
+      track_id: number;
     };
     /**
      * TrackOverride
@@ -2215,6 +2403,32 @@ export interface components {
        * @description 1–200 characters after trimming whitespace
        */
       title: string;
+    };
+    /**
+     * ZonesM
+     * @description Distance per speed zone (FR-502): walk < 7.2, jog 7.2–14.4, run 14.4–25.2, sprint ≥ 25.2 km/h.
+     */
+    ZonesM: {
+      /**
+       * Jog
+       * @default 0
+       */
+      jog: number;
+      /**
+       * Run
+       * @default 0
+       */
+      run: number;
+      /**
+       * Sprint
+       * @default 0
+       */
+      sprint: number;
+      /**
+       * Walk
+       * @default 0
+       */
+      walk: number;
     };
   };
   responses: never;
@@ -3039,6 +3253,53 @@ export interface operations {
       };
     };
   };
+  get_heatmap_api_v1_results__video_id__heatmap_get: {
+    parameters: {
+      query?: {
+        cell_m?: number;
+        /** @description team */
+        cluster?: number | null;
+        from_ms?: number | null;
+        to_ms?: number | null;
+        track_id?: number | null;
+      };
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HeatmapOut'];
+        };
+      };
+    };
+  };
   get_manifest_api_v1_results__video_id__manifest_get: {
     parameters: {
       query?: never;
@@ -3245,6 +3506,48 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['JobOut'];
+        };
+      };
+    };
+  };
+  get_stats_api_v1_results__video_id__stats_get: {
+    parameters: {
+      query?: {
+        min_observed_s?: number;
+      };
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StatsOut'];
         };
       };
     };

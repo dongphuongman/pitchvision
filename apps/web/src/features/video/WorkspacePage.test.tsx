@@ -32,6 +32,42 @@ describe('SCR-20 Analysis workspace', () => {
     expect(screen.queryByText(/tactical map is empty/)).not.toBeInTheDocument();
   });
 
+  it('SCR-20a: match stats per team over the observed time, estimates labelled (M3)', async () => {
+    const v = seed({ status: 'done', progress: 100, pitch_calibration: 'ok' });
+    renderApp(`/videos/${v.id}/overview`, { auth: testSession() });
+    const stats = await screen.findByRole('region', { name: 'Match stats' });
+    expect(await within(stats).findByText(/Tactical data for \d+% of match time/)).toBeInTheDocument();
+    const distance = within(stats).getByRole('row', { name: /^Distance/ });
+    expect(within(distance).getByText('2.7 km')).toBeInTheDocument(); // observed (mock: Σ team A tracks)
+    expect(within(distance).getAllByText('Estimated')).toHaveLength(2);
+    expect(within(stats).getByRole('row', { name: /^Top speed/ })).toHaveTextContent(/33\.5 km\/h.*Track 1/);
+    expect(within(stats).getByRole('row', { name: /^Speed zones/ })).toHaveTextContent('8% sprinting');
+  });
+
+  it('SCR-20c Heatmaps: team / track filters go to the URL and the request; average positions', async () => {
+    const v = seed({ status: 'done', progress: 100, pitch_calibration: 'ok' });
+    const seen: string[] = [];
+    mock.server.events.on('request:start', ({ request }) => {
+      if (request.url.includes('/heatmap')) seen.push(new URL(request.url).search);
+    });
+    const { router } = renderApp(`/videos/${v.id}/heatmaps`, { auth: testSession() });
+    expect(await screen.findByTestId('heatmap')).toHaveAccessibleName('Heatmap of Both teams on the pitch');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Team' }));
+    await user.click(await screen.findByRole('option', { name: 'Harbor City' }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ team: 1 }));
+    await waitFor(() => expect(seen.at(-1)).toBe('?cluster=1'));
+    await user.click(screen.getByRole('combobox', { name: 'Track' }));
+    await user.click(await screen.findByRole('option', { name: /^Track 102 · seen/ }));
+    await waitFor(() => expect(seen.at(-1)).toBe('?cluster=1&track_id=102'));
+    expect(screen.getByTestId('heatmap')).toHaveAccessibleName('Heatmap of track 102 on the pitch');
+    await user.click(screen.getByRole('checkbox', { name: 'Average positions' }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ team: 1, track: 102, avg: 1 }),
+    );
+    expect(screen.getByRole('button', { name: 'Download PNG' })).toBeEnabled();
+  });
+
   it('< 1024 px: Video / Map / Both chooses which pane shows (UIUX §09)', async () => {
     const v = seed({ status: 'done', progress: 100, pitch_calibration: 'ok' });
     const user = userEvent.setup();

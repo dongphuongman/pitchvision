@@ -28,6 +28,8 @@ import numpy as np
 from cv_core.io.parquet import CLS_BALL, CLS_GOALKEEPER, CLS_REFEREE, NO_TRACK, read_tracks
 from pitchvision_schemas import PipelineConfig
 
+from pitchvision_worker.stages.stats import TrackStats, run_stats
+
 POSITIONS_HZ = 5
 MAX_SPEED_MS = 12.0
 TEAM_NAMES = {0: "Team A", 1: "Team B"}
@@ -60,6 +62,7 @@ class LoadBatch:
     positions: dict[str, np.ndarray]     # POSITION_COLUMNS, sorted by (ts_ms, track_id); NaN = NULL
     teams: list[TeamRow]
     players: list[PlayerRow]
+    track_stats: list[TrackStats] = field(default_factory=list)  # S9 physical stats per track (stages.stats)
     stats: dict[str, Any] = field(default_factory=dict)
     attack_h1: str | None = None  # side cluster 0 attacks in the first half ('left' | 'right'), None = unknown
 
@@ -163,4 +166,7 @@ def prepare_load(tracks: Path, team_model: Path | Mapping[str, Any] | None, conf
              "with_xy": int(np.isfinite(positions["px"]).sum())}
     attack = guess_attack(col, float(cfg.long_side_px))
     stats["attack_h1"] = attack
-    return LoadBatch(positions=positions, teams=team_rows(tm), players=players, stats=stats, attack_h1=attack)
+    per_track = run_stats(tracks, float(cfg.target_fps))  # S9 (M3-CV-01): rides along, same tracks, same revision
+    stats["track_stats"] = len(per_track)
+    return LoadBatch(positions=positions, teams=team_rows(tm), players=players, track_stats=per_track, stats=stats,
+                     attack_h1=attack)

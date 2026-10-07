@@ -248,6 +248,24 @@ export function resultsHandlers(db: MockVideoDb) {
       }
       return HttpResponse.json(teamList(v.id));
     }),
+    http.get('*/api/v1/results/:id/stats', ({ params }) => {
+      const v = find(String(params.id));
+      if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
+      return HttpResponse.json(mockStats(v.id, teamsOf(v.id)));
+    }),
+    http.get('*/api/v1/results/:id/heatmap', ({ params, request }) => {
+      const v = find(String(params.id));
+      if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
+      const q = new URL(request.url).searchParams;
+      const cluster = q.get('cluster');
+      const track = q.get('track_id');
+      return HttpResponse.json(
+        mockHeatmap(
+          cluster === null ? null : Number(cluster),
+          track === null ? null : Number(track),
+        ),
+      );
+    }),
     http.get('*/api/v1/results/:id/players', ({ params }) => {
       const v = find(String(params.id));
       if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
@@ -394,4 +412,94 @@ export function resultsHandlers(db: MockVideoDb) {
       );
     }),
   ];
+}
+
+/** Deterministic SCR-20a / SCR-20c data: team A a bit busier; 6 tracks per team with average positions. */
+export function mockStats(
+  _videoId: string,
+  teams: readonly { cluster: number; name: string; color: string }[],
+) {
+  const players = teams.flatMap((t) =>
+    Array.from({ length: 6 }, (_, i) => ({
+      track_id: t.cluster * 100 + i + 1,
+      cluster: t.cluster,
+      role: i === 0 ? 'goalkeeper' : 'player',
+      observed_s: 240 - i * 20,
+      distance_m: 520 - i * 30 - t.cluster * 40,
+      top_speed_kmh: 33.5 - i - t.cluster,
+      top_speed_ms: 60_000 + i * 15_000,
+      sprints: 4 - (i % 3),
+      avg_x: t.cluster === 0 ? 20 + i * 12 : 85 - i * 12,
+      avg_y: 14 + ((i * 11) % 40),
+      cov: [36, 16, 4],
+    })),
+  );
+  return {
+    available: true,
+    revision: 0,
+    duration_ms: 5_400_000,
+    main_wide_ms: 3_834_000,
+    teams: teams.map((t) => {
+      const mine = players.filter((p) => p.cluster === t.cluster);
+      const dist = mine.reduce((a, p) => a + p.distance_m, 0);
+      const obs = mine.reduce((a, p) => a + p.observed_s, 0);
+      const top = [...mine].sort((a, b) => b.top_speed_kmh - a.top_speed_kmh)[0];
+      return {
+        cluster: t.cluster,
+        name: t.name,
+        color: t.color,
+        tracks: mine.length,
+        observed_player_s: obs,
+        distance_m: dist,
+        zones_m: { walk: dist * 0.25, jog: dist * 0.35, run: dist * 0.32, sprint: dist * 0.08 },
+        sprints: mine.reduce((a, p) => a + p.sprints, 0),
+        top_speed: top
+          ? {
+              kmh: top.top_speed_kmh,
+              at_ms: top.top_speed_ms,
+              track_id: top.track_id,
+              cluster: t.cluster,
+            }
+          : null,
+        m_per_min: Math.round((dist / (obs / 60)) * 10) / 10,
+        estimated_distance_m: Math.round((dist / (obs / 60)) * 11 * 90),
+      };
+    }),
+    top_speeds: [],
+    players,
+  };
+}
+
+export function mockHeatmap(cluster: number | null, track: number | null) {
+  const cols = 42;
+  const rows = 28;
+  const counts = new Array<number>(cols * rows).fill(0);
+  const blob = (cx: number, cy: number, n: number) => {
+    for (let y = 0; y < rows; y++)
+      for (let x = 0; x < cols; x++)
+        counts[y * cols + x] =
+          (counts[y * cols + x] ?? 0) +
+          Math.round(n * Math.exp(-((x - cx) ** 2 + (y - cy) ** 2) / 18));
+  };
+  if (track !== null) blob(track > 100 ? 30 : 12, 10 + (track % 7) * 2, 40);
+  else {
+    if (cluster !== 1) {
+      blob(14, 12, 30);
+      blob(18, 20, 22);
+    }
+    if (cluster !== 0) {
+      blob(28, 14, 30);
+      blob(25, 8, 18);
+    }
+  }
+  return {
+    cell_m: 2.5,
+    cols,
+    rows,
+    length_m: 105,
+    width_m: 68,
+    sample_s: 0.2,
+    total: counts.reduce((a, b) => a + b, 0),
+    counts,
+  };
 }

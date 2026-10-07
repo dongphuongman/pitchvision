@@ -122,23 +122,14 @@ export interface MapLabels {
   notAvailable: (shot: ShotType) => string;
 }
 
-export function paintMap(
+/** The FIFA markings through `t` (shared by the tactical map and the SCR-20c heatmap). */
+export function strokePitch(
   ctx: CanvasRenderingContext2D,
-  scene: MapScene,
-  labels: MapLabels,
-  dpr = 1,
+  t: { ox: number; oy: number; scale: number },
+  color: string,
 ): void {
-  const w = ctx.canvas.width / dpr;
-  const h = ctx.canvas.height / dpr;
-  const t = mapTransform(w, h);
-  const dim = scene.state !== 'ok';
-  ctx.save();
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = dim ? '#2a3138' : '#1d4f28';
-  ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = dim ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.7)';
-  ctx.fillStyle = ctx.strokeStyle;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
   ctx.lineWidth = 1.25;
   const X = (m: number) => t.ox + m * t.scale;
   const Y = (m: number) => t.oy + m * t.scale;
@@ -157,6 +148,26 @@ export function paintMap(
     }
     ctx.stroke();
   }
+}
+
+export function paintMap(
+  ctx: CanvasRenderingContext2D,
+  scene: MapScene,
+  labels: MapLabels,
+  dpr = 1,
+): void {
+  const w = ctx.canvas.width / dpr;
+  const h = ctx.canvas.height / dpr;
+  const t = mapTransform(w, h);
+  const dim = scene.state !== 'ok';
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = dim ? '#2a3138' : '#1d4f28';
+  ctx.fillRect(0, 0, w, h);
+  strokePitch(ctx, t, dim ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.7)');
+  const X = (m: number) => t.ox + m * t.scale;
+  const Y = (m: number) => t.oy + m * t.scale;
   for (const d of scene.dots) {
     ctx.beginPath();
     const r = d.kind === 'ball' ? 3 : 5.5;

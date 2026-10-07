@@ -24,8 +24,10 @@ from pitchvision_api.schemas.results import (
     TeamsPatch,
     TrackPage,
 )
+from pitchvision_api.schemas.stats import HeatmapOut, StatsOut
 from pitchvision_api.services import corrections
 from pitchvision_api.services import results as service
+from pitchvision_api.services import stats as stats_service
 from pitchvision_api.services.idempotency import Idem
 from pitchvision_api.services.ratelimit import JOBS, rate_limited
 from pitchvision_api.services.storage import Storage
@@ -182,3 +184,30 @@ async def get_tracks(
 ) -> TrackPage:
     """5 Hz positions for analysts (AD §10.2) — the player uses the manifest + tiles instead. Keyset-paged."""
     return await service.tracks(session, principal, video_id, from_ms, to_ms, limit, cursor)
+
+
+@router.get("/{video_id}/stats")
+async def get_stats(video_id: uuid.UUID, principal: CurrentPrincipal, session: DbSession,
+                    min_observed_s: Annotated[float, Query(ge=0, le=600)] = 10.0) -> StatsOut:  # fmt: skip
+    """Physical stats (M3, SCR-20a): per team distance, speed zones, sprints, top speed — over the OBSERVED time
+    (`observed_player_s`; `main_wide_ms` = time on the main camera). `estimated_distance_m` extrapolates to the
+    whole video and must be shown as an estimate. `players` = tracks seen ≥ `min_observed_s` with their average
+    position + spread (SCR-20c). `available: false` when the analysis predates stats."""
+    return await stats_service.stats(session, principal, video_id, min_observed_s)
+
+
+@router.get("/{video_id}/heatmap")
+async def get_heatmap(
+    video_id: uuid.UUID,
+    principal: CurrentPrincipal,
+    session: DbSession,
+    cluster: Annotated[int | None, Query(ge=0, le=1, description="team")] = None,
+    track_id: Annotated[int | None, Query(ge=0)] = None,
+    from_ms: Annotated[int | None, Query(ge=0)] = None,
+    to_ms: Annotated[int | None, Query(gt=0)] = None,
+    cell_m: Annotated[float, Query(ge=1, le=10)] = 2.5,
+) -> HeatmapOut:
+    """Where the people were (SCR-20c, FR-503): 5 Hz positions binned on the pitch (no ball, no referees), by team
+    (`cluster`) / track / time window. Uses the current team assignment."""
+    return await stats_service.heatmap(session, principal, video_id, cell_m=cell_m, cluster=cluster,
+                                       track_id=track_id, from_ms=from_ms, to_ms=to_ms)  # fmt: skip

@@ -110,10 +110,17 @@ def test_write_results_idempotent_and_rls(tmp_path: Path, worker_db: Engine, app
     org, other = uuid.uuid4(), uuid.uuid4()
     vid = _video(worker_db, org)
     batch = prepare_load(tracks_file(tmp_path / "t.parquet"), {"stats": {"colors": {"0": "#112233"}}})
-    first = write_results(worker_db, org, vid, batch)
-    assert first == {"positions": 40, "positions_replaced": 0, "teams": 2, "players": 3, "players_removed": 0}
-    again = write_results(worker_db, org, vid, batch)
+    first = write_results(worker_db, org, vid, batch, revision=3)
+    assert first == {"positions": 40, "positions_replaced": 0, "teams": 2, "players": 3, "players_removed": 0,
+                     "stats_players": 2}  # fmt: skip
+    again = write_results(worker_db, org, vid, batch, revision=3)
     assert again["positions_replaced"] == 40 and again["positions"] == 40
+
+    # S9: one stats row per tracked person with observed positions (the referee has no px), replaced on re-run
+    st = _q(app_db, org, "SELECT p.track_id, s.revision, s.metrics->>'version', (s.metrics->>'observed_s')::float "
+            "FROM stats_player s JOIN players p ON p.id = s.player_id WHERE s.video_id = :v ORDER BY 1", v=vid)
+    assert [(r[0], r[1], r[2]) for r in st] == [(1, 3, "pv-stats/v1"), (2, 3, "pv-stats/v1")] and st[0][3] > 0
+    assert _q(app_db, other, "SELECT count(*) FROM stats_player WHERE video_id = :v", v=vid) == [(0,)]
 
     # the API (pv_app) reads positions only through positions_org, filtered on its org
     cnt = "SELECT count(*), count(px), count(team) FROM positions_org WHERE video_id = :v"

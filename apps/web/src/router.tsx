@@ -404,6 +404,19 @@ const calibrateRoute = createRoute({
   component: CalibrationPage,
 });
 
+interface WorkspaceSearch {
+  t?: number;
+  export?: 'video';
+  team?: number;
+  track?: number;
+  avg?: 1;
+}
+
+function trackId(v: unknown): number | undefined {
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
 // SCR-20 Analysis workspace: /videos/:id/:tab?t=<seconds>.
 const workspaceRoute = createRoute({
   getParentRoute: () => videoRoute,
@@ -415,10 +428,15 @@ const workspaceRoute = createRoute({
     },
     stringify: (p: { tab: WorkspaceTab }) => ({ tab: p.tab }),
   },
-  // ?export=video opens SCR-25 over the workspace (Back closes it).
-  validateSearch: (s: Record<string, unknown>): { t?: number; export?: 'video' } => ({
+  // ?export=video opens SCR-25 over the workspace (Back closes it). SCR-20c filters live here too so a
+  // heatmap view can be shared: ?team=0|1 &track=<id> &avg=1.
+  validateSearch: (s: Record<string, unknown>): WorkspaceSearch => ({
     t: seconds(s.t),
     export: s.export === 'video' ? 'video' : undefined,
+    team:
+      s.team === 0 || s.team === 1 || s.team === '0' || s.team === '1' ? Number(s.team) : undefined,
+    track: trackId(s.track),
+    avg: s.avg === 1 || s.avg === '1' || s.avg === true ? 1 : undefined,
   }),
   component: WorkspacePage,
 });

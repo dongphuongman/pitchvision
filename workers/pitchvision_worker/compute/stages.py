@@ -220,8 +220,10 @@ class LoadDbStage:
 
         p = _task_params(task)
         batch = prepare_load(inputs["tracks"], inputs.get("team_model"), task.config)
-        counts = write_results(self._engine(), uuid.UUID(str(p["org_id"])), uuid.UUID(str(p["video_id"])), batch)
-        return StageOutput({**counts, "revision": int(p.get("revision") or 0), "stats": batch.stats})
+        revision = int(p.get("revision") or 0)
+        counts = write_results(self._engine(), uuid.UUID(str(p["org_id"])), uuid.UUID(str(p["video_id"])), batch,
+                               revision)  # fmt: skip
+        return StageOutput({**counts, "revision": revision, "stats": batch.stats})
 
 
 def _plan_segments(timeline: ShotTimeline, duration_ms: int, config: PipelineConfig) -> list[Segment]:

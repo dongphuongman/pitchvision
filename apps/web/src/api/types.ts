@@ -13,6 +13,12 @@ import type {
 } from './generated/schemas';
 
 export type Meta = components['schemas']['Meta'];
+// M3 stats (SCR-20a / SCR-20c)
+export type Stats = components['schemas']['StatsOut'];
+export type TeamStats = components['schemas']['TeamStats'];
+export type PlayerStats = components['schemas']['PlayerStats'];
+export type TopSpeed = components['schemas']['TopSpeed'];
+export type Heatmap = components['schemas']['HeatmapOut'];
 
 export type Manifest = ManifestSchema.Manifest;
 export type TeamInfo = ManifestSchema.TeamInfo;

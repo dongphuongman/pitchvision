@@ -47,6 +47,8 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/ui';
+import { HeatmapsTab } from './HeatmapsTab';
+import { StatsPanel } from './StatsPanel';
 import { WORKSPACE_TABS, type WorkspaceTab } from './tabs';
 
 const route = getRouteApi('/_app/videos/$videoId/$tab');
@@ -66,7 +68,8 @@ const PANES: readonly Pane[] = ['video', 'map', 'both'];
 /** SCR-20 Analysis workspace (M1-FE-12): video + overlay ↔ tactical map, shot timeline, tabs. */
 export function WorkspacePage() {
   const { videoId, tab } = route.useParams();
-  const { t: startSeconds, export: exportTab } = route.useSearch();
+  const search = route.useSearch();
+  const { t: startSeconds, export: exportTab } = search;
   const navigate = route.useNavigate();
   const { t } = useTranslation('video');
   const { t: tc } = useTranslation();
@@ -454,12 +457,44 @@ export function WorkspacePage() {
                     pitch: t(`workspace.pitch.${m.pitch.status}`),
                   })}
                 </p>
-                <p className="m-0 text-caption text-fg-3">{t('workspace.statsSoon')}</p>
+                <StatsPanel
+                  videoId={videoId}
+                  revision={m.revision}
+                  teams={m.teams}
+                  mainWidePct={m.coverage.main_wide_pct}
+                  onSeek={(ms) => clock?.seekToMs(ms)}
+                />
               </>
             ) : (
               <Skeleton className="h-16" />
             )}
           </Card>
+        </TabsContent>
+        <TabsContent value="heatmaps">
+          {m ? (
+            <HeatmapsTab
+              videoId={videoId}
+              revision={m.revision}
+              teams={m.teams}
+              team={search.team}
+              track={search.track}
+              avg={search.avg === 1}
+              title={title}
+              onChange={(next) =>
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    team: next.team,
+                    track: next.track,
+                    avg: next.avg,
+                  }),
+                  replace: true,
+                })
+              }
+            />
+          ) : (
+            <Skeleton className="h-80" />
+          )}
         </TabsContent>
       </Tabs>
     </div>

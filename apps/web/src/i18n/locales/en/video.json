@@ -36,7 +36,8 @@
     "breadcrumb": "Breadcrumb",
     "tabs": {
       "label": "Analysis sections",
-      "overview": "Overview"
+      "overview": "Overview",
+      "heatmaps": "Heatmaps"
     },
     "placeholder": "Video, tactical map and timeline arrive with the sync engine (M1-FE-08 – M1-FE-12).",
     "position": "Position {{time}}",
@@ -54,7 +55,6 @@
       "manual": "manual calibration",
       "unavailable": "not available"
     },
-    "statsSoon": "Match statistics arrive with M3.",
     "more": "More actions",
     "teamsColors": "Teams & colors",
     "calibratePitch": "Calibrate pitch",
@@ -320,5 +320,50 @@
       "circle_left": "Centre circle, left edge",
       "circle_right": "Centre circle, right edge"
     }
+  },
+  "stats": {
+    "title": "Match stats",
+    "metric": "Metric",
+    "coverage": "Tactical data for {{pct}}% of match time",
+    "error": "Stats couldn't be loaded. Try again in a moment.",
+    "unavailable": "This analysis predates match stats. Re-analyse the video (or “Map the pitch automatically”) to get them.",
+    "distance": "Distance",
+    "distanceHint": "Measured only while players are on the main camera with a usable pitch map.",
+    "km": "{{value}} km",
+    "matchEstimate": "≈ {{value}} km over the match",
+    "estimated": "Estimated",
+    "intensity": "Intensity",
+    "intensityHint": "Metres per observed player-minute. A whole match is usually 100–130; highlight reels run higher.",
+    "perMin": "{{value}} m/min",
+    "topSpeed": "Top speed",
+    "kmh": "{{value}} km/h",
+    "trackAt": "Track {{track}} · {{time}}",
+    "sprints": "Sprints",
+    "sprintsHint": "Runs above 25.2 km/h held for at least 1 second.",
+    "zones": "Speed zones",
+    "zonesHint": "Share of distance walking (< 7.2 km/h), jogging, running and sprinting (≥ 25.2 km/h).",
+    "zone": {
+      "walk": "Walk",
+      "jog": "Jog",
+      "run": "Run",
+      "sprint": "Sprint"
+    },
+    "sprintShare": "{{pct}}% sprinting",
+    "observed": "Observed",
+    "playerMin": "{{value}} player-min · {{tracks}} tracks",
+    "note": "Players are only measured while visible on the main camera; one player can appear as several tracks until player identities arrive."
+  },
+  "heatmaps": {
+    "team": "Team",
+    "track": "Track",
+    "bothTeams": "Both teams",
+    "allTracks": "All tracks",
+    "trackOption": "Track {{track}} · seen {{seen}}",
+    "trackName": "track {{track}}",
+    "averagePositions": "Average positions",
+    "download": "Download PNG",
+    "canvasLabel": "Heatmap of {{who}} on the pitch",
+    "note": "Built from {{time}} of observed positions (main camera, usable pitch map).",
+    "empty": "No positions for this selection yet — the pitch may not be mapped for this match."
   }
 }

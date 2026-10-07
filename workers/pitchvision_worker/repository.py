@@ -139,6 +139,16 @@ players = Table(
     Column("t1_ms", Integer),
 )
 
+stats_player = Table(  # 0001; written by S9 (pitchvision_worker.stages.stats) inside the S8 transaction
+    "stats_player",
+    metadata,
+    Column("video_id", UUID(as_uuid=True), primary_key=True),
+    Column("org_id", UUID(as_uuid=True), nullable=False),
+    Column("player_id", UUID(as_uuid=True), primary_key=True),
+    Column("revision", Integer, nullable=False, server_default=text("0")),
+    Column("metrics", JSONB, nullable=False),
+)
+
 exports = Table(  # 0005 (SCR-25 / SCR-26); rendered by pitchvision_worker.exports
     "exports",
     metadata,
