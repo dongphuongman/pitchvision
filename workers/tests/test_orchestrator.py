@@ -654,3 +654,11 @@ def test_progress_waits_for_the_pitch_stage(h: Harness) -> None:
     assert float(job["progress"]) == 55.0
     h.run_submitted()
     assert h.job()["status"] == "done" and float(h.job()["progress"]) == 100.0
+
+
+def test_sweep_advertises_the_pitch_model(h: Harness) -> None:
+    h.sweep()
+    assert h.redis.values["pv:cap:pitch_model"] == "0"
+    h.pitch = True
+    h.sweep()
+    assert h.redis.values["pv:cap:pitch_model"] == "1"

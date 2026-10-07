@@ -4572,6 +4572,11 @@
           "schema_version": {
             "type": "integer",
             "title": "Schema Version"
+          },
+          "pitch_model": {
+            "type": "boolean",
+            "title": "Pitch Model",
+            "default": false
           }
         },
         "type": "object",

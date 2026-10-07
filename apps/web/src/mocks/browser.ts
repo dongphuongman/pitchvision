@@ -50,7 +50,7 @@ export async function startMockApi(): Promise<void> {
       createAccount({ exportTicks: Number(import.meta.env.VITE_MOCK_EXPORT_TICKS) || 5 }),
       videos,
     ),
-    http.get('*/api/v1/meta', () => HttpResponse.json({ version: 'mock', schema_version: 1 })),
+    http.get('*/api/v1/meta', () => HttpResponse.json({ version: 'mock', schema_version: 1, pitch_model: false })),
   );
   await worker.start({ onUnhandledFrame: 'bypass' });
 }

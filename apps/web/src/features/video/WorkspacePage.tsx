@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link } from '@tanstack/react-router';
 import {
   Download,
@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { postRepitch } from '@/api/corrections';
+import { useMeta } from '@/api/queries';
 import { manifestQuery, mediaQuery } from '@/api/results';
 import type { ShotType } from '@/api/types';
 import { videoQuery } from '@/api/videos';
@@ -40,6 +42,7 @@ import {
   Select,
   Skeleton,
   Tabs,
+  toast,
   TabsContent,
   TabsList,
   TabsTrigger,
@@ -70,6 +73,12 @@ export function WorkspacePage() {
   const fmt = useFormat();
   const canEdit = can(useRole(), 'editor');
   const [pane, setPane] = useState<Pane>('both');
+  const meta = useMeta();
+  const repitch = useMutation({
+    mutationFn: () => postRepitch(videoId),
+    onSuccess: () => void navigate({ to: '/videos/$videoId/processing', params: { videoId } }),
+    onError: () => toast({ title: t('workspace.mapPitchFailed'), tone: 'error' }),
+  });
 
   const video = useQuery(videoQuery(videoId));
   const manifest = useQuery(manifestQuery(videoId));
@@ -246,6 +255,17 @@ export function WorkspacePage() {
           className="mb-3"
           actions={
             <>
+              {canEdit && meta.data?.pitch_model && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="hidden md:inline-flex"
+                  loading={repitch.isPending}
+                  onClick={() => repitch.mutate()}
+                >
+                  {t('workspace.mapPitch')}
+                </Button>
+              )}
               {canEdit && (
                 <Button asChild size="sm" className="hidden md:inline-flex">
                   <Link

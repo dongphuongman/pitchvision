@@ -1494,6 +1494,11 @@ export interface components {
     };
     /** Meta */
     Meta: {
+      /**
+       * Pitch Model
+       * @default false
+       */
+      pitch_model: boolean;
       /** Schema Version */
       schema_version: number;
       /** Version */

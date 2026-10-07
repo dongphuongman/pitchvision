@@ -176,6 +176,18 @@ export function teamCandidatesQuery(videoId: string) {
   });
 }
 
+/** SCR-20 "Map the pitch": a repitch job (automatic pitch model, detections reused). */
+export async function postRepitch(
+  videoId: string,
+  idempotencyKey: string = crypto.randomUUID(),
+): Promise<Job> {
+  const { data } = await api.POST('/api/v1/results/{video_id}/repitch', {
+    params: { path: { video_id: videoId } },
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+  return required(data, 'repitch');
+}
+
 export async function postManualTeams(
   videoId: string,
   samples: { '0': SeedBox[]; '1': SeedBox[] },

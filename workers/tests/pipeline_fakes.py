@@ -87,6 +87,11 @@ class Clock:
 @dataclass
 class FakeRedis:
     published: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
+    values: dict[str, str] = field(default_factory=dict)
+
+    def set(self, key: str, value: str, ex: int | None = None) -> bool:
+        self.values[key] = value
+        return True
 
     def publish(self, channel: str, message: str) -> int:
         self.published.append((channel, json.loads(message)))

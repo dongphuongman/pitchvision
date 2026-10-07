@@ -156,3 +156,17 @@ def test_openapi_errors_are_problem_json() -> None:
     assert "HTTPValidationError" not in spec["components"]["schemas"]
     resp = spec["paths"]["/api/v1/meta"]["get"]["responses"]["4XX"]
     assert resp["content"] == {"application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetails"}}}
+
+
+async def test_meta_reports_the_pitch_model_capability(redis_url: str) -> None:
+    import redis as sync_redis
+
+    r = sync_redis.Redis.from_url(redis_url)
+    r.delete("pv:cap:pitch_model")
+    async for c in client_for(build(redis_url=redis_url)):
+        assert (await c.get("/api/v1/meta")).json()["pitch_model"] is False
+        r.set("pv:cap:pitch_model", "1", ex=60)
+        assert (await c.get("/api/v1/meta")).json()["pitch_model"] is True
+    r.delete("pv:cap:pitch_model")
+    async for c in client_for(build(redis_url="redis://127.0.0.1:1/0")):  # Redis down: hidden, not an error
+        assert (await c.get("/api/v1/meta")).json()["pitch_model"] is False

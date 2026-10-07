@@ -139,8 +139,24 @@ def sweep() -> int:
     return run_sweep(deps())
 
 
+CAP_PITCH_MODEL = "pv:cap:pitch_model"  # read by the API's GET /meta (SCR-20 "Map the pitch")
+CAP_TTL_S = 300
+
+
+def publish_capabilities(d: engine.Deps) -> None:
+    """What this deployment's workers can do, for the web: "1" when a pitch model is usable (registry entry +
+    research-only gate). Expires so a stopped orchestrator stops advertising it. Never raises."""
+    if d.redis is None:
+        return
+    try:
+        d.redis.set(CAP_PITCH_MODEL, "1" if d.pitch_available() else "0", ex=CAP_TTL_S)
+    except Exception as e:
+        log.warning("capabilities: %r", e)
+
+
 def run_sweep(d: engine.Deps) -> int:
     """Resume every job that isn't finished (and revoke tasks of cancelled ones). Errors are per job."""
+    publish_capabilities(d)
     n = 0
     for job_id, org_id in repository.active_jobs(d.engine):
         try:

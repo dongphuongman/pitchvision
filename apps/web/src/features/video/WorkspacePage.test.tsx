@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { mockJob, mockVideo, type MockJob } from '@/mocks/videos';
 import { setupIdentityMock } from '@/test/msw';
 import { renderApp, testSession } from '@/test/renderApp';
@@ -44,6 +45,39 @@ describe('SCR-20 Analysis workspace', () => {
     expect([hidden(video), hidden(map)]).toEqual([true, false]);
     await user.click(within(panes).getByRole('radio', { name: 'Video' }));
     expect([hidden(video), hidden(map)]).toEqual([false, true]);
+  });
+
+  it('"Map the pitch automatically" starts a repitch job when the workers have a pitch model', async () => {
+    const v = seed({ status: 'done', progress: 100, pitch_calibration: 'unavailable' });
+    let posted = '';
+    mock.server.use(
+      http.get('*/api/v1/meta', () =>
+        HttpResponse.json({ version: 't', schema_version: 1, pitch_model: true }),
+      ),
+      http.post('*/api/v1/results/:id/repitch', ({ params, request }) => {
+        posted = `${String(params.id)} ${request.headers.get('Idempotency-Key') ? 'idem' : 'none'}`;
+        return HttpResponse.json(mockJob(v, { status: 'queued', progress: 0 }), { status: 202 });
+      }),
+    );
+    const user = userEvent.setup();
+    const { router } = renderApp(`/videos/${v.id}/overview`, { auth: testSession() });
+    await user.click(await screen.findByRole('button', { name: 'Map the pitch automatically' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/videos/${v.id}/processing`));
+    expect(posted).toBe(`${v.id} idem`);
+  });
+
+  it('hides "Map the pitch" when no pitch model is available', async () => {
+    const v = seed({ status: 'done', progress: 100, pitch_calibration: 'unavailable' });
+    mock.server.use(
+      http.get('*/api/v1/meta', () =>
+        HttpResponse.json({ version: 't', schema_version: 1, pitch_model: false }),
+      ),
+    );
+    renderApp(`/videos/${v.id}/overview`, { auth: testSession() });
+    await screen.findByRole('link', { name: 'Calibrate' });
+    expect(
+      screen.queryByRole('button', { name: 'Map the pitch automatically' }),
+    ).not.toBeInTheDocument();
   });
 
   it('explains a missing pitch mapping', async () => {
