@@ -84,13 +84,24 @@ x-identity-env: &identity-env
   # behind the web nginx on the compose network: trust its X-Forwarded-For (rate limits key on client IP)
   FORWARDED_ALLOW_IPS: "*"
 
+# Our images run as a non-root user and need no Linux capabilities (M1-BE-22, AD §14). Docker's default seccomp
+# profile stays on (never `seccomp:unconfined`); no-new-privileges blocks setuid escalation from a compromised
+# ffmpeg. Third-party services (postgres, redis, storage, mailpit) keep their images' defaults.
+x-hardened: &hardened
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+
 x-api-image: &api-image
+  <<: *hardened
   image: ${PV_IMAGE_REGISTRY:-}pitchvision-api:${TAG:-dev}
   build:
     context: ../..
     dockerfile: infra/docker/Dockerfile.api
 
 x-worker: &worker
+  <<: *hardened
+  # ffmpeg/ffprobe children also get rlimits (cv_core.io.limits); this caps runaway forks/threads
+  pids_limit: 2048
   image: ${PV_IMAGE_REGISTRY:-}pitchvision-worker:${TAG:-dev}
   build:
     context: ../..
@@ -253,6 +264,7 @@ services:
       retries: 20
 
   web:
+    <<: *hardened
     image: ${PV_IMAGE_REGISTRY:-}pitchvision-web:${TAG:-dev}
     build:
       context: ../..

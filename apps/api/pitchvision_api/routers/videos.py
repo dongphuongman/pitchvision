@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pitchvision_schemas import ErrorCode
 
@@ -23,6 +23,7 @@ from pitchvision_api.schemas.videos import (
 )
 from pitchvision_api.services import uploads
 from pitchvision_api.services import videos as service
+from pitchvision_api.services.ratelimit import UPLOADS, rate_limited
 from pitchvision_api.services.storage import Storage
 from pitchvision_api.services.tasks import TaskQueue
 
@@ -78,7 +79,7 @@ async def delete_video(
     return Response(status_code=204)
 
 
-@router.post("/uploads", status_code=201)
+@router.post("/uploads", status_code=201, dependencies=[Depends(rate_limited(UPLOADS))])
 async def create_upload(
     body: UploadCreate, request: Request, principal: EditorPrincipal, session: DbSession
 ) -> UploadCreated:

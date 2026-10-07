@@ -63,8 +63,13 @@ class Metrics:
         self.latency = Histogram("pv_http_request_duration_seconds", "HTTP request latency", ["method", "route"],
                                  buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
                                  registry=self.registry)  # fmt: skip
+        self.limited = Counter("pv_rate_limited_total", "Requests refused with 429 by a per-user rate limit",
+                               ["rule"], registry=self.registry)  # fmt: skip
         self.scraped = _Scraped()
         self.registry.register(self.scraped)
+
+    def rate_limited(self, rule: str) -> None:
+        self.limited.labels(rule).inc()
 
     async def refresh(self, redis: Any, engine: AsyncEngine) -> None:
         fams: list[Metric] = []

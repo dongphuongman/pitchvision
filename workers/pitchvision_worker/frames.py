@@ -18,6 +18,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from cv_core.io.limits import FFMPEG_MAX_MEM_MB, child_limits
 from pitchvision_schemas import keys
 
 from pitchvision_worker.celery_app import QUEUE_CPU, app
@@ -56,7 +57,8 @@ def extract_frame(store: ObjectStore, org_id: str, video_id: str, t_ms: int, *, 
                "-ss", f"{t / 1000:.3f}", "-i", url, "-frames:v", "1", "-pix_fmt", "yuvj420p", "-q:v", str(JPEG_Q),
                "-y", str(out)]
         try:
-            proc = subprocess.run(cmd, capture_output=True, timeout=timeout_s, check=False)
+            proc = subprocess.run(cmd, capture_output=True, timeout=timeout_s, check=False,
+                                  preexec_fn=child_limits(FFMPEG_MAX_MEM_MB))
         except subprocess.TimeoutExpired:
             log.warning("extract_frame %s @%d ms: ffmpeg timed out", video_id, t)
             return {"ok": False, "reason": "ffmpeg"}

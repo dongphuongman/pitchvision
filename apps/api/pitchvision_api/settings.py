@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     ws_subscribe_burst: int = 20  # subscribe ops allowed per window
     ws_subscribe_window_s: float = 10.0
 
+    # --- abuse limits (M1-BE-22): per-user token buckets on the expensive endpoints (services/ratelimit.py) ---
+    rate_limits: bool = True
+
     # --- YouTube ingest (M1-BE-08) ---
     probe_timeout_s: float = 20.0
     max_video_duration_s: int = 3 * 3600

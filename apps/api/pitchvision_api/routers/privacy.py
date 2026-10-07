@@ -3,11 +3,12 @@ identity-svc's (DELETE /orgs/{id}, DELETE /me); this region's data is purged by 
 
 import uuid
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 from pitchvision_api.deps import CurrentPrincipal, DbSession, SettingsDep
 from pitchvision_api.schemas.privacy import DataExportDownload, DataExportOut, PrivacySummary
 from pitchvision_api.services import privacy as service
+from pitchvision_api.services.ratelimit import DATA_EXPORTS, rate_limited
 from pitchvision_api.services.storage import Storage
 from pitchvision_api.services.tasks import TaskQueue
 
@@ -20,7 +21,7 @@ async def get_summary(principal: CurrentPrincipal, session: DbSession) -> Privac
     return await service.summary(session, principal)
 
 
-@router.post("/data-exports", status_code=202)
+@router.post("/data-exports", status_code=202, dependencies=[Depends(rate_limited(DATA_EXPORTS))])
 async def create_data_export(request: Request, principal: CurrentPrincipal, session: DbSession) -> DataExportOut:
     """Start a GDPR export: a zip of your account data, plus — for admins and owners — the org's videos, analyses,
     corrections and positions (not the video files). Emailed when ready; kept 7 days. 409 `in_progress`."""

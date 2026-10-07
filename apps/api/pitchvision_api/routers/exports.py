@@ -4,7 +4,7 @@ requester or an editor+ may cancel / retry / delete. Progress: poll GET /exports
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from pitchvision_api.deps import CurrentPrincipal, DbSession, SettingsDep
@@ -12,6 +12,7 @@ from pitchvision_api.repositories.exports import StatusFilter
 from pitchvision_api.schemas.exports import ExportCreate, ExportDownload, ExportList, ExportOut
 from pitchvision_api.services import exports as service
 from pitchvision_api.services.idempotency import Idem
+from pitchvision_api.services.ratelimit import EXPORTS, rate_limited
 from pitchvision_api.services.storage import Storage
 from pitchvision_api.services.tasks import TaskQueue
 
@@ -28,7 +29,7 @@ def _tasks(request: Request) -> TaskQueue:
     return tasks
 
 
-@router.post("", status_code=202, response_model=ExportOut)
+@router.post("", status_code=202, response_model=ExportOut, dependencies=[Depends(rate_limited(EXPORTS))])
 async def create_export(body: ExportCreate, request: Request, principal: CurrentPrincipal, session: DbSession,
                         settings: SettingsDep, idem: Idem) -> JSONResponse:  # fmt: skip
     """Render the video's latest finished analysis as an MP4 (SCR-25). Requires `Idempotency-Key`.
@@ -68,7 +69,7 @@ async def cancel_export(export_id: uuid.UUID, principal: CurrentPrincipal, sessi
     return await service.cancel(session, principal, export_id)
 
 
-@router.post("/{export_id}/retry", status_code=202)
+@router.post("/{export_id}/retry", status_code=202, dependencies=[Depends(rate_limited(EXPORTS))])
 async def retry_export(export_id: uuid.UUID, request: Request, principal: CurrentPrincipal, session: DbSession
                        ) -> ExportOut:  # fmt: skip
     """Render a failed / cancelled export again with the same settings (409 `not_retryable` otherwise)."""

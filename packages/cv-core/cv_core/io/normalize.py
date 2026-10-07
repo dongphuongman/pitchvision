@@ -13,8 +13,9 @@ Output contract (everything downstream — VideoReader, tiles, the browser's ``r
   or when the codec is not allow-listed).
 
 Hardening (AD §14, "file độc hại"): ffprobe/ffmpeg run with ``-nostdin``, a timeout and a local-file-only
-protocol whitelist; containers and codecs must be allow-listed; absurd dimensions/durations/frame rates are
-rejected before any decode. (Seccomp / unprivileged container is the deployment's job, M1-BE-22.)
+protocol whitelist and rlimits (``cv_core.io.limits``: memory, no core dumps, probes write no files); containers
+and codecs must be allow-listed; absurd dimensions/durations/frame rates are rejected before any decode.
+Unprivileged container + seccomp: infra/compose (M1-BE-22).
 
 Encoders: ``auto`` = ``h264_nvenc`` when ffmpeg has it and an NVIDIA GPU is visible, else ``libx264``;
 ``videotoolbox`` (Mac) is opt-in only (its rate control is bitrate-based, not CRF).
@@ -28,11 +29,14 @@ import os
 import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from fractions import Fraction
 from functools import cache
 from pathlib import Path
 from typing import Any, Literal
+
+from cv_core.io.limits import FFMPEG_MAX_MEM_MB, PROBE_MAX_MEM_MB, child_limits
 
 log = logging.getLogger(__name__)
 
@@ -117,10 +121,11 @@ def _tool(name: str) -> str:
     return exe
 
 
-def _run(argv: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
+def _run(argv: list[str], timeout: float, limits: Callable[[], None] | None = None
+         ) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False,
-                              stdin=subprocess.DEVNULL)
+                              stdin=subprocess.DEVNULL, preexec_fn=limits)
     except subprocess.TimeoutExpired as e:
         raise FFmpegError(f"{Path(argv[0]).name} timed out after {timeout:.0f}s") from e
 
@@ -176,7 +181,7 @@ def probe(src: PathLike, *, timeout: float = PROBE_TIMEOUT_S, validate: bool = T
         raise MediaError("NOT_A_FILE", f"{path} does not exist or is not a regular file")
     argv = [_tool("ffprobe"), "-v", "error", "-protocol_whitelist", "file",
             "-show_format", "-show_streams", "-of", "json", str(path)]
-    out = _run(argv, timeout)
+    out = _run(argv, timeout, child_limits(PROBE_MAX_MEM_MB, max_file_mb=0))
     if out.returncode != 0:
         raise MediaError("UNREADABLE_MEDIA", (out.stderr.strip() or "ffprobe failed")[:500])
     try:
@@ -309,6 +314,10 @@ def build_command(src: Path, dst: Path, info: MediaInfo, *, fps: int, long_side:
     return argv
 
 
+def _ffmpeg_limits(enc: str) -> Callable[[], None] | None:
+    return child_limits(None if enc == "h264_nvenc" else FFMPEG_MAX_MEM_MB)  # CUDA reserves huge address ranges
+
+
 def normalize(src: PathLike, dst: PathLike, *, fps: int = 25, long_side: int = 1280, keyframe_interval_s: int = 2,
               encoder: Encoder = "auto", crf: int = 21, preset: str | None = None, audio: bool = True,
               threads: int | None = None, timeout_s: float | None = None) -> NormalizeResult:
@@ -327,14 +336,14 @@ def normalize(src: PathLike, dst: PathLike, *, fps: int = 25, long_side: int = 1
                          encoder=enc, crf=crf, preset=preset, audio=audio, threads=threads)
     t0 = time.perf_counter()
     try:
-        out = _run(argv, timeout)
+        out = _run(argv, timeout, _ffmpeg_limits(enc))
         if out.returncode != 0 and enc != "libx264" and encoder == "auto":
             log.warning("%s failed (%s); retrying with libx264", enc, out.stderr.strip()[-300:])
             enc = "libx264"
             argv = build_command(src_p, tmp, info, fps=fps, long_side=long_side,
                                  keyframe_interval_s=keyframe_interval_s, encoder=enc, crf=crf, preset=None,
                                  audio=audio, threads=threads)
-            out = _run(argv, timeout)
+            out = _run(argv, timeout, _ffmpeg_limits(enc))
         if out.returncode != 0:
             raise FFmpegError(f"ffmpeg exited {out.returncode}: {out.stderr.strip()[-1000:]}")
         os.replace(tmp, dst_p)

@@ -36,6 +36,7 @@ from typing import IO, Any
 import cv2
 import numpy as np
 import pyarrow.compute as pc
+from cv_core.io.limits import FFMPEG_MAX_MEM_MB, PROBE_MAX_MEM_MB, child_limits
 from cv_core.io.normalize import frame_select_filter
 from cv_core.io.parquet import read_tracks
 from cv_core.runtime.model import default_intra_op_threads
@@ -350,7 +351,8 @@ def probe_source(url: str, ffprobe: str | None = None, timeout_s: float = 30.0) 
     cmd = [exe, "-v", "error", "-protocol_whitelist", "file,http,https,tcp,tls", "-select_streams", "v:0",
            "-show_entries", "stream=avg_frame_rate,r_frame_rate,start_time,height", "-of", "json", url]  # fmt: skip
     try:
-        out = subprocess.run(cmd, capture_output=True, timeout=timeout_s, check=True).stdout
+        out = subprocess.run(cmd, capture_output=True, timeout=timeout_s, check=True, stdin=subprocess.DEVNULL,
+                             preexec_fn=child_limits(PROBE_MAX_MEM_MB, max_file_mb=0)).stdout
         st = (json.loads(out).get("streams") or [{}])[0]
         rate = st.get("avg_frame_rate") or st.get("r_frame_rate") or "0/1"
         fps = Fraction(rate) if rate != "0/0" else Fraction(0)
@@ -412,8 +414,9 @@ def render(spec: ExportSpec, video_url: str, tracks_path: Path, out_path: Path, 
     dec = enc = None
     frames = 0
     try:
-        dec = subprocess.Popen(dec_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        enc = subprocess.Popen(enc_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        limits = child_limits(FFMPEG_MAX_MEM_MB)  # the decoder may read the user's original upload
+        dec = subprocess.Popen(dec_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=limits)
+        enc = subprocess.Popen(enc_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=limits)
         assert dec.stdout is not None and enc.stdin is not None
         buf = bytearray(video_w * out_h * 3)
         view = memoryview(buf)

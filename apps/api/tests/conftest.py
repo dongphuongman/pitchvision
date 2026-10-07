@@ -16,6 +16,9 @@ import pytest
 from alembic import command
 from alembic.config import Config
 
+# per-user rate limits would make suites flaky; tests/test_ratelimit.py turns them on explicitly
+os.environ.setdefault("PV_RATE_LIMITS", "0")
+
 API_DIR = Path(__file__).resolve().parents[1]
 IMAGE = os.environ.get("PV_TEST_PG_IMAGE", "timescale/timescaledb:latest-pg16")
 APP_PASSWORD = "pv_app_test"

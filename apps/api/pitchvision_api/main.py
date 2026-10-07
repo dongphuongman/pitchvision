@@ -31,6 +31,7 @@ from pitchvision_api.routers import (
 )
 from pitchvision_api.services.events import EventHub
 from pitchvision_api.services.idempotency import IDEMPOTENCY_HEADER, REPLAYED_HEADER, install_idempotency
+from pitchvision_api.services.ratelimit import NoRateLimiter, RedisRateLimiter
 from pitchvision_api.services.storage import Storage
 from pitchvision_api.services.tasks import CeleryTaskQueue
 from pitchvision_api.settings import Settings
@@ -83,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.tasks = CeleryTaskQueue(settings.redis_url)  # lazy: no broker connection until first send
     app.state.events = EventHub(settings.redis_url)  # lazy: Redis pub/sub opens with the first WS subscription
     app.state.redis = aioredis.Redis.from_url(settings.redis_url, socket_connect_timeout=2, socket_timeout=2)
+    app.state.ratelimiter = RedisRateLimiter(app.state.redis) if settings.rate_limits else NoRateLimiter()
     app.state.metrics = Metrics()
     init_sentry(settings)
     app.state.jwks = JwksClient(settings.jwks_url, timeout_s=settings.jwks_timeout_s, ttl_s=settings.jwks_cache_ttl_s)

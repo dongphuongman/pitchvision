@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import parse_qs, urlsplit
 
+from cv_core.io.limits import PROBE_MAX_MEM_MB, child_limits
+
 log = logging.getLogger(__name__)
 
 MAX_DURATION_S = 3 * 3600
@@ -317,9 +319,11 @@ def parse_ffprobe(data: Mapping[str, Any]) -> MediaInfo:
 
 
 def ffprobe(path: Path, timeout_s: float = 120) -> MediaInfo:
-    cmd = ["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", str(path)]
+    cmd = ["ffprobe", "-v", "error", "-protocol_whitelist", "file", "-print_format", "json", "-show_format",
+           "-show_streams", str(path)]  # fmt: skip
     try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, check=True).stdout
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, check=True,
+                             stdin=subprocess.DEVNULL, preexec_fn=child_limits(PROBE_MAX_MEM_MB, max_file_mb=0)).stdout
     except FileNotFoundError:
         raise IngestError("download_failed", "ffprobe not installed") from None
     except subprocess.TimeoutExpired:

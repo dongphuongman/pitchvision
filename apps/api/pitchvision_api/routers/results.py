@@ -4,7 +4,7 @@ pitch calibration (SCR-15, M1-BE-20). Reads: any org member (viewer+). Writes: e
 import uuid
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pitchvision_schemas import Manifest, PitchTemplateInfo
 
@@ -27,10 +27,12 @@ from pitchvision_api.schemas.results import (
 from pitchvision_api.services import corrections
 from pitchvision_api.services import results as service
 from pitchvision_api.services.idempotency import Idem
+from pitchvision_api.services.ratelimit import JOBS, rate_limited
 from pitchvision_api.services.storage import Storage
 from pitchvision_api.services.tasks import TaskQueue
 
 router = APIRouter(prefix="/results", tags=["results"])
+JOBS_LIMIT = [Depends(rate_limited(JOBS))]  # derived jobs share the analysis bucket
 
 
 def _storage(request: Request) -> Storage:
@@ -114,7 +116,7 @@ async def get_team_candidates(video_id: uuid.UUID, request: Request, principal: 
     return await service.candidates(session, _storage(request), principal, video_id)
 
 
-@router.post("/{video_id}/teams/manual", status_code=202, response_model=JobOut)
+@router.post("/{video_id}/teams/manual", status_code=202, response_model=JobOut, dependencies=JOBS_LIMIT)
 async def post_manual_teams(video_id: uuid.UUID, body: ManualTeamsIn, request: Request, principal: EditorPrincipal,
                             session: DbSession, settings: SettingsDep, idem: Idem) -> JSONResponse:  # fmt: skip
     """Re-run team detection seeded with ≥ 2 picked players per team (SCR-14 E13): a new job of kind `team_rerun`
@@ -130,7 +132,7 @@ async def get_calibration(video_id: uuid.UUID, principal: CurrentPrincipal, sess
     return await corrections.calibration_state(session, principal, video_id)
 
 
-@router.post("/{video_id}/calibration", status_code=202, response_model=CalibrationAccepted)
+@router.post("/{video_id}/calibration", status_code=202, response_model=CalibrationAccepted, dependencies=JOBS_LIMIT)
 async def post_calibration(video_id: uuid.UUID, body: CalibrationIn, request: Request, principal: EditorPrincipal,
                            session: DbSession, settings: SettingsDep, idem: Idem) -> JSONResponse:  # fmt: skip
     """Manual 4–8 point calibration (SCR-15 E09): starts a CPU-only `recalibrate` job (re-projection with the manual
@@ -141,7 +143,7 @@ async def post_calibration(video_id: uuid.UUID, body: CalibrationIn, request: Re
     return await idem.respond(accepted, status_code=202)
 
 
-@router.post("/{video_id}/repitch", status_code=202, response_model=JobOut)
+@router.post("/{video_id}/repitch", status_code=202, response_model=JobOut, dependencies=JOBS_LIMIT)
 async def post_repitch(video_id: uuid.UUID, request: Request, principal: EditorPrincipal, session: DbSession,
                        settings: SettingsDep, idem: Idem) -> JSONResponse:  # fmt: skip
     """Detect the pitch again automatically (SCR-20 "Map the pitch"): a `repitch` job reuses the latest analysis'

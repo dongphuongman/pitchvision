@@ -1,10 +1,11 @@
 """/api/v1/videos/from-url — YouTube ingest S1 (M1-BE-08). Errors carry a `reason` (see services/ingest.py)."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
 from pitchvision_api.deps import DbSession, EditorPrincipal
 from pitchvision_api.schemas.videos import FromUrlIn, UrlIn, UrlPreview, VideoOut
 from pitchvision_api.services import ingest
+from pitchvision_api.services.ratelimit import INGEST, INGEST_PREVIEW, rate_limited
 from pitchvision_api.services.tasks import TaskQueue
 
 router = APIRouter(prefix="/videos", tags=["videos"])
@@ -15,7 +16,7 @@ def _tasks(request: Request) -> TaskQueue:
     return tasks
 
 
-@router.post("/from-url/preview")
+@router.post("/from-url/preview", dependencies=[Depends(rate_limited(INGEST_PREVIEW))])
 async def preview_url(body: UrlIn, request: Request, principal: EditorPrincipal) -> UrlPreview:
     """Read title/duration/resolution of a YouTube video (≤ 20 s) and check it can be ingested.
 
@@ -25,7 +26,7 @@ async def preview_url(body: UrlIn, request: Request, principal: EditorPrincipal)
     return await ingest.preview(_tasks(request), request.app.state.settings, body.url)
 
 
-@router.post("/from-url", status_code=202)
+@router.post("/from-url", status_code=202, dependencies=[Depends(rate_limited(INGEST))])
 async def create_from_url(
     body: FromUrlIn, request: Request, principal: EditorPrincipal, session: DbSession
 ) -> VideoOut:

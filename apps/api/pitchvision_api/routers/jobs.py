@@ -3,13 +3,14 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 
 from pitchvision_api.deps import CurrentPrincipal, DbSession, EditorPrincipal
 from pitchvision_api.schemas.jobs import JobCreate, JobList, JobOut
 from pitchvision_api.services import jobs
 from pitchvision_api.services.idempotency import Idem
+from pitchvision_api.services.ratelimit import JOBS, rate_limited
 from pitchvision_api.services.tasks import TaskQueue
 
 router = APIRouter(tags=["jobs"])
@@ -20,7 +21,7 @@ def _tasks(request: Request) -> TaskQueue:
     return tasks
 
 
-@router.post("/jobs", status_code=202, response_model=JobOut)
+@router.post("/jobs", status_code=202, response_model=JobOut, dependencies=[Depends(rate_limited(JOBS))])
 async def create_job(
     body: JobCreate, request: Request, principal: EditorPrincipal, session: DbSession, idem: Idem
 ) -> JSONResponse:
@@ -54,7 +55,7 @@ async def cancel_job(job_id: uuid.UUID, request: Request, principal: EditorPrinc
     return JobOut.of(await jobs.cancel(session, _tasks(request), principal, job_id))
 
 
-@router.post("/jobs/{job_id}/retry", status_code=202)
+@router.post("/jobs/{job_id}/retry", status_code=202, dependencies=[Depends(rate_limited(JOBS))])
 async def retry_job(job_id: uuid.UUID, request: Request, principal: EditorPrincipal, session: DbSession) -> JobOut:
     """Resume a `failed` job (with `error.retryable`) from the stage that failed; finished stages are skipped."""
     return JobOut.of(await jobs.retry(session, _tasks(request), principal, job_id))
