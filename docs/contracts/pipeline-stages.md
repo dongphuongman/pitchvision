@@ -22,7 +22,7 @@ and the **stage functions** (`workers/pitchvision_worker/stages/*.py`, built on 
 | inferring | S4 infer (fan-out per segment) | `infer.run_infer(normalized, segment, team_model, out_dir, config) -> InferOutput` | gpu | `GpuTask.segment` + inputs `normalized`, `team_model` → `keys.segment_prefix(...)/detections.parquet` + `_SUCCESS` |
 | inferring | pitch (OPTIONAL, fan-out per segment, task key `pitch:NNN`) | `pitch.run_pitch(normalized, segment, out_dir, config, *, cuts_ms) -> PitchOutput` | gpu | `GpuTask(stage="pitch").segment` + inputs `normalized`, `shots` → `keys.segment_prefix(...)` + `pitch/homography.parquet` + `pitch/_SUCCESS`; result `status` `ok` / `unavailable` |
 | postprocessing | S5 stitch | `stitch.run_stitch(segments: list[SegmentInput], timeline, out_dir, config) -> StitchOutput` | cpu (`CpuTask` stage `stitch`) | inputs `shots`, `detections_NNN`, `homography_NNN` (only segments whose pitch task is done with `ok`), `params.segments` = plan → `results/…/jobs/{job}/tracks/tracks.parquet` + `_SUCCESS`; result `pitch` = {status, homography_ok_pct, …} |
-| postprocessing | recompute (job kind `recalibrate` only, replaces S5) | `recompute.run_recompute(tracks, timeline, out_dir, config, *, points, frame_ms, scope) -> RecomputeOutput` | cpu (`recompute`) | inputs `tracks` (the PARENT job's tracks.parquet), `shots`; `params.calibration` = {points, frame_ms, scope} → this job's `results/…/tracks/tracks.parquet` + `_SUCCESS`; result `pitch` = {status: `manual`, homography_ok_pct} |
+| postprocessing | recompute (job kind `recalibrate` only, replaces S5) | `recompute.run_recompute(tracks, timeline, out_dir, config, *, points, frame_ms, scope, normalized) -> RecomputeOutput` | cpu (`recompute`) | inputs `tracks` (the PARENT job's tracks.parquet), `shots`, `normalized` (camera tracking over the calibrated shot); `params.calibration` = {points, frame_ms, scope} → this job's `results/…/tracks/tracks.parquet` + `_SUCCESS`; result `pitch` = {status: `manual`, homography_ok_pct} |
 | postprocessing | S7 tiles | `tiles.run_tiles(tracks, timeline, out_dir, config, *, duration_ms, frame_count) -> TilesOutput` | cpu (`tiles`) | inputs `tracks`, `shots`; `params` org/video/job/revision/duration_ms/frame_count → `keys.tile_key(org, video, job, revision, n)` for every 10 s of the video; `_SUCCESS` under `results/…/stages/tiles/` |
 | postprocessing | S8 load-db | `load_db.prepare_load(tracks, team_model, config) -> LoadBatch` + task-layer writer `results_db.write_results` | cpu (`load_db`) | inputs `tracks`, `team_model`; `params` org/video/job/revision → tables `positions` (5 Hz), `teams`, `players`; `_SUCCESS` under `results/…/stages/load_db/` |
 | postprocessing | manifest | `orchestrator.manifest.build_manifest(...)` | orchestrator (inline, LAST) | normalize/stitch/tiles results + shots + team model → `keys.manifest_key` (`media/…/manifest.json`), job_task `manifest` |
@@ -171,13 +171,16 @@ other two actions (with `job_id`).
 
 **Manual H (recompute).** `cv_core.pitch.fit_homography` on the ≥ 4 (≤ 8) image ↔ template pairs (all clicked on
 one frame `frame_ms`); refused with `HOMOGRAPHY_UNAVAILABLE` (permanent) when degenerate or RMSE > 5 m. Scope `shot`:
-every frame of the analysed shot containing `frame_ms` gets the manual H (overrides automatic H there). Scope `video`:
-plus every analysed frame of other shots whose automatic H is missing or `h_quality` < 0.5. Projection = S5's
-(`project_rows`: bottom-centre, ≤ 15 m off the pitch). Manual frames get `h_quality = 1 − RMSE/2 m` (clipped).
-Verdict `manual`; `homography_ok_pct` recomputed (frames in scope count as ok). **Limitation:** broadcast cameras
-pan / zoom inside a shot, so one H per shot is right only near `frame_ms` and drifts with the camera; scope `video`
-reuses it on other shots (only fits similar framings). cv_core now has frame-to-frame registration (`cv_core.pitch.motion`, used by the pitch stage); applying it to the manual H (recompute would decode the video) is the follow-up:
-propagate H between frames (feature / line tracking) or the licensed keypoint model (M1-CV-05) + HomographySmoother.
+every frame of the analysed shot containing `frame_ms` gets the manual H (overrides automatic H there), **moved with
+the camera**: recompute decodes that shot of `normalized.mp4` (input `normalized`), `cv_core.pitch.motion.CameraMotion`
+estimates frame-to-frame motion and `propagate` chains the clicked H forwards / backwards. `h_quality` = `1 − RMSE/2 m`
+(clipped) on the clicked frame, minus 0.002 per chained frame; frames the chain can't reach keep the fixed H with
+`h_quality` ≤ 0.3. If the video can't be decoded the whole shot gets the fixed H (warning, job still succeeds).
+Scope `video`: plus every analysed frame of other shots whose automatic H is missing or `h_quality` < 0.5 — those get
+the fixed H (nothing to track from there). Projection = S5's (`project_rows`: bottom-centre, ≤ 15 m off the pitch).
+Verdict `manual`; `homography_ok_pct` recomputed from the per-frame qualities. Result `stats.camera_tracked_frames`.
+**Limitation:** chained motion drifts slowly (no line re-alignment yet, M1-CV-20); scope `video` only fits shots
+framed like the calibrated one.
 
 **Stills.** `cpu.extract_frame {org_id, video_id, t_ms}` (`pitchvision_worker.frames`): t snapped to the 25 fps grid,
 ffmpeg input-seeks normalized.mp4 through a 5-min presigned URL, JPEG cached at `keys.frame_key` (`media/…/frames/

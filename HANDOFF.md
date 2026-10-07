@@ -78,12 +78,17 @@ derived jobs, exports, notifications).
   may write no file; Linux only, `PITCHVISION_FFMPEG_MAX_MEM_MB` overrides); compose `x-hardened` (cap_drop ALL +
   no-new-privileges) on api/identity/web/workers, workers `pids_limit: 2048`. Checked on Compose: all services
   healthy, CapEff 0, normalize works under the limits.
+- Manual calibration follows the camera (2026-10-07, late): `recompute` now also takes `normalized` and, for the
+  calibrated shot, runs `CameraMotion` + `propagate` from the clicked frame (`track_manual_h`; decay 0.002/frame,
+  unreachable frames keep the fixed H at h_quality ≤ 0.3, undecodable video → fixed H with a warning). Scope
+  `video` still reuses the fixed H on other shots. Synthetic 4 px/frame pan: max error 0.18 m (fixed H > 5 m).
+  Not yet run on Compose with a real broadcast clip.
 - Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
 0. Pick up from here: label frames with the tool (needs a person, ~300 frames) → GPU run (README recipe) to replace
-   PnLCalib; manual-H propagation with camera tracking (recompute must decode the video); first stats from
-   positions (distance, speed, heatmaps); mobile bottom sheets.
+   PnLCalib; try a recalibrate job on Compose with a real clip (camera-tracked manual H); line re-alignment
+   against drift (M1-CV-20); first stats from positions (M3, distance/speed/heatmaps); mobile bottom sheets.
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.
