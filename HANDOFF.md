@@ -70,6 +70,14 @@ derived jobs, exports, notifications).
   `training/keypoints/label_tool.py` (writes pv-pitch-keypoints/v1, never pre-fill from research models); fixes:
   stage timeouts count from `job_tasks.running_since` (migration 0011), progress includes the pitch stage, Google
   button hidden when not configured (`GET /auth/providers`), orgs only in served regions (`PV_REGIONS`).
+- M1-BE-22 hardening (2026-10-07, evening): per-user rate limits on the expensive endpoints
+  (`apps/api/pitchvision_api/services/ratelimit.py`: Redis token bucket via one Lua call, fails open, 429
+  RATE_LIMITED + Retry-After, `pv_rate_limited_total{rule}`; `PV_RATE_LIMITS=0` turns them off — the API test
+  conftest does that, `tests/test_ratelimit.py` turns them on); ffmpeg/ffprobe children get rlimits
+  (`cv_core.io.limits.child_limits`: RLIMIT_AS 2 GiB probes / 8 GiB ffmpeg, none for NVENC; no core dumps; probes
+  may write no file; Linux only, `PITCHVISION_FFMPEG_MAX_MEM_MB` overrides); compose `x-hardened` (cap_drop ALL +
+  no-new-privileges) on api/identity/web/workers, workers `pids_limit: 2048`. Checked on Compose: all services
+  healthy, CapEff 0, normalize works under the limits.
 - Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
