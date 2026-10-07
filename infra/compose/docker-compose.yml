@@ -76,6 +76,8 @@ x-identity-env: &identity-env
   PV_GOOGLE_CLIENT_SECRET: ${PV_GOOGLE_CLIENT_SECRET:-}
   PV_SENTRY_DSN: ${PV_SENTRY_DSN:-}
   PV_IMAGE_TAG: ${TAG:-dev}
+  # regions new orgs may pick: only the one this stack's api serves (an org elsewhere gets 409 REGION_MISMATCH)
+  PV_REGIONS: ${PV_REGIONS:-${PV_REGION:-eu}}
   # behind the web nginx on the compose network: trust its X-Forwarded-For (rate limits key on client IP)
   FORWARDED_ALLOW_IPS: "*"
 

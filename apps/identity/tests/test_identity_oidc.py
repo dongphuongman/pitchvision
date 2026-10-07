@@ -146,7 +146,14 @@ async def test_google_unverified_email_and_wrong_audience(gkit: Kit, google: Fak
 
 
 async def test_google_disabled_without_client(kit: Kit) -> None:
-    assert_problem(await kit.browser().get(START), 404, "NOT_FOUND")
+    c = kit.browser()
+    assert (await c.get("/api/v1/auth/providers")).json() == {"google": False, "regions": ["eu", "us"]}
+    r = await c.get(START)  # the browser lands on the web's error screen, not on a JSON page
+    assert r.status_code == 302 and r.headers["location"] == f"{WEB}/auth/callback#error=GOOGLE_UNAVAILABLE"
+
+
+async def test_providers_with_google(gkit: Kit) -> None:
+    assert (await gkit.browser().get("/api/v1/auth/providers")).json()["google"] is True
 
 
 def test_safe_return_to() -> None:

@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router';
 import { forwardRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { googleStartUrl } from '@/api/identity';
+import { useQuery } from '@tanstack/react-query';
+import { googleStartUrl, providersQuery } from '@/api/identity';
 import { Logo } from '@/app/Logo';
 import { cn } from '@/lib/cn';
 import { Button, Card } from '@/ui';
@@ -55,6 +56,18 @@ export function OrDivider() {
     <div className="flex items-center gap-3 text-caption text-fg-3 before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
       {t('or')}
     </div>
+  );
+}
+
+/** "Continue with Google" + the "or" divider — only when the identity service has Google configured. */
+export function GoogleSignIn({ label, returnTo }: { label: string; returnTo?: string }) {
+  const providers = useQuery(providersQuery);
+  if (providers.data?.google !== true) return null;
+  return (
+    <>
+      <GoogleButton label={label} returnTo={returnTo} />
+      <OrDivider />
+    </>
   );
 }
 

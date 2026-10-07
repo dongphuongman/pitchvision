@@ -52,6 +52,9 @@ async def create(ctx: Ctx, user_id: uuid.UUID, body: schemas.OrgCreateIn) -> sch
             raise ApiError(ErrorCode.UNAUTHENTICATED, 401, "Not authenticated")
         if not user.email_verified:
             raise ApiError(ErrorCode.EMAIL_NOT_VERIFIED, 403, "Verify your email first")
+        if body.region not in ctx.settings.regions:
+            raise ApiError(ErrorCode.VALIDATION_FAILED, 422, "Region not available",
+                           f"This server stores data in: {', '.join(ctx.settings.regions)}.")  # fmt: skip
         org = Org(name=body.name, kind=body.kind, region=body.region, created_by=user.id)
         s.add(org)
         await s.flush()

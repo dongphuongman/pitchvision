@@ -48,7 +48,8 @@ API's JWT check (`apps/api`) and the web client. Change it in the same PR as the
 | POST /api/v1/auth/verify-email/resend | — (auth) | 202 | rate limited; no-op if already verified |
 | POST /api/v1/auth/password/forgot | `{email}` | 202 | always 202 (no account enumeration); link valid 30 min |
 | POST /api/v1/auth/password/reset | `{token, password}` | 204 | expired/used/unknown → 410 `TOKEN_EXPIRED`; also marks the email verified |
-| GET /api/v1/auth/oidc/google/start?return_to= | — | 302 to Google | state + PKCE + nonce |
+| GET /api/v1/auth/providers | — | 200 `{google: bool, regions: (eu\|us)[]}` | public; what this deployment offers: Google sign-in, the regions new orgs may pick (`PV_REGIONS`, default both; compose: the stack's `PV_REGION`) |
+| GET /api/v1/auth/oidc/google/start?return_to= | — | 302 to Google | state + PKCE + nonce; Google not configured → 302 `{web}/auth/callback#error=GOOGLE_UNAVAILABLE` |
 | GET /api/v1/auth/oidc/google/callback | — | 302 to web `/auth/callback#…` | Google-verified email ⇒ email_verified; links to existing user by verified email (see OIDC below) |
 | GET /api/v1/me | — | 200 `Me` | |
 | DELETE /api/v1/me/unverified | — | 204 | "Change it" on SCR-06: deletes an unverified account and clears the cookie; verified → 409 `CONFLICT` |
@@ -58,7 +59,7 @@ API's JWT check (`apps/api`) and the web client. Change it in the same PR as the
 | POST /api/v1/auth/password/change | `{current_password, new_password}` | 204 | SCR-40 P03; wrong current → 401 `INVALID_CREDENTIALS`; revokes every other refresh family (this cookie's stays) |
 | POST /api/v1/auth/sessions/revoke-others | — | 204 | SCR-40 P04; under /auth so the refresh cookie identifies this browser |
 | POST /api/v1/orgs/{id}/upgrade-requests | `{plan: pro\|team, period: monthly\|annual, reason?: quota\|feature\|seats\|quality}` | 202 `{id, plan, period, owners_notified, created_at}` | SCR-41 waitlist while billing is not live; any member; a non-owner's request emails every owner (E07) |
-| POST /api/v1/orgs | `{name, kind, my_role_title?, region}` | 201 `Org` | creator = owner; unverified email → 403 `EMAIL_NOT_VERIFIED`; becomes the user's last active org, so the next refresh (with or without `{org_id}`) lands in it |
+| POST /api/v1/orgs | `{name, kind, my_role_title?, region}` | 201 `Org` | region outside `PV_REGIONS` → 422; creator = owner; unverified email → 403 `EMAIL_NOT_VERIFIED`; becomes the user's last active org, so the next refresh (with or without `{org_id}`) lands in it |
 | GET /api/v1/orgs/{id} | — | 200 `Org` | member only; non-members get 404 (all `/orgs/{id}*` routes) |
 | PATCH /api/v1/orgs/{id} | `{name?}` | 200 `Org` | admin+; region is immutable (unknown fields such as `region` → 422; DB trigger as backstop) |
 | DELETE /api/v1/orgs/{id} | `{confirm_name}` | 204 | SCR-40 D04 / DLG-08, owner only (else 403); `confirm_name` = the org's name (trimmed, case-sensitive) else 422; memberships, invites, subscription go at once (members' next refresh has no such org); regional data via "Erasure" below |

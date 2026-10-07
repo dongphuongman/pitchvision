@@ -42,6 +42,7 @@ function readView(): View {
 export function LibraryPage() {
   const { t } = useTranslation('library');
   const { t: tc } = useTranslation();
+  const { t: te } = useTranslation('errors');
   const search = route.useSearch();
   const navigate = route.useNavigate();
   const qc = useQueryClient();
@@ -128,7 +129,9 @@ export function LibraryPage() {
             </Button>
           }
         >
-          {t('list.error')}
+          {isApiError(query.error) && query.error.code === 'REGION_MISMATCH'
+            ? te('codes.REGION_MISMATCH')
+            : t('list.error')}
         </Banner>
       ) : isEmpty ? (
         <EmptyLibrary />

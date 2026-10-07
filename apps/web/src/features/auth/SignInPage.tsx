@@ -10,7 +10,7 @@ import { applySession } from '@/auth/session';
 import { isValidEmail } from '@/lib/password';
 import { formatCountdown, useCountdown } from '@/lib/useCountdown';
 import { Banner, Button, Field, Input, PasswordInput } from '@/ui';
-import { AuthHeading, AuthLayout, GoogleButton, OrDivider, textLinkClass } from './AuthLayout';
+import { AuthHeading, AuthLayout, GoogleSignIn, textLinkClass } from './AuthLayout';
 
 const route = getRouteApi('/signin');
 
@@ -73,8 +73,7 @@ export function SignInPage() {
     <AuthLayout>
       <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
         <AuthHeading sub={t('signIn.subtitle')}>{t('signIn.title')}</AuthHeading>
-        <GoogleButton label={t('google.signIn')} returnTo={returnTo} />
-        <OrDivider />
+        <GoogleSignIn label={t('google.signIn')} returnTo={returnTo} />
         {/* Banner tone="err" is role="alert": announced when it appears. */}
         {login.isError && (
           <Banner tone="err">

@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { applySession } from '@/auth/session';
 import type { Video } from '@/api/videos';
 import { emitWs, mockJob, mockVideo, wsTopics, type MockJob } from '@/mocks/videos';
@@ -332,5 +333,20 @@ describe('pending deletes (DLG-01 10 s window)', () => {
     await new Promise((r) => setTimeout(r, 60));
     expect(mock.videos.log).toEqual([]);
     expect(usePendingDeletes.getState().ids.size).toBe(0);
+  });
+
+  it("explains when the org's data lives in another region (409 REGION_MISMATCH)", async () => {
+    mock.server.use(
+      http.get('*/api/v1/videos', () =>
+        HttpResponse.json(
+          { type: 'x', title: 'Wrong region', status: 409, code: 'REGION_MISMATCH' },
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    );
+    renderApp('/library', { auth: testSession() });
+    expect(
+      await screen.findByText('This workspace is stored in another region.'),
+    ).toBeInTheDocument();
   });
 });

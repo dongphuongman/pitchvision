@@ -90,6 +90,19 @@ describe('SCR-02 Sign in', () => {
       '/api/v1/auth/oidc/google/start?return_to=%2Fexports',
     );
   });
+
+  it('hides Google when the server has it off', async () => {
+    mock.db.googleEnabled = false;
+    let answered = false;
+    mock.server.events.on('response:mocked', ({ request }) => {
+      if (request.url.endsWith('/api/v1/auth/providers')) answered = true;
+    });
+    renderApp('/signin', { auth: null });
+    await screen.findByRole('button', { name: 'Sign in' });
+    await waitFor(() => expect(answered).toBe(true));
+    expect(screen.queryByRole('link', { name: 'Continue with Google' })).not.toBeInTheDocument();
+    mock.server.events.removeAllListeners();
+  });
 });
 
 describe('SCR-03 Sign up', () => {
@@ -304,6 +317,13 @@ describe('Google OIDC /auth/callback', () => {
       await screen.findByRole('heading', { name: "We couldn't sign you in with Google" }),
     ).toBeInTheDocument();
     expect(screen.getByText('Please verify your email address first.')).toBeInTheDocument();
+  });
+
+  it('#error=GOOGLE_UNAVAILABLE explains that Google is not set up', async () => {
+    renderApp('/auth/callback#error=GOOGLE_UNAVAILABLE', { auth: 'bootstrap' });
+    expect(
+      await screen.findByText(/Google sign-in isn't set up on this server/),
+    ).toBeInTheDocument();
   });
 });
 

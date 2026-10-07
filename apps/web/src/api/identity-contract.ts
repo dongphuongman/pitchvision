@@ -66,6 +66,10 @@ export interface paths {
     parameters: NoParams;
     post: Op<NoParams, JsonBody<S['ResetPasswordRequest']>, { 204: NoContent }>;
   };
+  '/api/v1/auth/providers': {
+    parameters: NoParams;
+    get: Op<NoParams, undefined, { 200: Json<S['Providers']> }>;
+  };
   '/api/v1/auth/oidc/google/start': {
     parameters: QueryParams<{ return_to?: string }>;
     get: Op<QueryParams<{ return_to?: string }>, undefined, { 302: NoContent }>;
@@ -272,6 +276,8 @@ export interface components {
     DeleteMeRequest: { confirm_email: string };
     OrgRef: { id: string; name: string; region: S['Region'] };
     /** `blocking`: orgs where you are the only owner and others are members; `deleted_with_account`: orgs with no other member. */
+    /** What this deployment offers: Google sign-in, the data regions new orgs may pick. */
+    Providers: { google: boolean; regions: S['Region'][] };
     DeletionPreview: { blocking: S['OrgRef'][]; deleted_with_account: S['OrgRef'][] };
     UpdateMemberRequest: { role: S['Role'] };
     CreateInvitesRequest: {

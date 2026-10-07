@@ -70,9 +70,11 @@ export function AuthCallbackPage() {
       <AuthHeading
         ref={headingRef}
         sub={
-          code && KNOWN_ERRORS.has(code)
-            ? te(`codes.${code as 'UNAUTHENTICATED' | 'EMAIL_NOT_VERIFIED'}`)
-            : t('callback.failedBody')
+          code === 'GOOGLE_UNAVAILABLE'
+            ? t('callback.googleUnavailable')
+            : code && KNOWN_ERRORS.has(code)
+              ? te(`codes.${code as 'UNAUTHENTICATED' | 'EMAIL_NOT_VERIFIED'}`)
+              : t('callback.failedBody')
         }
       >
         {t('callback.failedTitle')}

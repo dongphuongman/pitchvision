@@ -83,7 +83,8 @@ export interface paths {
     };
     /**
      * Google Start
-     * @description 302 to Google with state + nonce + PKCE (S256); the pending request rides in an HttpOnly cookie.
+     * @description 302 to Google with state + nonce + PKCE (S256); the pending request rides in an HttpOnly cookie. Google not
+     *     configured → 302 back to `{web}/auth/callback#error=GOOGLE_UNAVAILABLE` (never a JSON page in the browser).
      */
     get: operations['google_start_api_v1_auth_oidc_google_start_get'];
     put?: never;
@@ -149,6 +150,27 @@ export interface paths {
      * @description Sets the password and revokes every refresh token of the user. Expired/used -> 410 TOKEN_EXPIRED.
      */
     post: operations['reset_password_api_v1_auth_password_reset_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/providers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Providers
+     * @description What this deployment offers: Google sign-in besides email + password, and the data regions new orgs can
+     *     pick (`PV_REGIONS`). The web hides what is off.
+     */
+    get: operations['providers_api_v1_auth_providers_get'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -949,6 +971,13 @@ export interface components {
       /** Type */
       type: string;
     };
+    /** Providers */
+    Providers: {
+      /** Google */
+      google: boolean;
+      /** Regions */
+      regions: ('eu' | 'us')[];
+    };
     /** RefreshIn */
     RefreshIn: {
       /** Org Id */
@@ -1365,6 +1394,44 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  providers_api_v1_auth_providers_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Providers'];
+        };
       };
     };
   };

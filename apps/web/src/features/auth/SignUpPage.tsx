@@ -10,7 +10,7 @@ import { applySession } from '@/auth/session';
 import { isValidEmail, MIN_PASSWORD_LENGTH, passwordStrength } from '@/lib/password';
 import { rememberSignupPlan } from '@/lib/signupPlan';
 import { Banner, Button, Checkbox, Field, Input, PasswordInput, StrengthMeter } from '@/ui';
-import { AuthHeading, AuthLayout, GoogleButton, OrDivider, textLinkClass } from './AuthLayout';
+import { AuthHeading, AuthLayout, GoogleSignIn, textLinkClass } from './AuthLayout';
 
 const route = getRouteApi('/signup');
 
@@ -132,11 +132,10 @@ export function SignUpPage() {
             />
           </Banner>
         )}
-        <GoogleButton
+        <GoogleSignIn
           label={t('google.signUp')}
           returnTo={inviteToken ? `/invite/${encodeURIComponent(inviteToken)}` : returnTo}
         />
-        <OrDivider />
         {serverError && <Banner tone="err">{serverError}</Banner>}
         <Field label={t('fields.name')} error={errors.name}>
           <Input

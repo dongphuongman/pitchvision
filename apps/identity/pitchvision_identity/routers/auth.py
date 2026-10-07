@@ -1,12 +1,13 @@
 """/api/v1/auth/*: email+password, refresh rotation, email verification, password reset, Google OIDC."""
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx
 from fastapi import APIRouter, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pitchvision_schemas import ErrorCode
+from pydantic import BaseModel
 
 from pitchvision_identity import schemas
 from pitchvision_identity.deps import (
@@ -115,9 +116,25 @@ def _google(ctx: AppCtx) -> oidc.GoogleOidc:
     return ctx.google
 
 
+class Providers(BaseModel):
+    google: bool
+    regions: list[Literal["eu", "us"]]
+
+
+@router.get("/providers")
+async def providers(ctx: AppCtx) -> Providers:
+    """What this deployment offers: Google sign-in besides email + password, and the data regions new orgs can
+    pick (`PV_REGIONS`). The web hides what is off."""
+    return Providers(google=ctx.google is not None, regions=ctx.settings.regions)
+
+
 @router.get("/oidc/google/start", status_code=status.HTTP_302_FOUND, response_class=RedirectResponse)
 async def google_start(ctx: AppCtx, return_to: Annotated[str | None, Query(max_length=512)] = None) -> RedirectResponse:
-    """302 to Google with state + nonce + PKCE (S256); the pending request rides in an HttpOnly cookie."""
+    """302 to Google with state + nonce + PKCE (S256); the pending request rides in an HttpOnly cookie. Google not
+    configured → 302 back to `{web}/auth/callback#error=GOOGLE_UNAVAILABLE` (never a JSON page in the browser)."""
+    if ctx.google is None:
+        return RedirectResponse(f"{ctx.settings.web_url}/auth/callback#error=GOOGLE_UNAVAILABLE",
+                                status_code=status.HTTP_302_FOUND)  # fmt: skip
     url, cookie = await _google(ctx).start(return_to)
     resp = RedirectResponse(url, status_code=status.HTTP_302_FOUND)
     resp.set_cookie(

@@ -5,7 +5,8 @@ from typing import Any
 import httpx
 import psycopg
 import pytest
-from identity_testkit import WEB, Kit, assert_problem, auth
+from identity_testkit import WEB, Kit, Outbox, assert_problem, auth, build_app
+from pitchvision_identity.ratelimit import MemoryRateLimiter
 
 
 async def _member(kit: Kit, owner: httpx.AsyncClient, owner_s: dict[str, Any], org_id: str, email: str, role: str):  # type: ignore[no-untyped-def]
@@ -278,3 +279,14 @@ async def test_accepting_invite_verifies_email(kit: Kit) -> None:
     s = (await kit.register(c, "u@club.com")).json()
     r = await c.post(f"/api/v1/invites/{token}/accept", headers=auth(s))
     assert r.status_code == 200 and r.json()["user"]["email_verified"] is True
+
+
+async def test_org_region_must_be_served(kit: Kit, jwt_key_pem: str) -> None:
+    _, s = await kit.verified("regions@club.com")  # session from the kit app; tokens verify across apps (same key)
+    app = build_app(kit.db, jwt_key_pem, Outbox(), MemoryRateLimiter(), regions=["eu"])
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://id.test") as c:
+        assert (await c.get("/api/v1/auth/providers")).json() == {"google": False, "regions": ["eu"]}
+        body = {"name": "US FC", "kind": "club", "region": "us"}
+        assert_problem(await c.post("/api/v1/orgs", json=body, headers=auth(s)), 422, "VALIDATION_FAILED")
+        assert (await c.post("/api/v1/orgs", json={**body, "region": "eu"}, headers=auth(s))).status_code == 201
+    await app.state.engine.dispose()

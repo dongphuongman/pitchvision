@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     image_tag: str = "dev"  # PV_IMAGE_TAG: Sentry release
     identity_database_url: str = "postgresql+asyncpg://pitchvision:pitchvision@localhost:5432/pitchvision_identity"
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
+    # data regions that have a regional API behind this identity service; new orgs may only pick these
+    regions: Annotated[list[Literal["eu", "us"]], NoDecode] = ["eu", "us"]
 
     # --- JWT (RS256). Key from PEM text or a file; an ephemeral key only in local/test.
     jwt_issuer: str = "http://localhost:3000"
@@ -58,7 +60,7 @@ class Settings(BaseSettings):
     argon2_memory_kib: int = 64 * 1024
     argon2_parallelism: int = 4
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "regions", mode="before")
     @classmethod
     def _split_origins(cls, v: object) -> object:
         """Accept `a,b` as well as a list (env vars are plain strings)."""

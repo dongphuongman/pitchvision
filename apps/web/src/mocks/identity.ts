@@ -3,6 +3,7 @@ import type {
   CreateOrgRequest,
   Membership,
   Org,
+  Region,
   RegisterRequest,
   Role,
   Session,
@@ -50,6 +51,9 @@ export interface MockDb {
   cookie: { userId: string; activeOrgId: string | null } | null;
   /** Access tokens the server now rejects with 401 (simulates expiry). */
   rejectedTokens: Set<string>;
+  /** GET /auth/providers → google, regions */
+  googleEnabled: boolean;
+  regions: Region[];
   /** SCR-41 waitlist requests. */
   upgradeRequests: { org_id: string; user_id: string; plan: string; reason: string | null }[];
   /** Request log for assertions: "POST /api/v1/auth/refresh {\"org_id\":\"…\"}". */
@@ -69,6 +73,8 @@ export function createMockDb(partial: Partial<MockDb> = {}): MockDb {
     verifyTokens: {},
     cookie: null,
     rejectedTokens: new Set(),
+    googleEnabled: true,
+    regions: ['eu', 'us'],
     upgradeRequests: [],
     log: [],
     seq: 0,
@@ -207,6 +213,9 @@ export function identityHandlers(db: MockDb): HttpHandler[] {
   };
 
   return [
+    http.get('*/api/v1/auth/providers', () =>
+      HttpResponse.json({ google: db.googleEnabled, regions: db.regions }),
+    ),
     http.post('*/api/v1/auth/register', async ({ request }) => {
       await log(request);
       const body = await jsonBody<RegisterRequest>(request);

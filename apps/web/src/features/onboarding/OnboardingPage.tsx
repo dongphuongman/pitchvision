@@ -1,11 +1,11 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { Popover, RadioGroup } from 'radix-ui';
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { takeSignupPlan } from '@/lib/signupPlan';
-import { identityApi, ORG_KINDS, REGIONS, type Region } from '@/api/identity';
+import { identityApi, ORG_KINDS, providersQuery, REGIONS, type Region } from '@/api/identity';
 import { useApiErrorMessage } from '@/api/useApiErrorMessage';
 import { safeReturnTo } from '@/auth/redirects';
 import { switchOrganization, useActiveMembership } from '@/auth/session';
@@ -221,7 +221,11 @@ function RegionStep({ headingRef }: { headingRef: HeadingRef }) {
   const goTo = useGoToStep();
   const active = useActiveMembership();
   const created = draft.createdOrgId !== null;
-  const [suggested] = useState<Region | null>(() => suggestRegion());
+  // only regions with a regional API behind this deployment (an org elsewhere could not load anything)
+  const offered = useQuery(providersQuery).data?.regions ?? REGIONS;
+  const [guess] = useState<Region | null>(() => suggestRegion());
+  const suggested =
+    guess && offered.includes(guess) ? guess : offered.length === 1 ? (offered[0] ?? null) : null;
   const region: Region | null = created ? (active?.region ?? draft.region) : draft.region;
   const [confirming, setConfirming] = useState(false);
   const [regionError, setRegionError] = useState<string>();
@@ -295,6 +299,7 @@ function RegionStep({ headingRef }: { headingRef: HeadingRef }) {
           <RadioGroup.Item
             key={r}
             value={r}
+            disabled={created || !offered.includes(r)}
             className={cn(
               'group flex gap-3 rounded-xl border-[1.5px] border-line-strong bg-surface-2 p-4 text-left focus-ring',
               'data-[state=checked]:border-accent data-[state=checked]:bg-[color-mix(in_srgb,var(--ac)_7%,var(--s2))]',
@@ -309,7 +314,9 @@ function RegionStep({ headingRef }: { headingRef: HeadingRef }) {
             </span>
             <span className="flex flex-col gap-0.5">
               <b className="text-fg">{t(`region.options.${r}.name`)}</b>
-              <span className="text-sm text-fg-3">{t(`region.options.${r}.detail`)}</span>
+              <span className="text-sm text-fg-3">
+                {offered.includes(r) ? t(`region.options.${r}.detail`) : t('region.unavailable')}
+              </span>
               {suggested === r && !created && (
                 <Badge tone="ok" size="sm" className="mt-2 self-start">
                   {t('region.suggested')}

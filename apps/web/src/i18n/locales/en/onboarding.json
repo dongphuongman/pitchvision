@@ -33,8 +33,14 @@
     "title": "Where should we store your data?",
     "subtitle": "Videos and tracking data stay in this region.",
     "options": {
-      "eu": { "name": "European Union", "detail": "Frankfurt · GDPR" },
-      "us": { "name": "United States", "detail": "Virginia" }
+      "eu": {
+        "name": "European Union",
+        "detail": "Frankfurt · GDPR"
+      },
+      "us": {
+        "name": "United States",
+        "detail": "Virginia"
+      }
     },
     "suggested": "Suggested for you",
     "required": "Choose where to store your data.",
@@ -43,7 +49,8 @@
     "learnMoreBody": "Data residency: your videos, tracking data and reports never leave the selected region.",
     "confirm": "Store data in the {{region}}? This is permanent.",
     "confirmCta": "Confirm",
-    "locked": "Your organization's data is stored in the {{region}}. This can't be changed."
+    "locked": "Your organization's data is stored in the {{region}}. This can't be changed.",
+    "unavailable": "Not available on this server yet."
   },
   "prefs": {
     "title": "Preferences",

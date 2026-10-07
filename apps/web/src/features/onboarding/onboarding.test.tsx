@@ -69,6 +69,22 @@ describe('SCR-07 Onboarding', () => {
     expect(mock.db.orgs).toHaveLength(1);
   });
 
+  it('only offers the regions this server serves', async () => {
+    const user = userEvent.setup();
+    const me = mockUser({ email: 'eu-only@club.com' });
+    mock.db.users.push(me);
+    mock.db.cookie = { userId: me.id, activeOrgId: null };
+    mock.db.regions = ['eu'];
+    renderApp('/onboarding/organization', { auth: 'bootstrap' });
+    await user.type(await screen.findByLabelText('Organization name'), 'EU FC');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByRole('heading', { name: 'Where should we store your data?' });
+    const us = await screen.findByRole('radio', { name: /United States/ });
+    await waitFor(() => expect(us).toBeDisabled());
+    expect(screen.getByText('Not available on this server yet.')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /European Union/ })).toBeEnabled();
+  });
+
   it('region is mandatory', async () => {
     const user = userEvent.setup();
     const me = mockUser({ email: 'solo@club.com' });

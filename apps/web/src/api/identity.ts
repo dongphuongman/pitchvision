@@ -30,6 +30,14 @@ export type UpgradeRequestOut = Schemas['UpgradeRequestOut'];
 export type DeletionPreview = Schemas['DeletionPreview'];
 export type AnalysisDefaults = Schemas['AnalysisDefaults'];
 
+/** GET /auth/providers: Google on/off and the regions new orgs may pick (sign-in, sign-up, SCR-07). */
+export const providersQuery = {
+  queryKey: ['identity', 'providers'] as const,
+  queryFn: ({ signal }: { signal?: AbortSignal }) => identityApi.providers(signal),
+  staleTime: Infinity,
+  retry: false,
+};
+
 /** GET /me (email prefs, analysis defaults); one cache entry shared by Settings and SCR-11. */
 export const ME_KEY = ['identity', 'me'] as const;
 export type InviteRole = Schemas['CreateInvitesRequest']['role'];
@@ -87,6 +95,11 @@ export const identityApi = {
       body: orgId ? { org_id: orgId } : undefined,
     });
     return required(data, 'refresh');
+  },
+  /** Optional sign-in methods (Google); the auth screens hide what is off. */
+  async providers(signal?: AbortSignal): Promise<Schemas['Providers']> {
+    const { data } = await client.GET('/api/v1/auth/providers', { signal });
+    return required(data, 'providers');
   },
   async logout(): Promise<void> {
     await client.POST('/api/v1/auth/logout');
