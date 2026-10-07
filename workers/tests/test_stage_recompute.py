@@ -95,3 +95,81 @@ def test_invalid_calibrations_are_rejected(tmp_path: Path) -> None:
     assert ei.value.code == "HOMOGRAPHY_UNAVAILABLE" and ei.value.retryable is False
     with pytest.raises(ManualCalibrationInvalid):
         manual_homography(_points()[:3])
+
+
+# ---------------------------------------------------------------- camera tracking over the calibrated shot
+PAN_PX = 4  # the camera pans right by 4 px a frame: frame k shows scene columns [4k, 4k + W)
+W, H_IMG = 640, 360
+
+
+def _panning_video(path: Path, n: int = 100) -> Path:
+    import av
+    import cv2
+
+    rng = np.random.default_rng(3)
+    noise = rng.integers(0, 255, (H_IMG // 8, (W + PAN_PX * n) // 8), np.uint8)
+    scene = cv2.GaussianBlur(cv2.resize(noise, (W + PAN_PX * n, H_IMG), interpolation=cv2.INTER_NEAREST), (5, 5), 0)
+    scene = cv2.cvtColor(scene, cv2.COLOR_GRAY2BGR)
+    with av.open(str(path), "w") as out:
+        st = out.add_stream("libx264", rate=25)
+        st.width, st.height, st.pix_fmt = W, H_IMG, "yuv420p"
+        st.options = {"crf": "12", "preset": "ultrafast"}
+        for k in range(n):
+            frame = av.VideoFrame.from_ndarray(np.ascontiguousarray(scene[:, PAN_PX * k: PAN_PX * k + W]), "bgr24")
+            out.mux(st.encode(frame))
+        out.mux(st.encode(None))
+    return path
+
+
+def _panning_tracks(path: Path) -> Path:
+    """The player stands still on the pitch for the whole first shot (frames 0–99); the camera pans, so the box
+    moves left in the image by PAN_PX a frame (scene coordinates = frame-0 image coordinates)."""
+    frames = np.arange(0, 100)
+    sx, sy = project(H_P2I, np.array([PLAYER]))[0]
+    x = sx - PAN_PX * frames
+    n = len(frames)
+    cols = {
+        "frame_idx": frames.astype(np.int32), "ts_ms": (frames * 40).astype(np.int32),
+        "track_id": np.ones(n, np.int32), "cls": np.zeros(n, np.int8), "team": np.zeros(n, np.int8),
+        "x1": x - 10, "y1": np.full(n, sy - 40), "x2": x + 10, "y2": np.full(n, sy),
+        "conf": np.full(n, 0.9, np.float16),
+        "px": np.full(n, np.nan, np.float32), "py": np.full(n, np.nan, np.float32),
+        "h_quality": np.full(n, np.nan, np.float16), "interpolated": np.zeros(n, bool),
+    }  # fmt: skip
+    return write_tracks(path, cols, {"stage": "S5"})
+
+
+def _clicks_on_frame(k: int) -> list[dict[str, float]]:
+    pts = _points(frame_ms=k * 40)
+    return [{**p, "x": p["x"] - PAN_PX * k} for p in pts]  # the same landmarks, seen in frame k
+
+
+def test_manual_h_follows_the_camera_through_the_shot(tmp_path: Path) -> None:
+    video, tracks = _panning_video(tmp_path / "normalized.mp4"), _panning_tracks(tmp_path / "in.parquet")
+    out = run_recompute(tracks, TL, tmp_path / "out", PipelineConfig(), points=_clicks_on_frame(50), frame_ms=2000,
+                        scope="shot", normalized=video)
+    c = _read(out.paths["tracks"])
+    err = np.hypot(c["px"] - PLAYER[0], c["py"] - PLAYER[1])
+    assert np.all(np.isfinite(err)) and float(err.max()) < 0.5, float(np.nanmax(err))
+    assert out.stats["camera_tracked_frames"] >= 98  # frame 0 has no motion estimate before it; it's reached backwards
+    q = c["h_quality"].astype(np.float32)
+    assert q[50] == pytest.approx(1.0, abs=1e-3) and q[0] < q[25] < q[50] > q[75] > q[99]  # decays with distance
+    assert float(q.min()) >= 0.5 - 1e-3  # ≤ 2 s from the click at 0.002 / frame
+
+
+def test_without_the_video_the_fixed_h_drifts_with_the_camera(tmp_path: Path) -> None:
+    tracks = _panning_tracks(tmp_path / "in.parquet")
+    out = run_recompute(tracks, TL, tmp_path / "out", PipelineConfig(), points=_clicks_on_frame(50), frame_ms=2000,
+                        scope="shot")
+    c = _read(out.paths["tracks"])
+    err = np.hypot(c["px"] - PLAYER[0], c["py"] - PLAYER[1])
+    assert float(err[50]) < 0.15 and float(np.nanmax(err)) > 5.0  # right on the clicked frame only
+    assert out.stats["camera_tracked_frames"] == 0
+
+
+def test_an_unreadable_video_falls_back_to_the_fixed_h(tmp_path: Path) -> None:
+    bad = tmp_path / "normalized.mp4"
+    bad.write_bytes(b"not a video")
+    out = run_recompute(_panning_tracks(tmp_path / "in.parquet"), TL, tmp_path / "out", PipelineConfig(),
+                        points=_clicks_on_frame(50), frame_ms=2000, scope="shot", normalized=bad)
+    assert out.stats["camera_tracked_frames"] == 0 and out.rows == 100

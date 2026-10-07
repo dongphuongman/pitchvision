@@ -563,7 +563,8 @@ class _Run:
                            **common)  # fmt: skip
         if key == RECOMPUTE:
             parent = str(self._parent_id())
-            inputs = {"tracks": keys.job_results_prefix(org, vid, parent) + "tracks/" + TRACKS_FILE, "shots": shots}
+            inputs = {"tracks": keys.job_results_prefix(org, vid, parent) + "tracks/" + TRACKS_FILE, "shots": shots,
+                      "normalized": keys.normalized_key(org, vid)}  # decoded over the calibrated shot only
             return CpuTask(task_id=CpuTask.make_id(job, RECOMPUTE), stage="recompute",
                            output_prefix=self._prefix(key), inputs=inputs,
                            params={**ids, "parent_job_id": parent, "calibration": self.detail.get("calibration")},

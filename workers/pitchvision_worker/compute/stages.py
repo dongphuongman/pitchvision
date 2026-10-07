@@ -171,13 +171,15 @@ def _stitch(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOut
 
 
 def _recompute(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
-    """Manual pitch calibration (job kind recalibrate): parent tracks + shots + params.calibration → tracks.parquet
-    with re-projected px/py under this job's tracks/ prefix (same place S5 writes)."""
+    """Manual pitch calibration (job kind recalibrate): parent tracks + shots + normalized.mp4 (camera tracking over
+    the calibrated shot) + params.calibration → tracks.parquet with re-projected px/py under this job's tracks/
+    prefix (same place S5 writes)."""
     run_recompute = contract_fn("recompute", "run_recompute")
     cal = _task_params(task).get("calibration") or {}
     timeline = ShotTimeline.model_validate_json(inputs["shots"].read_text())
     out = run_recompute(inputs["tracks"], timeline, out_dir, task.config, points=cal.get("points") or [],
-                        frame_ms=int(cal.get("frame_ms") or 0), scope=cal.get("scope") or "shot")
+                        frame_ms=int(cal.get("frame_ms") or 0), scope=cal.get("scope") or "shot",
+                        normalized=inputs.get("normalized"))  # older tasks had no video input: fixed H
     result = jsonable(out)
     return StageOutput(result if isinstance(result, dict) else {"output": result})
 
