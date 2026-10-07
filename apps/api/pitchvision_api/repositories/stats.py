@@ -20,6 +20,15 @@ async def player_metrics(session: AsyncSession, org_id: uuid.UUID, video_id: uui
     return [dict(r) for r in rows.mappings()]
 
 
+async def team_metrics(session: AsyncSession, org_id: uuid.UUID, video_id: uuid.UUID) -> dict[int, dict[str, Any]]:
+    """S9 possession rows by team cluster."""
+    rows = await session.execute(text("""
+        SELECT t.cluster, s.metrics FROM stats_team s JOIN teams t ON t.id = s.team_id
+         WHERE s.org_id = :o AND s.video_id = :v AND t.cluster IS NOT NULL
+    """), {"o": org_id, "v": video_id})  # fmt: skip
+    return {int(c): m for c, m in rows.all()}
+
+
 async def heatmap_bins(session: AsyncSession, video_id: uuid.UUID, cell_m: float, *, cluster: int | None,
                        track_id: int | None, from_ms: int | None, to_ms: int | None,
                        length_m: float, width_m: float) -> list[tuple[int, int, int]]:  # fmt: skip

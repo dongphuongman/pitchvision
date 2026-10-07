@@ -219,7 +219,8 @@ class LoadDbStage:
         from pitchvision_worker.results_db import write_results
 
         p = _task_params(task)
-        batch = prepare_load(inputs["tracks"], inputs.get("team_model"), task.config)
+        timeline = ShotTimeline.model_validate_json(inputs["shots"].read_text()) if inputs.get("shots") else None
+        batch = prepare_load(inputs["tracks"], inputs.get("team_model"), task.config, timeline=timeline)
         revision = int(p.get("revision") or 0)
         counts = write_results(self._engine(), uuid.UUID(str(p["org_id"])), uuid.UUID(str(p["video_id"])), batch,
                                revision)  # fmt: skip

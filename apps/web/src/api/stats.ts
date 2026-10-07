@@ -1,6 +1,6 @@
 import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { api } from './client';
-import type { Heatmap, Stats } from './types';
+import type { Heatmap, PassList, Stats } from './types';
 
 /** `GET /results/{id}/stats` (M3, SCR-20a): team physical stats over the observed time + tracks for SCR-20c. */
 export function statsQuery(videoId: string, revision?: number) {
@@ -39,5 +39,22 @@ export function heatmapQuery(videoId: string, filter: HeatmapFilter, revision?: 
     },
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData, // keep the old map while a filter change loads
+  });
+}
+
+/** `GET /results/{id}/passes` (SCR-20d): passes inferred from possession, time-ordered. */
+export function passesQuery(videoId: string, cluster: number | undefined, revision?: number) {
+  return queryOptions({
+    queryKey: ['results', videoId, 'passes', cluster ?? null, revision ?? null] as const,
+    queryFn: async ({ signal }): Promise<PassList> => {
+      const { data } = await api.GET('/api/v1/results/{video_id}/passes', {
+        params: { path: { video_id: videoId }, query: cluster === undefined ? {} : { cluster } },
+        signal,
+      });
+      if (!data) throw new Error('Empty passes response');
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }

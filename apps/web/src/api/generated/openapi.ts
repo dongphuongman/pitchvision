@@ -423,6 +423,27 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/results/{video_id}/passes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Passes
+     * @description Passes inferred from possession (SCR-20d, FR-505): a ball going from one track to another within 5 s in the
+     *     same shot — same team = completed, other team = lost. Time-ordered; pitch metres as filmed.
+     */
+    get: operations['get_passes_api_v1_results__video_id__passes_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/results/{video_id}/players': {
     parameters: {
       query?: never;
@@ -1638,6 +1659,40 @@ export interface components {
       /** Url */
       url: string;
     };
+    /** PassList */
+    PassList: {
+      /** Items */
+      items: components['schemas']['PassOut'][];
+    };
+    /** PassOut */
+    PassOut: {
+      /**
+       * Cluster
+       * @description the passer's team
+       */
+      cluster: number;
+      /** Completed */
+      completed: boolean;
+      /** End Ms */
+      end_ms: number;
+      /** From Track */
+      from_track: number;
+      /**
+       * T Ms
+       * @description the ball leaves the passer — seek a second before to watch it (SCR-20d E05)
+       */
+      t_ms: number;
+      /** To Track */
+      to_track: number;
+      /** X0 */
+      x0: number;
+      /** X1 */
+      x1: number;
+      /** Y0 */
+      y0: number;
+      /** Y1 */
+      y1: number;
+    };
     /** PitchCalibration */
     PitchCalibration: {
       /**
@@ -1755,6 +1810,21 @@ export interface components {
       top_speed_ms: number | null;
       /** Track Id */
       track_id: number;
+    };
+    /** PossessionMinute */
+    PossessionMinute: {
+      /**
+       * Minute
+       * @description video minute (0 = 0:00–0:59)
+       */
+      minute: number;
+      /**
+       * Ms
+       * @description team cluster → ms of possession in that minute
+       */
+      ms: {
+        [key: string]: number;
+      };
     };
     /**
      * PrivacySummary
@@ -1913,6 +1983,11 @@ export interface components {
        * @description tracks observed ≥ min_observed_s, longest first
        */
       players: components['schemas']['PlayerStats'][];
+      /**
+       * Possession Timeline
+       * @description possession over time (SCR-20a E03)
+       */
+      possession_timeline?: components['schemas']['PossessionMinute'][];
       /** Revision */
       revision: number;
       /** Teams */
@@ -2051,6 +2126,11 @@ export interface components {
     };
     /** TeamStats */
     TeamStats: {
+      /**
+       * Balls Lost
+       * @description passes / touches that ended with the other team
+       */
+      balls_lost?: number | null;
       /** Cluster */
       cluster: number;
       /** Color */
@@ -2077,8 +2157,23 @@ export interface components {
        * @description Σ observed seconds over the team's tracks
        */
       observed_player_s: number;
+      /**
+       * Passes
+       * @description passes attempted (FR-505)
+       */
+      passes?: number | null;
+      /** Passes Completed */
+      passes_completed?: number | null;
+      /** Possession Ms */
+      possession_ms?: number | null;
+      /**
+       * Possession Pct
+       * @description share of the possessed time (FR-501)
+       */
+      possession_pct?: number | null;
       /** Sprints */
       sprints: number;
+      thirds_ms?: components['schemas']['ThirdsMs'] | null;
       top_speed: components['schemas']['TopSpeed'] | null;
       /**
        * Tracks
@@ -2132,6 +2227,28 @@ export interface components {
        * @description polyline in metres
        */
       points: [number, number][];
+    };
+    /**
+     * ThirdsMs
+     * @description Possession by the ball's third of the pitch AS FILMED (attacking directions per half come with the match
+     *     clock, M2).
+     */
+    ThirdsMs: {
+      /**
+       * Left
+       * @default 0
+       */
+      left: number;
+      /**
+       * Middle
+       * @default 0
+       */
+      middle: number;
+      /**
+       * Right
+       * @default 0
+       */
+      right: number;
     };
     /** TopSpeed */
     TopSpeed: {
@@ -3376,6 +3493,50 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['MediaOut'];
+        };
+      };
+    };
+  };
+  get_passes_api_v1_results__video_id__passes_get: {
+    parameters: {
+      query?: {
+        /** @description passer's team */
+        cluster?: number | null;
+        completed?: boolean | null;
+      };
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PassList'];
         };
       };
     };

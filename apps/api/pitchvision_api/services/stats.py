@@ -18,7 +18,18 @@ from pitchvision_api.errors import ApiError
 from pitchvision_api.repositories import results as results_repo
 from pitchvision_api.repositories import stats as repo
 from pitchvision_api.repositories import videos as videos_repo
-from pitchvision_api.schemas.stats import HeatmapOut, PlayerStats, StatsOut, TeamStats, TopSpeed, ZonesM
+from pitchvision_api.schemas.stats import (
+    HeatmapOut,
+    PassList,
+    PassOut,
+    PlayerStats,
+    PossessionMinute,
+    StatsOut,
+    TeamStats,
+    ThirdsMs,
+    TopSpeed,
+    ZonesM,
+)
 from pitchvision_api.services.videos import not_found
 
 TEAM_ROLES = ("player", "goalkeeper")
@@ -73,6 +84,7 @@ async def stats(session: Any, principal: Principal, video_id: uuid.UUID, min_obs
                                        top_speed_kmh=kmh, top_speed_ms=at, sprints=int(m.get("sprints") or 0),
                                        avg_x=m.get("avg_x"), avg_y=m.get("avg_y"), cov=m.get("cov")))  # fmt: skip
 
+    poss = await repo.team_metrics(session, principal.org_id, video_id)
     minutes = (video.duration_ms or 0) / 60000
     out_teams: list[TeamStats] = []
     for cluster in sorted(set(agg) | set(teams)):
@@ -85,11 +97,39 @@ async def stats(session: Any, principal: Principal, video_id: uuid.UUID, min_obs
             zones_m=ZonesM(**{z: _r(v) for z, v in a["zones"].items()}), sprints=a["sprints"], top_speed=a["top"],
             m_per_min=_r(rate) if rate is not None else None,
             estimated_distance_m=_r(rate * PLAYERS_ON_PITCH * minutes, 0) if rate is not None and minutes else None,
+            **_possession(poss.get(cluster)),
         ))  # fmt: skip
     tops.sort(key=lambda t: -t.kmh)
     players.sort(key=lambda p: -p.observed_s)
+    by_minute: dict[int, dict[int, int]] = defaultdict(dict)
+    for cluster, m in poss.items():
+        for minute, ms in (m.get("timeline_ms") or {}).items():
+            by_minute[int(minute)][cluster] = int(ms)
+    timeline = [PossessionMinute(minute=k, ms=v) for k, v in sorted(by_minute.items())]
     return StatsOut(available=True, revision=max(int(r["revision"]) for r in rows), duration_ms=video.duration_ms,
-                    main_wide_ms=main_wide_ms, teams=out_teams, top_speeds=tops[:TOP_SPEEDS], players=players)
+                    main_wide_ms=main_wide_ms, teams=out_teams, top_speeds=tops[:TOP_SPEEDS], players=players,
+                    possession_timeline=timeline)  # fmt: skip
+
+
+def _possession(m: dict[str, Any] | None) -> dict[str, Any]:
+    if not m:
+        return {}
+    return {"possession_pct": m.get("possession_pct"), "possession_ms": m.get("possession_ms"),
+            "thirds_ms": ThirdsMs(**(m.get("thirds_ms") or {})), "passes": m.get("passes"),
+            "passes_completed": m.get("passes_completed"), "balls_lost": m.get("balls_lost")}  # fmt: skip
+
+
+async def passes(session: Any, principal: Principal, video_id: uuid.UUID, cluster: int | None,
+                 completed: bool | None) -> PassList:  # fmt: skip
+    if await videos_repo.get(session, principal.org_id, video_id) is None:
+        raise not_found()
+    items = [PassOut(cluster=cl, from_track=p["from"], to_track=p["to"], t_ms=p["t_ms"], end_ms=p["end_ms"],
+                     completed=p["completed"], x0=p["x0"], y0=p["y0"], x1=p["x1"], y1=p["y1"])
+             for cl, m in (await repo.team_metrics(session, principal.org_id, video_id)).items()
+             if cluster is None or cl == cluster
+             for p in m.get("pass_list") or []
+             if completed is None or p["completed"] == completed]  # fmt: skip
+    return PassList(items=sorted(items, key=lambda p: p.t_ms))
 
 
 async def heatmap(session: Any, principal: Principal, video_id: uuid.UUID, *, cell_m: float, cluster: int | None,

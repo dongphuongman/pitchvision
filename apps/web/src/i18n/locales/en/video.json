@@ -37,7 +37,8 @@
     "tabs": {
       "label": "Analysis sections",
       "overview": "Overview",
-      "heatmaps": "Heatmaps"
+      "heatmaps": "Heatmaps",
+      "passing": "Passing"
     },
     "placeholder": "Video, tactical map and timeline arrive with the sync engine (M1-FE-08 – M1-FE-12).",
     "position": "Position {{time}}",
@@ -325,6 +326,12 @@
     "title": "Match stats",
     "metric": "Metric",
     "coverage": "Tactical data for {{pct}}% of match time",
+    "possession": "Possession",
+    "possessionHint": "Share of the time a team had the ball (a player within 2.5 m for ≥ 0.4 s, and its passes in flight), on the main camera only.",
+    "passes": "Passes",
+    "passesHint": "Inferred from who has the ball: to a teammate = completed, to the other team = lost. Only passes seen on the main camera.",
+    "passesValue_one": "{{count}} · {{pct}}% completed · {{lost}} lost",
+    "passesValue_other": "{{count}} · {{pct}}% completed · {{lost}} lost",
     "error": "Stats couldn't be loaded. Try again in a moment.",
     "unavailable": "This analysis predates match stats. Re-analyse the video (or “Map the pitch automatically”) to get them.",
     "distance": "Distance",
@@ -351,7 +358,9 @@
     "sprintShare": "{{pct}}% sprinting",
     "observed": "Observed",
     "playerMin": "{{value}} player-min · {{tracks}} tracks",
-    "note": "Players are only measured while visible on the main camera; one player can appear as several tracks until player identities arrive."
+    "note": "Players are only measured while visible on the main camera; one player can appear as several tracks until player identities arrive.",
+    "possessionOverTime": "Possession over time (click a minute to watch it)",
+    "minuteLabel": "{{minute}}: {{a}} {{pa}}%, {{b}} {{pb}}%"
   },
   "heatmaps": {
     "team": "Team",
@@ -365,5 +374,19 @@
     "canvasLabel": "Heatmap of {{who}} on the pitch",
     "note": "Built from {{time}} of observed positions (main camera, usable pitch map).",
     "empty": "No positions for this selection yet — the pitch may not be mapped for this match."
+  },
+  "passing": {
+    "team": "Team",
+    "showLost": "Show lost balls",
+    "summary_one": "{{count}} pass · {{completed}} completed",
+    "summary_other": "{{count}} passes · {{completed}} completed",
+    "mapLabel": "Pass map: {{count}} passes on the pitch",
+    "list": "Passes",
+    "empty": "No passes seen for this team yet.",
+    "completed": "Completed",
+    "lost": "Lost",
+    "fromTo": "Track {{from}} → Track {{to}}",
+    "watch": "Watch the pass at {{time}}",
+    "note": "Passes are inferred from the ball and the players on the main camera. The pass network between players needs player identities across shots and arrives with player recognition."
   }
 }

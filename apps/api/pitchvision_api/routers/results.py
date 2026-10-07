@@ -24,7 +24,7 @@ from pitchvision_api.schemas.results import (
     TeamsPatch,
     TrackPage,
 )
-from pitchvision_api.schemas.stats import HeatmapOut, StatsOut
+from pitchvision_api.schemas.stats import HeatmapOut, PassList, StatsOut
 from pitchvision_api.services import corrections
 from pitchvision_api.services import results as service
 from pitchvision_api.services import stats as stats_service
@@ -194,6 +194,15 @@ async def get_stats(video_id: uuid.UUID, principal: CurrentPrincipal, session: D
     whole video and must be shown as an estimate. `players` = tracks seen ≥ `min_observed_s` with their average
     position + spread (SCR-20c). `available: false` when the analysis predates stats."""
     return await stats_service.stats(session, principal, video_id, min_observed_s)
+
+
+@router.get("/{video_id}/passes")
+async def get_passes(video_id: uuid.UUID, principal: CurrentPrincipal, session: DbSession,
+                     cluster: Annotated[int | None, Query(ge=0, le=1, description="passer's team")] = None,
+                     completed: bool | None = None) -> PassList:  # fmt: skip
+    """Passes inferred from possession (SCR-20d, FR-505): a ball going from one track to another within 5 s in the
+    same shot — same team = completed, other team = lost. Time-ordered; pitch metres as filmed."""
+    return await stats_service.passes(session, principal, video_id, cluster, completed)
 
 
 @router.get("/{video_id}/heatmap")

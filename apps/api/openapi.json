@@ -2182,6 +2182,101 @@
         }
       }
     },
+    "/api/v1/results/{video_id}/passes": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Passes",
+        "description": "Passes inferred from possession (SCR-20d, FR-505): a ball going from one track to another within 5 s in the\nsame shot — same team = completed, other team = lost. Time-ordered; pitch metres as filmed.",
+        "operationId": "get_passes_api_v1_results__video_id__passes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "cluster",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 1,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "passer's team",
+              "title": "Cluster"
+            },
+            "description": "passer's team"
+          },
+          {
+            "name": "completed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Completed"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/results/{video_id}/heatmap": {
       "get": {
         "tags": [
@@ -4987,6 +5082,82 @@
         ],
         "title": "PartUrl"
       },
+      "PassList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PassOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "PassList"
+      },
+      "PassOut": {
+        "properties": {
+          "t_ms": {
+            "type": "integer",
+            "title": "T Ms",
+            "description": "the ball leaves the passer — seek a second before to watch it (SCR-20d E05)"
+          },
+          "end_ms": {
+            "type": "integer",
+            "title": "End Ms"
+          },
+          "cluster": {
+            "type": "integer",
+            "title": "Cluster",
+            "description": "the passer's team"
+          },
+          "from_track": {
+            "type": "integer",
+            "title": "From Track"
+          },
+          "to_track": {
+            "type": "integer",
+            "title": "To Track"
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed"
+          },
+          "x0": {
+            "type": "number",
+            "title": "X0"
+          },
+          "y0": {
+            "type": "number",
+            "title": "Y0"
+          },
+          "x1": {
+            "type": "number",
+            "title": "X1"
+          },
+          "y1": {
+            "type": "number",
+            "title": "Y1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_ms",
+          "end_ms",
+          "cluster",
+          "from_track",
+          "to_track",
+          "completed",
+          "x0",
+          "y0",
+          "x1",
+          "y1"
+        ],
+        "title": "PassOut"
+      },
       "PitchCalibration": {
         "properties": {
           "status": {
@@ -5314,6 +5485,29 @@
         ],
         "title": "PlayersPatch",
         "description": "SCR-14 E06 \"Fix assignment\": display-only (tiles keep the detection; the manifest's track_overrides apply)."
+      },
+      "PossessionMinute": {
+        "properties": {
+          "minute": {
+            "type": "integer",
+            "title": "Minute",
+            "description": "video minute (0 = 0:00–0:59)"
+          },
+          "ms": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Ms",
+            "description": "team cluster → ms of possession in that minute"
+          }
+        },
+        "type": "object",
+        "required": [
+          "minute",
+          "ms"
+        ],
+        "title": "PossessionMinute"
       },
       "PrivacySummary": {
         "properties": {
@@ -5734,6 +5928,14 @@
             "type": "array",
             "title": "Players",
             "description": "tracks observed ≥ min_observed_s, longest first"
+          },
+          "possession_timeline": {
+            "items": {
+              "$ref": "#/components/schemas/PossessionMinute"
+            },
+            "type": "array",
+            "title": "Possession Timeline",
+            "description": "possession over time (SCR-20a E03)"
           }
         },
         "type": "object",
@@ -6091,6 +6293,74 @@
             ],
             "title": "Estimated Distance M",
             "description": "ESTIMATE: m_per_min × 11 players × video minutes — label it as estimated"
+          },
+          "possession_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Possession Pct",
+            "description": "share of the possessed time (FR-501)"
+          },
+          "possession_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Possession Ms"
+          },
+          "thirds_ms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThirdsMs"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "passes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passes",
+            "description": "passes attempted (FR-505)"
+          },
+          "passes_completed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passes Completed"
+          },
+          "balls_lost": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balls Lost",
+            "description": "passes / touches that ended with the other team"
           }
         },
         "type": "object",
@@ -6241,6 +6511,28 @@
           "points"
         ],
         "title": "TemplateLine"
+      },
+      "ThirdsMs": {
+        "properties": {
+          "left": {
+            "type": "integer",
+            "title": "Left",
+            "default": 0
+          },
+          "middle": {
+            "type": "integer",
+            "title": "Middle",
+            "default": 0
+          },
+          "right": {
+            "type": "integer",
+            "title": "Right",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ThirdsMs",
+        "description": "Possession by the ball's third of the pitch AS FILMED (attacking directions per half come with the match\nclock, M2)."
       },
       "TopSpeed": {
         "properties": {

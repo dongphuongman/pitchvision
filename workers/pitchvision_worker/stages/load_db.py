@@ -26,8 +26,9 @@ from typing import Any
 
 import numpy as np
 from cv_core.io.parquet import CLS_BALL, CLS_GOALKEEPER, CLS_REFEREE, NO_TRACK, read_tracks
-from pitchvision_schemas import PipelineConfig
+from pitchvision_schemas import PipelineConfig, ShotTimeline
 
+from pitchvision_worker.stages.possession import PossessionResult, run_possession
 from pitchvision_worker.stages.stats import TrackStats, run_stats
 
 POSITIONS_HZ = 5
@@ -63,6 +64,7 @@ class LoadBatch:
     teams: list[TeamRow]
     players: list[PlayerRow]
     track_stats: list[TrackStats] = field(default_factory=list)  # S9 physical stats per track (stages.stats)
+    possession: PossessionResult | None = None  # S9 ball part (stages.possession): team rows + per-track additions
     stats: dict[str, Any] = field(default_factory=dict)
     attack_h1: str | None = None  # side cluster 0 attacks in the first half ('left' | 'right'), None = unknown
 
@@ -117,8 +119,8 @@ def guess_attack(col: Mapping[str, np.ndarray], frame_width: float) -> str | Non
     return votes[0] if votes and all(v == votes[0] for v in votes) else None
 
 
-def prepare_load(tracks: Path, team_model: Path | Mapping[str, Any] | None, config: PipelineConfig | None = None
-                 ) -> LoadBatch:
+def prepare_load(tracks: Path, team_model: Path | Mapping[str, Any] | None, config: PipelineConfig | None = None,
+                 *, timeline: ShotTimeline | None = None) -> LoadBatch:
     cfg = config or PipelineConfig()
     tm = team_model if isinstance(team_model, Mapping) or team_model is None else load_team_model(team_model)
     t = read_tracks(tracks)
@@ -168,5 +170,7 @@ def prepare_load(tracks: Path, team_model: Path | Mapping[str, Any] | None, conf
     stats["attack_h1"] = attack
     per_track = run_stats(tracks, float(cfg.target_fps))  # S9 (M3-CV-01): rides along, same tracks, same revision
     stats["track_stats"] = len(per_track)
-    return LoadBatch(positions=positions, teams=team_rows(tm), players=players, track_stats=per_track, stats=stats,
-                     attack_h1=attack)
+    poss = run_possession(tracks, timeline, float(cfg.target_fps))  # S9 (M3-CV-02); no timeline: no cut split
+    stats["possession"] = poss.stats
+    return LoadBatch(positions=positions, teams=team_rows(tm), players=players, track_stats=per_track,
+                     possession=poss, stats=stats, attack_h1=attack)

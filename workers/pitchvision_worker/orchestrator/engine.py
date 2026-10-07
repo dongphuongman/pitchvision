@@ -578,7 +578,8 @@ class _Run:
             return CpuTask(task_id=CpuTask.make_id(job, TILES), stage="tiles", output_prefix=self._prefix(key),
                            inputs={"tracks": tracks, "shots": shots}, params=params, timeout_s=TIMEOUT_S[TILES],
                            **common)  # fmt: skip
-        inputs = {"tracks": tracks, "team_model": self._prefix(CALIBRATE) + TEAM_MODEL_FILE}
+        # shots: S9 possession / passes never chain across a cut
+        inputs = {"tracks": tracks, "team_model": self._prefix(CALIBRATE) + TEAM_MODEL_FILE, "shots": shots}
         return CpuTask(task_id=CpuTask.make_id(job, LOAD_DB), stage="load_db", output_prefix=self._prefix(key),
                        inputs=inputs, params={**ids, "revision": revision}, timeout_s=TIMEOUT_S[LOAD_DB],
                        **common)  # fmt: skip

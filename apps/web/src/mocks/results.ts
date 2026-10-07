@@ -253,6 +253,12 @@ export function resultsHandlers(db: MockVideoDb) {
       if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
       return HttpResponse.json(mockStats(v.id, teamsOf(v.id)));
     }),
+    http.get('*/api/v1/results/:id/passes', ({ params, request }) => {
+      const v = find(String(params.id));
+      if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
+      const cluster = new URL(request.url).searchParams.get('cluster');
+      return HttpResponse.json({ items: mockPasses(cluster === null ? null : Number(cluster)) });
+    }),
     http.get('*/api/v1/results/:id/heatmap', ({ params, request }) => {
       const v = find(String(params.id));
       if (!v) return problem(404, 'NOT_FOUND', 'Video not found');
@@ -463,10 +469,20 @@ export function mockStats(
           : null,
         m_per_min: Math.round((dist / (obs / 60)) * 10) / 10,
         estimated_distance_m: Math.round((dist / (obs / 60)) * 11 * 90),
+        possession_pct: t.cluster === 0 ? 58 : 42,
+        possession_ms: t.cluster === 0 ? 174_000 : 126_000,
+        thirds_ms: { left: 60_000, middle: 70_000, right: 44_000 },
+        passes: mockPasses(t.cluster).length,
+        passes_completed: mockPasses(t.cluster).filter((p) => p.completed).length,
+        balls_lost: mockPasses(t.cluster).filter((p) => !p.completed).length,
       };
     }),
     top_speeds: [],
     players,
+    possession_timeline: Array.from({ length: 12 }, (_, minute) => ({
+      minute,
+      ms: { '0': 20_000 + ((minute * 7) % 5) * 4_000, '1': 18_000 - ((minute * 7) % 5) * 3_000 },
+    })),
   };
 }
 
@@ -502,4 +518,25 @@ export function mockHeatmap(cluster: number | null, track: number | null) {
     total: counts.reduce((a, b) => a + b, 0),
     counts,
   };
+}
+
+/** Deterministic SCR-20d passes: 8 for team A (6 completed), 5 for team B (3 completed). */
+export function mockPasses(cluster: number | null) {
+  const make = (cl: number, n: number, lostEvery: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      t_ms: 30_000 + i * 41_000 + cl * 9_000,
+      end_ms: 31_400 + i * 41_000 + cl * 9_000,
+      cluster: cl,
+      from_track: cl * 100 + 1 + (i % 5),
+      to_track: cl * 100 + 2 + ((i + 2) % 5),
+      completed: (i + 1) % lostEvery !== 0,
+      x0: cl === 0 ? 20 + i * 6 : 85 - i * 8,
+      y0: 15 + ((i * 13) % 38),
+      x1: cl === 0 ? 34 + i * 6 : 70 - i * 8,
+      y1: 22 + ((i * 17) % 30),
+    }));
+  const all = [...make(0, 8, 4), ...make(1, 5, 2)];
+  return all
+    .filter((p) => cluster === null || p.cluster === cluster)
+    .sort((a, b) => a.t_ms - b.t_ms);
 }

@@ -48,6 +48,7 @@ import {
   TabsTrigger,
 } from '@/ui';
 import { HeatmapsTab } from './HeatmapsTab';
+import { PassingTab } from './PassingTab';
 import { StatsPanel } from './StatsPanel';
 import { WORKSPACE_TABS, type WorkspaceTab } from './tabs';
 
@@ -469,6 +470,22 @@ export function WorkspacePage() {
               <Skeleton className="h-16" />
             )}
           </Card>
+        </TabsContent>
+        <TabsContent value="passing">
+          {m ? (
+            <PassingTab
+              videoId={videoId}
+              revision={m.revision}
+              teams={m.teams}
+              team={search.team}
+              onTeam={(team) =>
+                void navigate({ search: (prev) => ({ ...prev, team }), replace: true })
+              }
+              onSeek={(ms) => clock?.seekToMs(ms)}
+            />
+          ) : (
+            <Skeleton className="h-80" />
+          )}
         </TabsContent>
         <TabsContent value="heatmaps">
           {m ? (

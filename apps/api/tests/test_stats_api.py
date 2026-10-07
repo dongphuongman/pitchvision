@@ -43,6 +43,16 @@ def _seed(db: Db, org: uuid.UUID, vid: uuid.UUID) -> None:
         for tid, cl, name in ((ta, 0, "Reds"), (tb, 1, "Blues")):
             c.execute("INSERT INTO teams (id, video_id, org_id, cluster, name, color) VALUES (%s,%s,%s,%s,%s,%s)",
                       (tid, vid, org, cl, name, "#ff0000" if cl == 0 else "#0000ff"))
+            passes = [{"t_ms": 5000 + 1000 * k + cl * 500, "end_ms": 5600 + 1000 * k + cl * 500, "from": 1 + 2 * cl,
+                       "to": 2 if cl == 0 else 3, "completed": k != 1, "x0": 10, "y0": 20, "x1": 25, "y1": 22}
+                      for k in range(3 if cl == 0 else 1)]  # fmt: skip
+            m = {"possession_ms": 30000 if cl == 0 else 20000, "possession_pct": 60.0 if cl == 0 else 40.0,
+                 "thirds_ms": {"left": 10000, "middle": 15000, "right": 5000} if cl == 0 else {"left": 20000},
+                 "timeline_ms": {"0": 25000 if cl == 0 else 15000, "1": 5000}, "passes": len(passes),
+                 "passes_completed": sum(p["completed"] for p in passes), "balls_lost": sum(not p["completed"]
+                 for p in passes), "pass_list": passes, "version": "pv-possession/v1"}  # fmt: skip
+            c.execute("INSERT INTO stats_team (video_id, org_id, team_id, revision, metrics) VALUES (%s,%s,%s,2,%s)",
+                      (vid, org, tid, json.dumps(m)))
         c.execute("INSERT INTO shots (video_id, org_id, t0_ms, t1_ms, type, conf) VALUES (%s,%s,0,60000,'main_wide',1),"
                   " (%s,%s,60000,80000,'close_up',1)", (vid, org, vid, org))  # fmt: skip
         players = [(1, ta, "player", _metrics(120, 300, 31.0, 4000, 2, (40, 30))),
@@ -81,6 +91,12 @@ async def test_team_totals_use_current_roles_and_label_estimates(client: httpx.A
     assert a["m_per_min"] == 120.0  # 360 m over 3 observed player-minutes
     assert a["estimated_distance_m"] == pytest.approx(120 * 11 * 100 / 60, abs=1)
     assert b["distance_m"] == 270 and b["m_per_min"] == 180.0
+    # M3-CV-02: possession / passes per team + possession over time
+    assert (a["possession_pct"], a["possession_ms"], a["passes"], a["passes_completed"], a["balls_lost"]) == (
+        60.0, 30000, 3, 2, 1)
+    assert a["thirds_ms"] == {"left": 10000, "middle": 15000, "right": 5000} and b["possession_pct"] == 40.0
+    assert s["possession_timeline"] == [{"minute": 0, "ms": {"0": 25000, "1": 15000}},
+                                        {"minute": 1, "ms": {"0": 5000, "1": 5000}}]
     # the referee (36 km/h) is not a team's player and not in the top speeds
     assert [t["track_id"] for t in s["top_speeds"]] == [3, 1, 2]
     # players: observed ≥ 10 s by default (track 5 = 4 s left out), longest first, with average position + spread
@@ -119,4 +135,19 @@ async def test_heatmap_bins_by_team_track_and_time(client: httpx.AsyncClient, mi
     assert (coarse["cols"], coarse["rows"]) == (21, 14) and coarse["total"] == 7
     bad = await client.get(url, params={"from_ms": 500, "to_ms": 400}, headers=who(org))
     assert_problem(bad, 422, "VALIDATION_FAILED")
+    assert (await client.get(url, headers=who(uuid.uuid4()))).status_code == 404
+
+
+async def test_passes_are_time_ordered_and_filterable(client: httpx.AsyncClient, migrated: Db) -> None:
+    org = uuid.uuid4()
+    vid, _ = await _video_job(migrated, org)
+    _seed(migrated, org, vid)
+    url = f"/api/v1/results/{vid}/passes"
+    items = (await client.get(url, headers=who(org, "viewer"))).json()["items"]
+    assert [(p["t_ms"], p["cluster"], p["completed"]) for p in items] == [
+        (5000, 0, True), (5500, 1, True), (6000, 0, False), (7000, 0, True)]
+    assert items[0] | {"t_ms": 0} == {"t_ms": 0, "end_ms": 5600, "cluster": 0, "from_track": 1, "to_track": 2,
+                                     "completed": True, "x0": 10.0, "y0": 20.0, "x1": 25.0, "y1": 22.0}  # fmt: skip
+    only = (await client.get(url, params={"cluster": 0, "completed": "false"}, headers=who(org))).json()["items"]
+    assert [p["t_ms"] for p in only] == [6000]
     assert (await client.get(url, headers=who(uuid.uuid4()))).status_code == 404

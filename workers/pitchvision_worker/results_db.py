@@ -19,7 +19,7 @@ from typing import Any
 from sqlalchemy import Engine, delete, insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from pitchvision_worker.repository import org_tx, players, stats_player, teams
+from pitchvision_worker.repository import org_tx, players, stats_player, stats_team, teams
 from pitchvision_worker.stages.load_db import POSITION_COLUMNS, LoadBatch
 
 COPY_SQL = "COPY positions (video_id, org_id, ts_ms, track_id, team, px, py, vx, vy, q) FROM STDIN"
@@ -87,9 +87,19 @@ def write_results(engine: Engine, org_id: uuid.UUID, video_id: uuid.UUID, batch:
         conn.execute(delete(stats_player).where(stats_player.c.video_id == video_id))
         ids = {r.track_id: r.id for r in conn.execute(
             select(players.c.track_id, players.c.id).where(players.c.video_id == video_id))}  # fmt: skip
+        extra = batch.possession.track if batch.possession else {}
         stat_rows = [{"video_id": video_id, "org_id": org_id, "player_id": ids[s.track_id], "revision": revision,
-                      "metrics": s.metrics()} for s in batch.track_stats if s.track_id in ids]  # fmt: skip
+                      "metrics": s.metrics() | extra.get(s.track_id, {})}
+                     for s in batch.track_stats if s.track_id in ids]  # fmt: skip
         for s in range(0, len(stat_rows), PLAYER_CHUNK):
             conn.execute(insert(stats_player).values(stat_rows[s:s + PLAYER_CHUNK]))
+        # S9 possession / passes per team cluster (current teams rows; the user's names don't matter here)
+        conn.execute(delete(stats_team).where(stats_team.c.video_id == video_id))
+        team_rows_ = [{"video_id": video_id, "org_id": org_id, "team_id": team_ids[cl], "revision": revision,
+                       "metrics": m} for cl, m in (batch.possession.team if batch.possession else {}).items()
+                      if cl in team_ids]  # fmt: skip
+        if team_rows_:
+            conn.execute(insert(stats_team).values(team_rows_))
     return {"positions": len(cols[0]), "positions_replaced": deleted, "teams": len(team_ids),
-            "players": len(rows), "players_removed": int(removed or 0), "stats_players": len(stat_rows)}
+            "players": len(rows), "players_removed": int(removed or 0), "stats_players": len(stat_rows),
+            "stats_teams": len(team_rows_)}

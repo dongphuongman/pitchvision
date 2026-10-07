@@ -36,12 +36,45 @@ describe('SCR-20 Analysis workspace', () => {
     const v = seed({ status: 'done', progress: 100, pitch_calibration: 'ok' });
     renderApp(`/videos/${v.id}/overview`, { auth: testSession() });
     const stats = await screen.findByRole('region', { name: 'Match stats' });
-    expect(await within(stats).findByText(/Tactical data for \d+% of match time/)).toBeInTheDocument();
+    expect(
+      await within(stats).findByText(/Tactical data for \d+% of match time/),
+    ).toBeInTheDocument();
     const distance = within(stats).getByRole('row', { name: /^Distance/ });
     expect(within(distance).getByText('2.7 km')).toBeInTheDocument(); // observed (mock: Σ team A tracks)
     expect(within(distance).getAllByText('Estimated')).toHaveLength(2);
-    expect(within(stats).getByRole('row', { name: /^Top speed/ })).toHaveTextContent(/33\.5 km\/h.*Track 1/);
-    expect(within(stats).getByRole('row', { name: /^Speed zones/ })).toHaveTextContent('8% sprinting');
+    expect(within(stats).getByRole('row', { name: /^Top speed/ })).toHaveTextContent(
+      /33\.5 km\/h.*Track 1/,
+    );
+    expect(within(stats).getByRole('row', { name: /^Speed zones/ })).toHaveTextContent(
+      '8% sprinting',
+    ); // M3-CV-02: possession + passes + possession over time (a minute per bar, click = watch it)
+    expect(within(stats).getByRole('row', { name: /^Possession/ })).toHaveTextContent(/58%.*42%/);
+    expect(within(stats).getByRole('row', { name: /^Passes/ })).toHaveTextContent(
+      '8 · 75% completed · 2 lost',
+    );
+    expect(within(stats).getAllByRole('listitem')).toHaveLength(12);
+    expect(
+      within(stats).getByRole('listitem', { name: /^0:00: Riverside FC \d+%/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('SCR-20d Passing: pass map + list for the chosen team, lost balls can be hidden', async () => {
+    const v = seed({ status: 'done', progress: 100, pitch_calibration: 'ok' });
+    const { router } = renderApp(`/videos/${v.id}/passing`, { auth: testSession() });
+    expect(await screen.findByTestId('pass-map')).toHaveAccessibleName(
+      'Pass map: 8 passes on the pitch',
+    );
+    const list = screen.getByRole('list', { name: 'Passes' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(8);
+    expect(within(list).getAllByLabelText('Lost')).toHaveLength(2);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('checkbox', { name: 'Show lost balls' }));
+    expect(within(list).getAllByRole('listitem')).toHaveLength(6);
+    expect(within(list).getAllByRole('button', { name: /^Watch the pass at / })).toHaveLength(6);
+    await user.click(screen.getByRole('combobox', { name: 'Team' }));
+    await user.click(await screen.findByRole('option', { name: 'Harbor City' }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ team: 1 }));
+    expect(await screen.findByText('3 passes · 3 completed')).toBeInTheDocument();
   });
 
   it('SCR-20c Heatmaps: team / track filters go to the URL and the request; average positions', async () => {
@@ -51,7 +84,9 @@ describe('SCR-20 Analysis workspace', () => {
       if (request.url.includes('/heatmap')) seen.push(new URL(request.url).search);
     });
     const { router } = renderApp(`/videos/${v.id}/heatmaps`, { auth: testSession() });
-    expect(await screen.findByTestId('heatmap')).toHaveAccessibleName('Heatmap of Both teams on the pitch');
+    expect(await screen.findByTestId('heatmap')).toHaveAccessibleName(
+      'Heatmap of Both teams on the pitch',
+    );
     const user = userEvent.setup();
     await user.click(screen.getByRole('combobox', { name: 'Team' }));
     await user.click(await screen.findByRole('option', { name: 'Harbor City' }));

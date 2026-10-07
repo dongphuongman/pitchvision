@@ -19,6 +19,8 @@ export type TeamStats = components['schemas']['TeamStats'];
 export type PlayerStats = components['schemas']['PlayerStats'];
 export type TopSpeed = components['schemas']['TopSpeed'];
 export type Heatmap = components['schemas']['HeatmapOut'];
+export type Pass = components['schemas']['PassOut'];
+export type PassList = components['schemas']['PassList'];
 
 export type Manifest = ManifestSchema.Manifest;
 export type TeamInfo = ManifestSchema.TeamInfo;

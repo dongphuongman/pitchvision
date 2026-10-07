@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { statsQuery } from '@/api/stats';
-import type { TeamInfo, TeamStats } from '@/api/types';
+import type { Stats, TeamInfo, TeamStats } from '@/api/types';
 import { useFormat } from '@/i18n/format';
 import { Badge, Skeleton, Tooltip } from '@/ui';
 
@@ -31,6 +31,7 @@ export function StatsPanel({ videoId, revision, teams, mainWidePct, onSeek }: St
   if (!s.available) return <p className="text-body-sm m-0 text-fg-2">{t('stats.unavailable')}</p>;
 
   const byCluster = new Map(s.teams.map((x) => [x.cluster, x]));
+  const hasPossession = s.teams.some((x) => x.possession_pct != null);
   const cols = teams.map((team) => ({ team, st: byCluster.get(team.cluster) }));
   const km = (m: number) =>
     fmt.number(m / 1000, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
@@ -87,6 +88,32 @@ export function StatsPanel({ videoId, revision, teams, mainWidePct, onSeek }: St
             </tr>
           </thead>
           <tbody>
+            {hasPossession &&
+              row(
+                t('stats.possession'),
+                (st) =>
+                  st.possession_pct != null ? (
+                    <PossessionCell st={st} color={teamColor(teams, st)} />
+                  ) : (
+                    '—'
+                  ),
+                t('stats.possessionHint'),
+              )}
+            {hasPossession &&
+              row(
+                t('stats.passes'),
+                (st) =>
+                  st.passes != null && st.passes > 0
+                    ? t('stats.passesValue', {
+                        count: st.passes,
+                        pct: fmt.number((100 * (st.passes_completed ?? 0)) / st.passes, {
+                          maximumFractionDigits: 0,
+                        }),
+                        lost: st.balls_lost ?? 0,
+                      })
+                    : '—',
+                t('stats.passesHint'),
+              )}
             {row(
               t('stats.distance'),
               (st) => (
@@ -152,6 +179,14 @@ export function StatsPanel({ videoId, revision, teams, mainWidePct, onSeek }: St
           </tbody>
         </table>
       </div>
+      {(s.possession_timeline ?? []).length > 0 && (
+        <PossessionTimeline
+          minutes={s.possession_timeline ?? []}
+          teams={teams}
+          onSeek={onSeek}
+          label={t('stats.possessionOverTime')}
+        />
+      )}
       <p className="m-0 text-caption text-fg-3">{t('stats.note')}</p>
     </section>
   );
@@ -192,5 +227,69 @@ function ZoneBar({ st, color }: { st: TeamStats; color: string }) {
         })}
       </span>
     </div>
+  );
+}
+
+function PossessionCell({ st, color }: { st: TeamStats; color: string }) {
+  const fmt = useFormat();
+  const pct = st.possession_pct ?? 0;
+  return (
+    <div className="grid max-w-[220px] gap-1">
+      <span>{fmt.number(pct, { maximumFractionDigits: 0 })}%</span>
+      <span className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3" aria-hidden="true">
+        <span className="block h-full" style={{ width: `${pct}%`, background: color }} />
+      </span>
+    </div>
+  );
+}
+
+/** SCR-20a E03: one bar per video minute, split by team; click a minute to watch it. */
+function PossessionTimeline({
+  minutes,
+  teams,
+  onSeek,
+  label,
+}: {
+  minutes: NonNullable<Stats['possession_timeline']>;
+  teams: readonly TeamInfo[];
+  onSeek: (ms: number) => void;
+  label: string;
+}) {
+  const { t } = useTranslation('video');
+  const fmt = useFormat();
+  const [a, b] = teams;
+  return (
+    <figure className="m-0 grid gap-1.5">
+      <figcaption className="text-caption text-fg-2">{label}</figcaption>
+      <div className="flex h-14 items-stretch gap-[2px]" role="list">
+        {minutes.map((m) => {
+          const ma = a ? (m.ms[String(a.cluster)] ?? 0) : 0;
+          const mb = b ? (m.ms[String(b.cluster)] ?? 0) : 0;
+          const tot = ma + mb;
+          const share = tot > 0 ? ma / tot : 0.5;
+          const name = t('stats.minuteLabel', {
+            minute: fmt.timecode(m.minute * 60_000),
+            a: a?.name ?? '',
+            pa: fmt.number(100 * share, { maximumFractionDigits: 0 }),
+            b: b?.name ?? '',
+            pb: fmt.number(100 * (1 - share), { maximumFractionDigits: 0 }),
+          });
+          return (
+            <button
+              key={m.minute}
+              type="button"
+              role="listitem"
+              aria-label={name}
+              title={name}
+              onClick={() => onSeek(m.minute * 60_000)}
+              className="flex min-w-[6px] flex-1 flex-col overflow-hidden rounded-[3px] opacity-90 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <span style={{ flexGrow: share, background: a?.color }} />
+              <span style={{ flexGrow: 1 - share, background: b?.color }} />
+            </button>
+          );
+        })}
+      </div>
+    </figure>
   );
 }

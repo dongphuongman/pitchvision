@@ -112,7 +112,7 @@ def test_write_results_idempotent_and_rls(tmp_path: Path, worker_db: Engine, app
     batch = prepare_load(tracks_file(tmp_path / "t.parquet"), {"stats": {"colors": {"0": "#112233"}}})
     first = write_results(worker_db, org, vid, batch, revision=3)
     assert first == {"positions": 40, "positions_replaced": 0, "teams": 2, "players": 3, "players_removed": 0,
-                     "stats_players": 2}  # fmt: skip
+                     "stats_players": 2, "stats_teams": 2}  # fmt: skip
     again = write_results(worker_db, org, vid, batch, revision=3)
     assert again["positions_replaced"] == 40 and again["positions"] == 40
 
@@ -121,6 +121,9 @@ def test_write_results_idempotent_and_rls(tmp_path: Path, worker_db: Engine, app
             "FROM stats_player s JOIN players p ON p.id = s.player_id WHERE s.video_id = :v ORDER BY 1", v=vid)
     assert [(r[0], r[1], r[2]) for r in st] == [(1, 3, "pv-stats/v1"), (2, 3, "pv-stats/v1")] and st[0][3] > 0
     assert _q(app_db, other, "SELECT count(*) FROM stats_player WHERE video_id = :v", v=vid) == [(0,)]
+    tm = _q(app_db, org, "SELECT t.cluster, s.metrics->>'version' FROM stats_team s JOIN teams t ON t.id = s.team_id "
+            "WHERE s.video_id = :v ORDER BY 1", v=vid)  # fmt: skip
+    assert tm == [(0, "pv-possession/v1"), (1, "pv-possession/v1")]
 
     # the API (pv_app) reads positions only through positions_org, filtered on its org
     cnt = "SELECT count(*), count(px), count(team) FROM positions_org WHERE video_id = :v"
