@@ -57,6 +57,14 @@ Done and on `main` (Python 913 tests, web 267 tests + 5 Playwright flows; Docker
 Contracts: `docs/contracts/identity-api.md` (plans, quota), `docs/contracts/pipeline-stages.md` (stages, keys,
 derived jobs, exports, notifications).
 
+- Tactical map demo (2026-10-07, PO: "PnLCalib, demo only"): `pitch_keypoints` in the registry = PnLCalib keypoint
+  HRNet exported to ONNX (`spikes/pnlcalib/`, GPL code + research-only weights git-ignored), decoded by our
+  `cv_core.pitch.HeatmapPitchModel`; loaded only with `PV_ALLOW_RESEARCH_MODELS=1` + `PV_ENV=local` (staging /
+  production refuse it). Highlight ESP–CZE: 28/33 wide shots usable. New derived job `repitch`
+  (`POST /results/{v}/repitch`) re-runs only the pitch stage on a finished analysis. On the Mac: ~2.3 GB per
+  worker process → `PV_CPU_CONCURRENCY=1`; 4.7 s / keypoint frame in Docker CPU → use `keypoint_every_n=25` for
+  demos. No UI button for repitch yet. Replace with the licensed YOLOv11-pose model before any customer run.
+
 ## Next (doable on the Mac)
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after

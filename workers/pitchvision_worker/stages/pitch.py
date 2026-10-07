@@ -2,8 +2,10 @@
 
 Runs only when ``models/registry.yaml`` has a ``pitch_keypoints`` entry whose weights are present locally (sha256
 checked); otherwise it returns ``status = "unavailable"`` without writing anything and the job's pitch calibration
-is ``unavailable`` (``px, py`` stay NaN, tiles carry ``hq = null``). No keypoint model is registered in M1 yet: the
-SP-03 roboflow spike model is AGPL and must never be registered (G-LEGAL); M1-CV-05 delivers the licensed one.
+is ``unavailable`` (``px, py`` stay NaN, tiles carry ``hq = null``). The SP-03 roboflow spike model is AGPL and must
+never be registered (G-LEGAL); M1-CV-05 delivers the licensed one. Until then the registry carries PnLCalib's
+keypoint HRNet (``format: heatmap-world/v1``, ``research_only``): loaded only on a local machine that opted in
+(``research_models_allowed``) — an internal demo of the tactical map, never for customers.
 
 Per segment (``[t0, t1)`` on the normalized timeline):
 
@@ -20,8 +22,9 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -29,7 +32,14 @@ from typing import Any, Literal
 import numpy as np
 from cv_core.io.parquet import HOMOGRAPHY_VERSION, write_homography
 from cv_core.io.video import VideoReader
-from cv_core.pitch import HomographySmoother, PitchKeypointModel, PitchKeypoints, estimate_homography, h_quality
+from cv_core.pitch import (
+    HeatmapPitchModel,
+    HomographySmoother,
+    PitchKeypointModel,
+    PitchKeypoints,
+    estimate_homography,
+    h_quality,
+)
 from cv_core.registry import ModelChecksumError, ModelRegistry
 from cv_core.segments import segment_frames
 from pitchvision_schemas import PipelineConfig, Segment
@@ -54,6 +64,22 @@ class PitchOutput:
     stats: dict[str, Any] = field(default_factory=dict)
 
 
+def research_models_allowed(env: Mapping[str, str] | None = None) -> bool:
+    """Research-only weights (``research_only: true`` in the registry, e.g. PnLCalib) run only on a developer
+    machine that opted in: ``PV_ALLOW_RESEARCH_MODELS=1`` and ``PV_ENV`` local / test. Staging and production
+    never load them, whatever the flag says."""
+    e = os.environ if env is None else env
+    return e.get("PV_ALLOW_RESEARCH_MODELS") == "1" and (e.get("PV_ENV") or "local") in ("local", "test")
+
+
+def _refused(reg: ModelRegistry) -> str | None:
+    e = reg.entries.get(PITCH_MODEL)
+    if e is not None and e.extra.get("research_only") and not research_models_allowed():
+        return (f"{PITCH_MODEL!r} is research-only ({e.licence}); allowed only with PV_ALLOW_RESEARCH_MODELS=1 "
+                "in PV_ENV=local")
+    return None
+
+
 def pitch_model_registered(registry: ModelRegistry | None = None) -> bool:
     """Cheap check used by the orchestrator (the registry ships in the image; weights live on the GPU box)."""
     try:
@@ -61,7 +87,7 @@ def pitch_model_registered(registry: ModelRegistry | None = None) -> bool:
     except Exception as e:  # unreadable registry = no optional stages
         log.warning("model registry unreadable: %r", e)
         return False
-    return PITCH_MODEL in reg.entries
+    return PITCH_MODEL in reg.entries and _refused(reg) is None
 
 
 def load_pitch_model(registry: ModelRegistry | None = None, runtime: Any | None = None
@@ -73,6 +99,8 @@ def load_pitch_model(registry: ModelRegistry | None = None, runtime: Any | None 
         return None, f"model registry unreadable: {e}"
     if PITCH_MODEL not in reg.entries:
         return None, f"no {PITCH_MODEL!r} entry in models/registry.yaml"
+    if (why := _refused(reg)) is not None:
+        return None, why
     try:
         path = reg.resolve(PITCH_MODEL)
     except (FileNotFoundError, ModelChecksumError) as e:
@@ -81,6 +109,10 @@ def load_pitch_model(registry: ModelRegistry | None = None, runtime: Any | None 
         from pitchvision_worker.stages.models import runtime_from_env
 
         runtime = runtime_from_env()
+    entry = reg.entries[PITCH_MODEL]
+    if entry.extra.get("format") == "heatmap-world/v1":
+        return HeatmapPitchModel(runtime.model(str(path)), world=entry.extra["keypoints_world"],
+                                 threshold=float(entry.extra.get("threshold", 0.5))), "ok"  # fmt: skip
     return PitchKeypointModel(runtime.model(str(path))), "ok"
 
 

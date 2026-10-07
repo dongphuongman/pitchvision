@@ -203,7 +203,8 @@ def estimate_homography(kp: PitchKeypoints, template: PitchTemplate = FIFA_105x6
     w_img, h_img = kp.image_size
     m = cfg.border_frac * w_img
     xy, conf = np.asarray(kp.xy, float), np.asarray(kp.conf, float)
-    used = ((conf >= cfg.min_conf) & np.all(np.isfinite(xy), axis=1)
+    world_ok = np.all(np.isfinite(kp.world), axis=1) if kp.world is not None else np.ones(K, bool)
+    used = ((conf >= cfg.min_conf) & np.all(np.isfinite(xy), axis=1) & world_ok
             & (xy[:, 0] > m) & (xy[:, 0] < w_img - m) & (xy[:, 1] > m) & (xy[:, 1] < h_img - m))
     none = np.zeros(K, bool)
 
@@ -214,7 +215,7 @@ def estimate_homography(kp: PitchKeypoints, template: PitchTemplate = FIFA_105x6
     idx = np.flatnonzero(used)
     if len(idx) < cfg.min_points:
         return fail(f"{len(idx)} usable keypoints < {cfg.min_points}")
-    tpl = template.keypoints[: K]
+    tpl = np.asarray(kp.world, float) if kp.world is not None else template.keypoints[: K]
     src, dst, wts = tpl[idx], xy[idx], conf[idx]
     thr = cfg.ransac_px_frac * w_img
     if len(idx) == 4:

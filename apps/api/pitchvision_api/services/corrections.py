@@ -210,6 +210,20 @@ async def calibrate(session: AsyncSession, tasks: TaskQueue, settings: Settings,
     return CalibrationAccepted(job=JobOut.of(job), correction_id=corr.id, revision=video.revision)
 
 
+async def repitch(session: AsyncSession, tasks: TaskQueue, settings: Settings, principal: Principal,
+                  video_id: uuid.UUID) -> JobOut:  # fmt: skip
+    """Map the pitch again with the automatic model, reusing the latest analysis' detections and tracks (only the
+    pitch stage + stitch / tiles / positions run). The orchestrator fails it (HOMOGRAPHY_UNAVAILABLE) when the
+    deployment has no usable pitch model."""
+    video = await _locked_video(session, principal, video_id)
+    await jobs_service.ensure_no_active(session, principal, video.id)
+    parent = await repo.latest_done_job(session, principal.org_id, video_id)
+    if parent is None:
+        raise _no_analysis("Re-mapping the pitch reuses a finished analysis.")
+    job = await jobs_service.create_derived(session, tasks, settings, principal, video, parent, "repitch", {})
+    return JobOut.of(job)
+
+
 async def calibration_state(session: AsyncSession, principal: Principal, video_id: uuid.UUID) -> CalibrationState:
     if await videos_repo.get(session, principal.org_id, video_id) is None:
         raise not_found()

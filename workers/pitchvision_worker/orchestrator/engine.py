@@ -80,7 +80,9 @@ log = logging.getLogger(__name__)
 NORMALIZE, SHOTS, PLAN, CALIBRATE = "normalize", "shots", "plan", "calibrate"
 STITCH, TILES, LOAD_DB, MANIFEST = "stitch", "tiles", "load_db", "manifest"
 RECOMPUTE = "recompute"  # recalibrate jobs: manual-H re-projection in place of S5
-INHERITED = {"team_rerun": (NORMALIZE, SHOTS, PLAN), "recalibrate": (NORMALIZE, SHOTS, PLAN, CALIBRATE)}
+INHERITED = {"team_rerun": (NORMALIZE, SHOTS, PLAN), "recalibrate": (NORMALIZE, SHOTS, PLAN, CALIBRATE),
+             # + every infer:NNN of the parent: only the pitch stage runs again (a pitch model became available)
+             "repitch": (NORMALIZE, SHOTS, PLAN, CALIBRATE)}
 DETAIL_KEEP = ("kind", "parent_job_id", "inherit", "team_seeds", "calibration", "correction_id")  # set by the API
 SEEDS_FILE = "team_seeds.json"
 POST_STAGES = (STITCH, TILES, LOAD_DB, MANIFEST)  # S5, S7, S8 (cpu tasks) + the manifest (inline, last)
@@ -277,7 +279,10 @@ class _Run:
                                         retryable=False))  # fmt: skip
         ptasks = store.load_tasks(self.conn, parent_id)
         porigin = {str(k): str(v) for k, v in ((parent["detail"] or {}).get("inherit") or {}).items()}
-        for key in INHERITED[self.kind]:
+        wanted = list(INHERITED[self.kind])
+        if self.kind == "repitch":
+            wanted += sorted(k for k in ptasks if k.startswith("infer:"))
+        for key in wanted:
             prow = ptasks.get(key)
             if prow is None or prow["status"] != "done" or key in self.tasks:
                 continue
@@ -286,6 +291,16 @@ class _Run:
             store.update_task(self.conn, row, status="done", payload=prow.get("payload"), error=None,
                               backend="inherited", external_id=origin, finished_at=self.now)  # fmt: skip
             self.inherit[key] = origin
+        if self.kind == "repitch":
+            segs = ((ptasks.get(PLAN) or {}).get("payload") or {}).get("segments") or []
+            missing = [k for k in (*INHERITED["repitch"], *(infer_key(s["index"]) for s in segs))
+                       if k not in self.inherit]  # fmt: skip
+            if missing or parent["status"] != JobStatus.done.value:
+                self._fail_job(StageFailure(ErrorCode.INTERNAL, f"parent job {parent_id} is {parent['status']} / "
+                                            f"lacks {missing[:3]}: nothing to re-map", retryable=False))  # fmt: skip
+            if not self.deps.pitch_available():
+                self._fail_job(StageFailure(ErrorCode.HOMOGRAPHY_UNAVAILABLE, "no pitch model is available on this "
+                                            "deployment", retryable=False))  # fmt: skip
         if self.kind == "recalibrate":
             missing = [k for k in INHERITED["recalibrate"] if k not in self.inherit]
             if missing or parent["status"] != JobStatus.done.value:
@@ -376,6 +391,8 @@ class _Run:
         return segs
 
     def _pitch_enabled(self) -> bool:
+        if self.kind == "repitch":  # the inherited plan predates the model; availability was checked on inherit
+            return True
         return bool((self.tasks.get(PLAN, {}).get("payload") or {}).get("pitch"))
 
     def _inferring(self) -> bool:
@@ -683,7 +700,9 @@ class _Run:
         if self.kind == "recalibrate":
             pct += WEIGHTS["infer"]  # reused from the parent
         if segs:
-            seg_rows = [self.tasks.get(infer_key(s["index"])) for s in segs]
+            # repitch: the infer segments are inherited — the segment work left is the pitch stage
+            seg_key = pitch_key if self.kind == "repitch" else infer_key
+            seg_rows = [self.tasks.get(seg_key(s["index"])) for s in segs]
             n_done = sum(1 for r in seg_rows if r and r["status"] == "done")
             running = sum(1 for r in seg_rows if r and r["status"] == "running")
             counts = (n_done, running, len(segs))

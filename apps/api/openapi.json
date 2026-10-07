@@ -1844,6 +1844,85 @@
         }
       }
     },
+    "/api/v1/results/{video_id}/repitch": {
+      "post": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Post Repitch",
+        "description": "Detect the pitch again automatically (SCR-20 \"Map the pitch\"): a `repitch` job reuses the latest analysis'\ndetections and tracks and runs only the pitch stage + stitch / tiles / positions. It fails with\nHOMOGRAPHY_UNAVAILABLE when no pitch model is available here. Requires `Idempotency-Key`. 409 `no_analysis`.",
+        "operationId": "post_repitch_api_v1_results__video_id__repitch_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required. Unique per request.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Required. Unique per request."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/results/{video_id}/calibration/frame": {
       "get": {
         "tags": [
@@ -4033,7 +4112,8 @@
             "enum": [
               "analyze",
               "team_rerun",
-              "recalibrate"
+              "recalibrate",
+              "repitch"
             ],
             "title": "Kind",
             "description": "analyze · team_rerun (SCR-14 manual teams: re-runs S3 with the user's seeds, then S4…) · recalibrate (SCR-15 manual pitch calibration: CPU re-projection + new tiles revision, no GPU)",

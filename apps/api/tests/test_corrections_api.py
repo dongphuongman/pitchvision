@@ -405,3 +405,18 @@ async def test_attack_direction_and_player_fixes_reach_the_manifest(client: http
     assert m["track_overrides"] == [{"track_id": 4, "team": -1, "cls": 2}, {"track_id": 9, "team": 0, "cls": 1}]
     types = [c.type for c in await _rows(migrated, org, Correction, video_id=vid)]
     assert sorted(types) == ["players", "teams"]
+
+
+async def test_repitch_starts_a_derived_job(client: httpx.AsyncClient, migrated: Db, tasks: FakeTasks) -> None:
+    org = uuid.uuid4()
+    vid, job = await _analysed(migrated, org)
+    url = f"/api/v1/results/{vid}/repitch"
+    assert_problem(await client.post(url, headers=idem(org, "viewer")), 403, "FORBIDDEN")
+    r = await client.post(url, headers=idem(org))
+    assert r.status_code == 202, r.text
+    new = await _rows(migrated, org, Job, id=uuid.UUID(r.json()["id"]))
+    assert new[0].detail == {"kind": "repitch", "parent_job_id": str(job)}
+    assert tasks.sent[-1][0] == TASK_START_JOB
+    assert_problem(await client.post(url, headers=idem(org)), 409, "CONFLICT")  # one active job per video
+    vid2, _ = await _analysed(migrated, org, job_status="failed")
+    assert_problem(await client.post(f"/api/v1/results/{vid2}/repitch", headers=idem(org)), 409, "CONFLICT")

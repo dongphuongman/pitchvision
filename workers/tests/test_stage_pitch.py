@@ -150,3 +150,16 @@ def test_adapter_passes_shot_cuts(two_shot_clip: tuple[Path, list[np.ndarray]], 
     out = stage_registry.STAGES["pitch"](task, {"normalized": clip, "shots": shots}, tmp_path)
     assert seen == {"segment": seg, "cuts": [1000]}
     assert out.result["status"] == "unavailable" and out.result["segment"]["index"] == 1
+
+
+def test_research_only_pitch_model_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pitchvision_worker.stages.pitch import load_pitch_model, pitch_model_registered, research_models_allowed
+
+    assert research_models_allowed({}) is False
+    assert research_models_allowed({"PV_ALLOW_RESEARCH_MODELS": "1"}) is True  # PV_ENV defaults to local
+    assert research_models_allowed({"PV_ALLOW_RESEARCH_MODELS": "1", "PV_ENV": "staging"}) is False
+    assert research_models_allowed({"PV_ALLOW_RESEARCH_MODELS": "1", "PV_ENV": "production"}) is False
+    monkeypatch.delenv("PV_ALLOW_RESEARCH_MODELS", raising=False)
+    assert pitch_model_registered() is False  # the repo registry's PnLCalib entry is research-only
+    model, why = load_pitch_model()
+    assert model is None and "research-only" in why

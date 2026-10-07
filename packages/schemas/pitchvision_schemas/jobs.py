@@ -37,5 +37,5 @@ def can_transition(src: JobStatus, dst: JobStatus) -> bool:
 # - ``recalibrate`` (SCR-15 manual pitch calibration): reuses normalize, shots, plan, calibrate and the parent's
 #                    tracks.parquet; runs the CPU ``recompute`` stage (re-projection with the manual H), then S7 tiles
 #                    (new revision), S8 load-db and a new manifest. No GPU.
-JobKind = Literal["analyze", "team_rerun", "recalibrate"]
-JOB_KINDS: tuple[JobKind, ...] = ("analyze", "team_rerun", "recalibrate")
+JobKind = Literal["analyze", "team_rerun", "recalibrate", "repitch"]
+JOB_KINDS: tuple[JobKind, ...] = ("analyze", "team_rerun", "recalibrate", "repitch")

@@ -596,3 +596,47 @@ def test_timeout_counts_from_start_not_dispatch(h: Harness) -> None:
     h.sweep()
     row = h.tasks()["normalize"]
     assert row["status"] == "queued" and row["attempts"] == 1 and "timed out" in (row["error"] or "")
+
+
+def test_repitch_reuses_detections_and_runs_only_the_pitch_stage(h: Harness) -> None:
+    """An analysis made before a pitch model existed gets its tactical map without re-running S4."""
+    h.setup()
+    h.advance()
+    h.run_submitted()
+    assert h.job()["detail"]["pitch_calibration"] == "unavailable"
+    infer_calls = {k: v for k, v in h.stages.calls.items() if k.startswith("infer:")}
+    parent = h.job_id
+    h.pitch = True  # the model is now available
+    h.job_id = uuid.uuid4()
+    with org_tx(h.db, h.org) as c:
+        c.execute(text("INSERT INTO jobs (id, video_id, org_id, image_tag, config, created_by, detail) "
+                       "VALUES (:j, :v, :o, :t, :c, :u, :d)"),
+                  {"j": h.job_id, "v": h.video_id, "o": h.org, "t": TAG, "u": h.user,
+                   "c": json.dumps({"segment_target_s": 120}),
+                   "d": json.dumps({"kind": "repitch", "parent_job_id": str(parent)})})  # fmt: skip
+    h.advance()
+    stages = [t.stage for _, t in h.backend.submitted]
+    assert stages and set(stages) == {"pitch"}  # normalize / shots / calibrate / infer are inherited
+    job = h.job()  # progress follows the pitch segments, not the inherited infer ones
+    assert float(job["progress"]) == 15.0 and job["detail"]["segments"]["done"] == 0
+    h.run_submitted()
+    job = h.job()
+    assert job["status"] == "done" and job["detail"]["pitch_calibration"] == "ok"
+    assert {k: v for k, v in h.stages.calls.items() if k.startswith("infer:")} == infer_calls
+    xy = h.sql("SELECT count(px) FROM positions_org WHERE video_id = :v")[0]
+    assert xy[0] > 0
+
+
+def test_repitch_without_a_pitch_model_fails_cleanly(h: Harness) -> None:
+    h.setup()
+    h.advance()
+    h.run_submitted()
+    parent, h.job_id = h.job_id, uuid.uuid4()
+    with org_tx(h.db, h.org) as c:
+        c.execute(text("INSERT INTO jobs (id, video_id, org_id, image_tag, config, created_by, detail) "
+                       "VALUES (:j, :v, :o, :t, '{}', :u, :d)"),
+                  {"j": h.job_id, "v": h.video_id, "o": h.org, "t": TAG, "u": h.user,
+                   "d": json.dumps({"kind": "repitch", "parent_job_id": str(parent)})})  # fmt: skip
+    h.advance()
+    job = h.job()
+    assert job["status"] == "failed" and job["error"]["code"] == "HOMOGRAPHY_UNAVAILABLE"

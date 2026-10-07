@@ -50,6 +50,9 @@ x-pv-env: &pv-env
   # Observability (AD §17, M1-OPS-08): Sentry when a DSN is set; GET /metrics needs this bearer outside local.
   PV_SENTRY_DSN: ${PV_SENTRY_DSN:-}
   PV_METRICS_TOKEN: ${PV_METRICS_TOKEN:-}
+  # 1 = load research-only models (registry `research_only`, e.g. the PnLCalib pitch model) — honoured only with
+  # PV_ENV=local; staging / production refuse them whatever this says.
+  PV_ALLOW_RESEARCH_MODELS: ${PV_ALLOW_RESEARCH_MODELS:-0}
 
 # identity-svc: global control plane. Self-host = its own database on the same Postgres server.
 x-identity-env: &identity-env

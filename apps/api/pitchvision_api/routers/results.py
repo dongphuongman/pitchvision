@@ -141,6 +141,16 @@ async def post_calibration(video_id: uuid.UUID, body: CalibrationIn, request: Re
     return await idem.respond(accepted, status_code=202)
 
 
+@router.post("/{video_id}/repitch", status_code=202, response_model=JobOut)
+async def post_repitch(video_id: uuid.UUID, request: Request, principal: EditorPrincipal, session: DbSession,
+                       settings: SettingsDep, idem: Idem) -> JSONResponse:  # fmt: skip
+    """Detect the pitch again automatically (SCR-20 "Map the pitch"): a `repitch` job reuses the latest analysis'
+    detections and tracks and runs only the pitch stage + stitch / tiles / positions. It fails with
+    HOMOGRAPHY_UNAVAILABLE when no pitch model is available here. Requires `Idempotency-Key`. 409 `no_analysis`."""
+    job = await corrections.repitch(session, _tasks(request), settings, principal, video_id)
+    return await idem.respond(job, status_code=202)
+
+
 @router.get("/{video_id}/calibration/frame")
 async def get_calibration_frame(
     video_id: uuid.UUID,

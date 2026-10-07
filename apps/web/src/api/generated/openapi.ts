@@ -429,6 +429,28 @@ export interface paths {
     patch: operations['patch_players_api_v1_results__video_id__players_patch'];
     trace?: never;
   };
+  '/api/v1/results/{video_id}/repitch': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Post Repitch
+     * @description Detect the pitch again automatically (SCR-20 "Map the pitch"): a `repitch` job reuses the latest analysis'
+     *     detections and tracks and runs only the pitch stage + stitch / tiles / positions. It fails with
+     *     HOMOGRAPHY_UNAVAILABLE when no pitch model is available here. Requires `Idempotency-Key`. 409 `no_analysis`.
+     */
+    post: operations['post_repitch_api_v1_results__video_id__repitch_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/results/{video_id}/teams': {
     parameters: {
       query?: never;
@@ -1296,7 +1318,7 @@ export interface components {
        * @default analyze
        * @enum {string}
        */
-      kind: 'analyze' | 'team_rerun' | 'recalibrate';
+      kind: 'analyze' | 'team_rerun' | 'recalibrate' | 'repitch';
       /**
        * Parent Job Id
        * @description derived jobs: the job whose finished stages they reuse
@@ -3175,6 +3197,49 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['PlayerList'];
+        };
+      };
+    };
+  };
+  post_repitch_api_v1_results__video_id__repitch_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Required. Unique per request. */
+        'Idempotency-Key'?: string | null;
+      };
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['JobOut'];
         };
       };
     };

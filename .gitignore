@@ -37,3 +37,11 @@ coverage/
 
 # staging deploy marker (infra/staging/deploy.sh)
 infra/staging/.deployed-tag
+
+# PnLCalib spike (GPL code, research-only weights, large files)
+spikes/pnlcalib/repo/
+spikes/pnlcalib/weights/
+spikes/pnlcalib/.venv/
+spikes/pnlcalib/out*/
+spikes/pnlcalib/*.mp4
+spikes/pnlcalib/shot_mids.txt

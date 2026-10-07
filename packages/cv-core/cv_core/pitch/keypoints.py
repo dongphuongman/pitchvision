@@ -63,13 +63,16 @@ def letterbox(img: np.ndarray, size: tuple[int, int]) -> tuple[np.ndarray, Lette
 
 @dataclass(frozen=True, slots=True)
 class PitchKeypoints:
-    """One pitch instance: ``xy [K, 2]`` source px, ``conf [K]`` 0..1 (visibility × localisation confidence)."""
+    """One pitch instance: ``xy [K, 2]`` source px, ``conf [K]`` 0..1 (visibility × localisation confidence).
+    ``world [K, 2]`` (metres, template frame) when the model's keypoints are not the template's 32
+    (``HeatmapPitchModel``); ``None`` = keypoint ``i`` is ``template.keypoints[i]``."""
 
     xy: np.ndarray
     conf: np.ndarray
     box: np.ndarray        # [4] xyxy source px
     score: float           # instance (class) score
     image_size: tuple[int, int]  # (w, h) of the source frame
+    world: np.ndarray | None = None
 
     @property
     def num_keypoints(self) -> int:

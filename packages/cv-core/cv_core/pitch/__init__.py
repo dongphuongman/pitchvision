@@ -1,5 +1,6 @@
 """Pitch calibration (S3/S4, AD §6): FIFA template, keypoint model, homography, line-alignment h_quality, smoothing."""
 from cv_core.pitch.grass import PitchMask, grass_mask
+from cv_core.pitch.heatmap import HeatmapPitchModel
 from cv_core.pitch.homography import (
     HomographyConfig,
     HomographyEstimate,
@@ -27,6 +28,7 @@ __all__ = [
     "NUM_KEYPOINTS",
     "Alignment",
     "FIFA_105x68",
+    "HeatmapPitchModel",
     "HomographyConfig",
     "HomographyEstimate",
     "HomographySmoother",

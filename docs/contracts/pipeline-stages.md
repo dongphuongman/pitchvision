@@ -151,6 +151,7 @@ parent_job_id, inherit, team_seeds, calibration, correction_id` survive progress
 |---|---|---|---|
 | `team_rerun` | normalize, shots, plan (when done in the parent — e.g. the job that failed `TEAM_SEPARATION_FAILED`) | calibrate with input `seeds` (`detail.team_seeds` → `results/…/jobs/{job}/inputs/team_seeds.json`), then infer / pitch / stitch / tiles / load_db / manifest as usual (GPU) | `POST /results/{v}/teams/manual` |
 | `recalibrate` | normalize, shots, plan, calibrate (parent must be `done`) | `recompute` (CPU) → tiles → load_db → manifest; no GPU stage | `POST /results/{v}/calibration` |
+| `repitch` | normalize, shots, plan, calibrate + every `infer:NNN` (parent must be `done`) | `pitch:NNN` → stitch → tiles → load_db → manifest; fails `HOMOGRAPHY_UNAVAILABLE` when no pitch model is usable here | `POST /results/{v}/repitch` |
 
 **Revisions.** `POST /calibration` bumps `videos.revision` (AD §8.4) in the same transaction as its `corrections` row
 and the job; the recalibrate job's tiles go to `keys.tile_key(org, video, NEW job, revision, n)` and the new manifest
