@@ -1,7 +1,7 @@
 ---
 status: in-progress
 branch: main → origin https://github.com/dongphuongman/pitchvision (private), everything pushed; check the last CI run
-timestamp: 2026-10-07
+timestamp: 2026-10-07 (evening)
 ---
 
 # PitchVision AI — handoff
@@ -63,9 +63,19 @@ derived jobs, exports, notifications).
   production refuse it). Highlight ESP–CZE: 28/33 wide shots usable. New derived job `repitch`
   (`POST /results/{v}/repitch`) re-runs only the pitch stage on a finished analysis. On the Mac: ~2.3 GB per
   worker process → `PV_CPU_CONCURRENCY=1`; 4.7 s / keypoint frame in Docker CPU → use `keypoint_every_n=25` for
-  demos. No UI button for repitch yet. Replace with the licensed YOLOv11-pose model before any customer run.
+  demos. Replace with the licensed YOLOv11-pose model before any customer run.
+- Later the same day: "Map the pitch automatically" button (SCR-20 pitch banner; shown when the orchestrator
+  advertises `pv:cap:pitch_model` in Redis → `GET /meta pitch_model`); camera tracking between keyframes in the
+  pitch stage (`cv_core.pitch.motion`, mean h_quality 0.812 vs 0.778 interpolated); labelling tool
+  `training/keypoints/label_tool.py` (writes pv-pitch-keypoints/v1, never pre-fill from research models); fixes:
+  stage timeouts count from `job_tasks.running_since` (migration 0011), progress includes the pitch stage, Google
+  button hidden when not configured (`GET /auth/providers`), orgs only in served regions (`PV_REGIONS`).
+- Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
+0. Pick up from here: label frames with the tool (needs a person, ~300 frames) → GPU run (README recipe) to replace
+   PnLCalib; manual-H propagation with camera tracking (recompute must decode the video); first stats from
+   positions (distance, speed, heatmaps); mobile bottom sheets.
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.
