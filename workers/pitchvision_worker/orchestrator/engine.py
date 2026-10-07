@@ -706,7 +706,14 @@ class _Run:
             n_done = sum(1 for r in seg_rows if r and r["status"] == "done")
             running = sum(1 for r in seg_rows if r and r["status"] == "running")
             counts = (n_done, running, len(segs))
-            pct += WEIGHTS["infer"] * n_done / len(segs)
+            share = n_done / len(segs)
+            if self.kind != "repitch" and self._pitch_enabled():
+                # a segment is finished when both its S4 and its pitch task are (pitch can outlast S4 on CPU);
+                # a failed pitch task counts as finished (optional stage)
+                p_done = sum(1 for s in segs if (self.tasks.get(pitch_key(s["index"])) or {}).get("status")
+                             in ("done", "failed"))  # fmt: skip
+                share = (n_done + p_done) / (2 * len(segs))
+            pct += WEIGHTS["infer"] * share
             eta_s = self._eta(seg_rows, len(segs) - n_done, running)
         post = self._post_stages()
         pct += WEIGHTS["post"] * sum(1 for k in post if k in done) / len(post)

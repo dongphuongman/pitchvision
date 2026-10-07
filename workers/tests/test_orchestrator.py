@@ -640,3 +640,17 @@ def test_repitch_without_a_pitch_model_fails_cleanly(h: Harness) -> None:
     h.advance()
     job = h.job()
     assert job["status"] == "failed" and job["error"]["code"] == "HOMOGRAPHY_UNAVAILABLE"
+
+
+def test_progress_waits_for_the_pitch_stage(h: Harness) -> None:
+    """S4 done but pitch still running must not read as 95 %."""
+    h.pitch = True
+    h.setup()
+    h.advance()
+    h.run_submitted(skip_stages=("pitch",))
+    job = h.job()
+    assert job["status"] == "inferring"
+    # normalize 5 + shots 5 + calibrate 5 + infer 80 × (4 S4 done + 0 pitch) / 8
+    assert float(job["progress"]) == 55.0
+    h.run_submitted()
+    assert h.job()["status"] == "done" and float(h.job()["progress"]) == 100.0
