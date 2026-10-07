@@ -6,7 +6,7 @@ import { IconButton } from './IconButton';
 import { useUiStrings } from './strings';
 
 /** UIUX modal sizes; widths follow the prototype (`.modal.sm` 480 / `.modal` 660 / `.modal.lg` 920). */
-const SIZES = { sm: 'sm:w-[480px]', md: 'sm:w-[660px]', lg: 'sm:w-[920px]' } as const;
+const SIZES = { sm: 'md:w-[480px]', md: 'md:w-[660px]', lg: 'md:w-[920px]' } as const;
 
 export interface DialogProps {
   open?: boolean;
@@ -26,7 +26,7 @@ export interface DialogProps {
 
 /**
  * Prototype `.mbg` + `.modal` (`.mhd` / `.mbd` / `.mft`). Focus is trapped, Esc and the overlay
- * close it, focus returns to the trigger. Below 640px it becomes a full-screen sheet (UIUX §9).
+ * close it, focus returns to the trigger. Below 768px it becomes a full-screen sheet (UIUX §09: < 768 "modal thành full-screen sheet").
  */
 export function Dialog({
   open,
@@ -50,7 +50,7 @@ export function Dialog({
           {...(description ? {} : { 'aria-describedby': undefined })}
           className={cn(
             'fixed z-[81] flex flex-col overflow-hidden border border-line bg-surface-1 text-fg shadow-pop outline-none',
-            'inset-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[calc(100vh-48px)] sm:max-w-[calc(100vw-48px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl',
+            'inset-0 md:inset-auto md:top-1/2 md:left-1/2 md:max-h-[calc(100vh-48px)] md:max-w-[calc(100vw-48px)] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl',
             SIZES[size],
             className,
           )}

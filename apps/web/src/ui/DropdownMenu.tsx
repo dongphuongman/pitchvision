@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { DropdownMenu as RadixMenu } from 'radix-ui';
 import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { menuContentClasses, menuItemClasses } from './classes';
+import { menuContentClasses, menuItemClasses, sheetClasses } from './classes';
 
 export const DropdownMenu = RadixMenu.Root;
 export const DropdownMenuTrigger = RadixMenu.Trigger;
@@ -15,14 +15,19 @@ export const DropdownMenuContent = forwardRef<
 >(function DropdownMenuContent({ className, sideOffset = 6, align = 'end', ...rest }, ref) {
   return (
     <RadixMenu.Portal>
-      <RadixMenu.Content
-        ref={ref}
-        sideOffset={sideOffset}
-        align={align}
-        collisionPadding={8}
-        className={cn(menuContentClasses, className)}
-        {...rest}
-      />
+      {/* the portal takes one child; it only mounts while open. < 768 px: a bottom sheet over a scrim (UIUX §09) */}
+      <div className="contents">
+        <div aria-hidden="true" className="fixed inset-0 z-[84] bg-overlay md:hidden" />
+        <RadixMenu.Content
+          ref={ref}
+          sideOffset={sideOffset}
+          align={align}
+          collisionPadding={8}
+          data-pv-sheet=""
+          className={cn(menuContentClasses, sheetClasses, className)}
+          {...rest}
+        />
+      </div>
     </RadixMenu.Portal>
   );
 });
@@ -87,7 +92,8 @@ export const DropdownMenuSubContent = forwardRef<
         ref={ref}
         sideOffset={sideOffset}
         collisionPadding={8}
-        className={cn(menuContentClasses, className)}
+        data-pv-sheet=""
+        className={cn(menuContentClasses, sheetClasses, className)}
         {...rest}
       />
     </RadixMenu.Portal>

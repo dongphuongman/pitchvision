@@ -66,6 +66,16 @@ export const controlClasses = cn(
 export const menuContentClasses =
   'z-[85] min-w-[220px] overflow-auto rounded-xl border border-line-strong bg-surface-1 p-1.5 text-fg shadow-pop';
 
+/** < 768 px: a menu is a bottom sheet (UIUX §09). The popper wrapper is pinned to the bottom edge in
+ * styles/index.css (`[data-pv-sheet]`); these restyle the panel: full width, top corners only, a grabber,
+ * 70 % of the screen at most, finger-sized rows, clear of the home indicator. */
+export const sheetClasses = cn(
+  'max-md:relative max-md:max-h-[70dvh] max-md:w-screen max-md:max-w-none max-md:rounded-none max-md:rounded-t-2xl max-md:border-x-0 max-md:border-b-0',
+  'max-md:px-2 max-md:pt-5 max-md:pb-[max(12px,env(safe-area-inset-bottom))]',
+  'max-md:before:absolute max-md:before:top-2 max-md:before:left-1/2 max-md:before:h-1 max-md:before:w-9 max-md:before:-translate-x-1/2 max-md:before:rounded-full max-md:before:bg-line-strong',
+  'max-md:[&_[role=menuitem]]:min-h-12 max-md:[&_[role=menuitem]]:text-base',
+);
+
 /** Prototype `.menu a`. Highlight follows keyboard focus (data-highlighted). */
 export const menuItemClasses = cn(
   'relative flex cursor-default items-center gap-2.5 rounded-sm px-2.5 py-2 text-control text-fg outline-none select-none',

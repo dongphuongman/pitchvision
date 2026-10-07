@@ -170,3 +170,14 @@
     }
   }
 }
+
+/* UIUX §09: below 768 px a dropdown menu is a bottom sheet. Radix positions its popper wrapper with an inline
+   transform; pin the wrapper of our menus (`data-pv-sheet`, ui/DropdownMenu) to the bottom edge instead. */
+@media (max-width: 767.98px) {
+  [data-radix-popper-content-wrapper]:has(> [data-pv-sheet]) {
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    transform: none !important;
+    min-width: 0 !important;
+  }
+}

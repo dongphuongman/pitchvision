@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { applySession } from '@/auth/session';
@@ -195,6 +195,15 @@ describe('SCR-10 Library', () => {
         .getAllByRole('menuitem')
         .map((i) => i.textContent),
     ).toEqual(items);
+  });
+
+  it('right-click / press-and-hold on a card opens its ⋮ menu (UIUX §09)', async () => {
+    seed('Derby', DONE);
+    renderApp('/library');
+    const card = await screen.findByRole('article', { name: 'Derby' });
+    expect(fireEvent.contextMenu(card)).toBe(false); // the browser's own menu is suppressed
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: 'Rename' })).toBeInTheDocument();
   });
 
   it('viewer: no ⋮ menu on an uploading video (nothing to do)', async () => {

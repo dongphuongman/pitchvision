@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import {
   FilePen,
   MoreVertical,
@@ -16,6 +16,7 @@ import { can } from '@/auth/roles';
 import { useRole } from '@/auth/session';
 import { useFormat } from '@/i18n/format';
 import { cn } from '@/lib/cn';
+import { useLongPress } from '@/lib/useLongPress';
 import {
   Badge,
   DropdownMenu,
@@ -67,6 +68,7 @@ export function VideoCard({ video, view, onAction }: VideoCardProps) {
       : tc(`status.video.${status}`);
   const meta = metaLine(video, status, job, { t, te, fmt });
 
+  const [menuOpen, setMenuOpen] = useState(false);
   const isEditor = can(role, 'editor');
   const items: { key: string; node: ReactNode }[] = [];
   if (target) {
@@ -121,7 +123,7 @@ export function VideoCard({ video, view, onAction }: VideoCardProps) {
 
   const menu =
     items.length > 0 ? (
-      <DropdownMenu modal={false}>
+      <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <IconButton
             label={t('card.menu', { title })}
@@ -182,6 +184,11 @@ export function VideoCard({ video, view, onAction }: VideoCardProps) {
     />
   ) : null;
 
+  // UIUX §09: press-and-hold (or right-click) anywhere on the card opens its ⋮ menu — a bottom sheet on phones
+  const longPress = useLongPress(() => setMenuOpen(true));
+  const pressable = menu ? longPress : {};
+  const noCallout = menu && '[-webkit-touch-callout:none]';
+
   const heading = target ? (
     <TargetLink
       target={target}
@@ -197,7 +204,11 @@ export function VideoCard({ video, view, onAction }: VideoCardProps) {
     return (
       <article
         aria-label={title}
-        className="group relative flex items-center gap-4 rounded-xl border border-line bg-surface-1 p-2.5 pr-3.5 transition-colors hover:border-line-strong"
+        className={cn(
+          'group relative flex items-center gap-4 rounded-xl border border-line bg-surface-1 p-2.5 pr-3.5 transition-colors hover:border-line-strong',
+          noCallout,
+        )}
+        {...pressable}
       >
         <Thumb video={video} className="w-[136px] shrink-0 rounded-lg" progress={progress} />
         <div className="min-w-0 flex-1">
@@ -216,7 +227,11 @@ export function VideoCard({ video, view, onAction }: VideoCardProps) {
   return (
     <article
       aria-label={title}
-      className="group relative rounded-xl border border-line bg-surface-1 transition-[border-color,transform] duration-[120ms] hover:-translate-y-px hover:border-line-strong"
+      className={cn(
+        'group relative rounded-xl border border-line bg-surface-1 transition-[border-color,transform] duration-[120ms] hover:-translate-y-px hover:border-line-strong',
+        noCallout,
+      )}
+      {...pressable}
     >
       <Thumb
         video={video}
