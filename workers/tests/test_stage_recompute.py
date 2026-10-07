@@ -8,7 +8,12 @@ import pytest
 from cv_core.io.parquet import read_tracks, write_tracks
 from cv_core.pitch import FIFA_105x68, project
 from pitchvision_schemas import PipelineConfig, Shot, ShotTimeline, ShotType
-from pitchvision_worker.stages.recompute import ManualCalibrationInvalid, manual_homography, run_recompute
+from pitchvision_worker.stages.recompute import (
+    ManualCalibrationInvalid,
+    manual_homography,
+    run_recompute,
+    track_manual_h,
+)
 
 H_P2I = np.array([[10.0, 2.0, 100.0], [0.0, 8.0, 50.0], [0.0, 0.002, 1.0]])  # pitch metres → image px (perspective)
 TL = ShotTimeline(shots=[Shot(t0_ms=0, t1_ms=4000, type=ShotType.main_wide, conf=0.9),
@@ -173,3 +178,73 @@ def test_an_unreadable_video_falls_back_to_the_fixed_h(tmp_path: Path) -> None:
     out = run_recompute(_panning_tracks(tmp_path / "in.parquet"), TL, tmp_path / "out", PipelineConfig(),
                         points=_clicks_on_frame(50), frame_ms=2000, scope="shot", normalized=bad)
     assert out.stats["camera_tracked_frames"] == 0 and out.rows == 100
+
+
+# ---------------------------------------------------------------- line re-anchoring (M1-CV-20)
+PW_, PH_ = 960, 540
+
+
+def _cam(target_x: float) -> np.ndarray:
+    """Pinhole main camera behind the near touchline aimed at (target_x, 34): H pitch → image."""
+    C = np.array([52.5, 68.0 + 40.0, -22.0])
+    f = np.array([target_x, 34.0, 0.0]) - C
+    f /= np.linalg.norm(f)
+    r = np.cross([0.0, 0.0, 1.0], f)
+    r /= np.linalg.norm(r)
+    R = np.stack([r, np.cross(f, r), f])
+    K = np.array([[820.0, 0, PW_ / 2], [0, 820.0, PH_ / 2], [0, 0, 1]])
+    Hc = (K @ np.c_[R, -R @ C])[:, [0, 1, 3]]
+    return Hc / Hc[2, 2]
+
+
+def _pitch_video(path: Path, n: int = 100) -> tuple[Path, list[np.ndarray]]:
+    """Camera pans from x = 40 m to 60 m; grass speckles fixed on the pitch so the camera motion is observable."""
+    import av
+    import cv2
+    from cv_core.pitch import render_lines
+
+    rng = np.random.default_rng(5)
+    specks = np.c_[rng.uniform(-5, 110, 6000), rng.uniform(-5, 73, 6000)]
+    shade = rng.integers(10, 22, 6000)
+    Hs = [_cam(40.0 + 20.0 * k / n) for k in range(n)]
+    with av.open(str(path), "w") as out:
+        st = out.add_stream("libx264", rate=25)
+        st.width, st.height, st.pix_fmt = PW_, PH_, "yuv420p"
+        st.options = {"crf": "14", "preset": "ultrafast"}
+        for Hk in Hs:
+            img = np.full((PH_, PW_, 3), (40, 130, 45), np.uint8)
+            for (x, y), g in zip(project(Hk, specks), shade, strict=True):
+                if 0 <= x < PW_ and 0 <= y < PH_:
+                    cv2.circle(img, (int(x), int(y)), 1, (35, int(130 - g), 40), -1)  # subtle + darker: never "white"
+            img = render_lines(Hk, (PW_, PH_), image=img, colour=(235, 240, 240), thickness=2)
+            out.mux(st.encode(av.VideoFrame.from_ndarray(cv2.GaussianBlur(img, (3, 3), 0), "bgr24")))
+        out.mux(st.encode(None))
+    return path, Hs
+
+
+def _sloppy_clicks(H_p2i: np.ndarray, k: int, dx: float, dy: float) -> list[dict[str, float]]:
+    idx = [i for i, (x, y) in enumerate(project(H_p2i, FIFA_105x68.keypoints)) if 5 < x < PW_ - 5 and 5 < y < PH_ - 5]
+    img = project(H_p2i, FIFA_105x68.keypoints[idx])
+    return [{"template_index": i, "x": float(x + dx), "y": float(y + dy), "frame_ms": k * 40}
+            for i, (x, y) in zip(idx, img, strict=True)]  # fmt: skip
+
+
+def _grid_err_px(H_i2p: np.ndarray, H_true_p2i: np.ndarray) -> float:
+    """Mean image distance (px) between where a visible pitch grid point really is and where H puts it."""
+    g = np.stack(np.meshgrid(np.linspace(0, 105, 36), np.linspace(0, 68, 24)), -1).reshape(-1, 2)
+    img = project(H_true_p2i, g)
+    vis = (img[:, 0] > 0) & (img[:, 0] < PW_) & (img[:, 1] > 0) & (img[:, 1] < PH_)
+    back = project(np.linalg.inv(H_i2p), g[vis])
+    return float(np.linalg.norm(back - img[vis], axis=1).mean())
+
+
+def test_line_anchors_correct_sloppy_clicks_across_the_shot(tmp_path: Path) -> None:
+    video, truth = _pitch_video(tmp_path / "normalized.mp4")
+    clicks = _sloppy_clicks(truth[50], 50, dx=5.0, dy=-3.0)  # every landmark clicked ~6 px off
+    H, _ = manual_homography(clicks)
+    plain = track_manual_h(video, 0, 100, 50, H, 0.9, 25.0, anchor=False)
+    fixed = track_manual_h(video, 0, 100, 50, H, 0.9, 25.0)
+    assert plain[3] == 0 and fixed[3] >= 3
+    before = np.mean([_grid_err_px(plain[0][k], truth[k]) for k in range(0, 100, 5)])
+    after = np.mean([_grid_err_px(fixed[0][k], truth[k]) for k in range(0, 100, 5)])
+    assert after < 0.5 * before, (before, after)

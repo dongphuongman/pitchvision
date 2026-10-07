@@ -10,7 +10,9 @@ keypoint HRNet (``format: heatmap-world/v1``, ``research_only``): loaded only on
 Per segment (``[t0, t1)`` on the normalized timeline):
 
 1. decode every ``config.keypoint_every_n``-th frame (sequential decode, one seek);
-2. keypoint model → ``estimate_homography`` → ``h_quality`` by line alignment (never the fit residual, SP-03);
+2. keypoint model → ``estimate_homography`` → ``cv_core.pitch.refine.refine_homography`` pulls the fit onto the
+   painted lines (M1-CV-20; kept only when line alignment improves) → ``h_quality`` by line alignment (never the fit
+   residual, SP-03);
 3. ``HomographySmoother.update`` with the measurement; ``reset`` at every shot cut inside the segment (``cuts_ms``
    from the S2b timeline: never smooth across a cut);
 4. ``smoother.at(f)`` for EVERY frame of the segment → per-frame image→pitch H (NaN rows when the smoother has
@@ -42,8 +44,10 @@ from cv_core.pitch import (
     PitchKeypoints,
     estimate_homography,
     h_quality,
+    line_mask,
 )
 from cv_core.pitch.motion import CameraMotion, propagate
+from cv_core.pitch.refine import refine_homography
 from cv_core.registry import ModelChecksumError, ModelRegistry
 from cv_core.segments import segment_frames
 from pitchvision_schemas import PipelineConfig, Segment
@@ -122,7 +126,7 @@ def load_pitch_model(registry: ModelRegistry | None = None, runtime: Any | None 
 
 def run_pitch(normalized: Path, segment: Segment, out_dir: Path, config: PipelineConfig | None = None, *,
               model: KeypointModel | None = None, cuts_ms: Sequence[int] = (),
-              registry: ModelRegistry | None = None, track_camera: bool = True) -> PitchOutput:
+              registry: ModelRegistry | None = None, track_camera: bool = True, refine: bool = True) -> PitchOutput:
     cfg = config or PipelineConfig()
     t_all = time.perf_counter()
     if model is None:
@@ -140,7 +144,7 @@ def run_pitch(normalized: Path, segment: Segment, out_dir: Path, config: Pipelin
     smoother = HomographySmoother(SMOOTH_WINDOW, image_size=reader.size, history=max(512, n_kf + 16))
     cuts = sorted({math.floor(c * fps / 1000 + 0.5) for c in cuts_ms} & set(range(i0 + 1, i1)))
     ci = 0
-    kp_frames = ok_frames = 0
+    kp_frames = ok_frames = refined = 0
     qualities: list[float] = []
     reasons: dict[str, int] = {}
     camera = CameraMotion()
@@ -148,21 +152,30 @@ def run_pitch(normalized: Path, segment: Segment, out_dir: Path, config: Pipelin
     keyframes: list[tuple[int, np.ndarray]] = []
 
     def measure(batch: list[tuple[int, np.ndarray]]) -> None:
-        nonlocal kp_frames, ok_frames, ci
+        nonlocal kp_frames, ok_frames, ci, refined
         for (idx, image), kp in zip(batch, model([im for _, im in batch]), strict=True):
             while ci < len(cuts) and cuts[ci] <= idx:
                 smoother.reset(cuts[ci])
                 ci += 1
             kp_frames += 1
             est = estimate_homography(kp)
-            q = h_quality(image, est.H_inv) if est.ok and est.H_inv is not None else 0.0
+            H, q = est.H, 0.0
+            if est.ok and est.H_inv is not None:
+                if refine:  # M1-CV-20: pull the keypoint fit onto the painted lines (kept only if h_quality rises)
+                    r = refine_homography(line_mask(image), est.H_inv)
+                    q = r.quality
+                    if r.accepted:
+                        H = np.linalg.inv(r.H_p2i)
+                        refined += 1
+                else:
+                    q = h_quality(image, est.H_inv)
             if est.ok:
                 ok_frames += 1
                 qualities.append(q)
             else:
                 key = est.reason.split(" (")[0]
                 reasons[key] = reasons.get(key, 0) + 1
-            smoother.update(idx, est.H, q)
+            smoother.update(idx, H, q)
 
     cut_set = set(cuts)
     for batch in reader.batches(BATCH):
@@ -200,7 +213,8 @@ def run_pitch(normalized: Path, segment: Segment, out_dir: Path, config: Pipelin
                 tracked += 1
     with_h = int(np.isfinite(Hs[:, 0, 0]).sum())
     stats = {"segment": segment.model_dump(), "keypoint_every_n": every, "keypoint_frames": kp_frames,
-             "estimates_ok": ok_frames, "frames_with_h": with_h, "frames_camera_tracked": tracked, "cuts": cuts,
+             "estimates_ok": ok_frames, "estimates_refined": refined,
+             "frames_with_h": with_h, "frames_camera_tracked": tracked, "cuts": cuts,
              "mean_measured_quality": round(float(np.mean(qualities)), 4) if qualities else None,
              "rejections": reasons}  # fmt: skip
     meta = {"stage": "pitch", "version": HOMOGRAPHY_VERSION, "fps": fps, "segment": segment.model_dump(),
