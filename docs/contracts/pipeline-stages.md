@@ -194,6 +194,17 @@ comes back. Used by the pitch stage on every keypoint estimate (`stats.estimates
 Measured: synthetic perturbations 7–36 px → 0.8–2.3 px; 15 real golden frames (PnLCalib keypoints) mean h_quality
 0.666 → 0.738, ~50 ms per frame incl. the line mask.
 
+**Stats (S9, M3 — early).** Computed inside the S8 `load_db` task (`pitchvision_worker.stages.stats.run_stats`, same
+tracks + revision) and written to `stats_player` (one row per `players` row = per track until ReID; metrics JSON
+`pv-stats/v1`: `observed_s`, `distance_m`, `zones_m` {walk < 7.2, jog, run, sprint ≥ 25.2 km/h}, `top_speed_kmh`
++ `top_speed_ms`, `sprints` (≥ 25.2 km/h for ≥ 1 s), `avg_x/avg_y`, `cov`). Observed = people (no ball) with
+finite px/py and `h_quality ≥ 0.5`, runs ≥ 1 s; Gaussian smoothing σ 0.3 s (odd-reflection padding), steps
+> 10.5 m/s dropped. The API (`GET /results/{v}/stats`) sums tracks into teams with the CURRENT `players` team /
+role (referees and teamless tracks excluded), so SCR-14 fixes count without a re-run; `estimated_distance_m` =
+m per observed player-minute × 11 × video minutes, labelled "Estimated" in the UI. `GET /results/{v}/heatmap`
+bins the 5 Hz `positions_org` (q ≥ 0.5, no ball / referees) on 2.5 m cells, by team / track / time. `stats_team`
+stays unused (teams are derived at read time). Analyses made before S9 return `available: false`.
+
 **Stills.** `cpu.extract_frame {org_id, video_id, t_ms}` (`pitchvision_worker.frames`): t snapped to the 25 fps grid,
 ffmpeg input-seeks normalized.mp4 through a 5-min presigned URL, JPEG cached at `keys.frame_key` (`media/…/frames/
 {t_ms:09d}.jpg`, erased with the video). The API calls it synchronously (`PV_FRAME_TASK_TIMEOUT_S`, 20 s) only when

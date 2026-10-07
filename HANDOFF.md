@@ -46,7 +46,9 @@ Done and on `main` (Python 913 tests, web 267 tests + 5 Playwright flows; Docker
   (API migration 0009, `/api/v1/saved-teams`, remembered on team confirm, suggested in SCR-14).
 - Responsive (UIUX §09): ☰ below 1024 px, SCR-20 Video / Map / Both below 1024 px, view-only workspace and
   "Best on a larger screen" on SCR-14/15 below 768 px; `e2e/mobile.spec.ts` checks 390 px for horizontal overflow.
-  Not done: context menus as long-press bottom sheets (they stay dropdowns).
+  Menus are bottom sheets below 768 px (ui/DropdownMenu: `data-pv-sheet` + scrim, wrapper pinned in
+  styles/index.css) and dialogs full-screen sheets below 768 px (was 640); press-and-hold / right-click on a
+  library card opens its ⋮ menu (`lib/useLongPress`). Exports rows keep the visible ⋯ button only.
 - Staging prep (M1-OPS-07/08): `infra/staging/` (README = runbook): one VM, Compose overlay with GHCR images,
   Caddy HTTPS on `<ip>.sslip.io` (no domain needed), Prometheus + Alertmanager (`infra/observability/alerts.yml`),
   `deploy.sh` (pull → migrate → up → readyz → smoke → rollback), `smoke.sh`, Actions `deploy-staging` (manual,
@@ -89,12 +91,24 @@ derived jobs, exports, notifications).
   the camera chain on the lines every 25 frames + on the clicked frame (`track_manual_h(anchor=True)`,
   `stats.line_anchors`). Real frames: mean h_quality 0.666 → 0.738 per frame; a 30 s pitch-stage run 0.552 → 0.567
   (smoothing/interpolated frames dilute it); ~50 ms per keyframe. Sloppy clicks (~6 px) → 14 px → 2.7 px over a shot.
+- Compose check of the manual-calibration chain (2026-10-07, night): recalibrate job on the ESP–CZE highlight (24 s
+  wide shot, 8 simulated clicks ±4 px) done in 10 s; 601/601 frames camera-tracked, 16 line anchors. Mean line
+  alignment over the shot: fixed H 0.178 → camera 0.308 → camera + lines 0.521 (frames ≥ 0.5: 0 → 22 → 63 %). Done
+  with `PV_DEV_AUTH=1 docker compose up -d api` (local only) instead of touching the owner's password; that video now
+  serves the manual calibration (revision 1) — "Map the pitch automatically" (repitch) puts the automatic one back.
+- M3 early — stats from positions (2026-10-07, night): S9 `pitchvision_worker.stages.stats` runs inside the S8
+  `load_db` task → `stats_player` (per track); API `GET /results/{v}/stats` (teams summed with the current
+  player team / role; `estimated_distance_m` labelled) and `GET /results/{v}/heatmap` (5 Hz positions, 2.5 m cells,
+  team / track / time); web SCR-20a stats table (coverage badge, Estimated, top speed seeks) + SCR-20c Heatmaps tab
+  (`?team=&track=&avg=1`). Compose ESP–CZE: 712 tracks, ~178 m per observed player-minute (highlights), top
+  35.5 km/h. Old analyses show "re-analyse to get stats" (`available: false`) until a job re-runs load_db
+  (recalibrate / repitch / re-analyse). Not done: possession / passes (ball, M3-CV-02), halves / phase filters,
+  compare, M3-CV-04 validation vs official numbers, imperial units.
 - Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
 0. Pick up from here: label frames with the tool (needs a person, ~300 frames) → GPU run (README recipe) to replace
-   PnLCalib; try a recalibrate job on Compose with a real clip (camera-tracked, line-anchored manual H); first stats
-   from positions (M3, distance/speed/heatmaps); mobile bottom sheets.
+   PnLCalib; M3 next: possession + passes from the ball track (M3-CV-02), then validate stats vs official numbers.
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.
