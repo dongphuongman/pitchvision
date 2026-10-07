@@ -47,7 +47,10 @@ outside the grass mask (only on-pitch boxes may start a track).
 ## homography.parquet (pitch stage, per segment, OPTIONAL)
 `frame_idx int32` (every frame of the segment) · `h0…h8 float64` (row-major image→pitch H in metres on the 105×68
 template; NaN = the smoother has no reliable estimate) · `h_quality float32` (smoothed line-alignment quality, never the
-keypoint fit residual — SP-03). Keypoints run every `keypoint_every_n` frames; `HomographySmoother` is reset at every
+keypoint fit residual — SP-03). Keypoints run every `keypoint_every_n` frames and the camera is tracked on EVERY frame in between
+(`cv_core.pitch.motion`: LK optical flow + RANSAC → frame-to-frame H, chained forwards / backwards from the smoothed
+keyframes and blended; highlight ESP–CZE @ 1 keyframe/s: mean h_quality 0.812 vs 0.778 interpolated, usable frames
+89.2 % vs 86.9 %); `HomographySmoother` is reset at every
 shot cut inside the segment. The stage runs only when `models/registry.yaml` has a `pitch_keypoints` entry with local
 weights (sha256-checked); otherwise it returns `status = "unavailable"` and writes nothing. The orchestrator only
 dispatches `pitch:NNN` tasks when the image's registry lists that entry (decided once at plan time, plan payload
@@ -173,7 +176,7 @@ plus every analysed frame of other shots whose automatic H is missing or `h_qual
 (`project_rows`: bottom-centre, ≤ 15 m off the pitch). Manual frames get `h_quality = 1 − RMSE/2 m` (clipped).
 Verdict `manual`; `homography_ok_pct` recomputed (frames in scope count as ok). **Limitation:** broadcast cameras
 pan / zoom inside a shot, so one H per shot is right only near `frame_ms` and drifts with the camera; scope `video`
-reuses it on other shots (only fits similar framings). cv_core has no frame-to-frame registration yet — follow-up:
+reuses it on other shots (only fits similar framings). cv_core now has frame-to-frame registration (`cv_core.pitch.motion`, used by the pitch stage); applying it to the manual H (recompute would decode the video) is the follow-up:
 propagate H between frames (feature / line tracking) or the licensed keypoint model (M1-CV-05) + HomographySmoother.
 
 **Stills.** `cpu.extract_frame {org_id, video_id, t_ms}` (`pitchvision_worker.frames`): t snapped to the 25 fps grid,

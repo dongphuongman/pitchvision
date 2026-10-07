@@ -14,7 +14,10 @@ Per segment (``[t0, t1)`` on the normalized timeline):
 3. ``HomographySmoother.update`` with the measurement; ``reset`` at every shot cut inside the segment (``cuts_ms``
    from the S2b timeline: never smooth across a cut);
 4. ``smoother.at(f)`` for EVERY frame of the segment → per-frame image→pitch H (NaN rows when the smoother has
-   nothing reliable) + smoothed quality.
+   nothing reliable) + smoothed quality;
+5. camera tracking (default): every frame is decoded, ``cv_core.pitch.motion.CameraMotion`` estimates the
+   frame-to-frame camera motion and ``propagate`` chains the smoothed keyframe homographies forwards / backwards
+   through it (never across a cut) — frames it reaches replace the step-4 interpolation.
 
 ``run_infer`` is untouched: S4 and this stage are separate GPU tasks of the same segment; S5 joins their outputs.
 """
@@ -40,6 +43,7 @@ from cv_core.pitch import (
     estimate_homography,
     h_quality,
 )
+from cv_core.pitch.motion import CameraMotion, propagate
 from cv_core.registry import ModelChecksumError, ModelRegistry
 from cv_core.segments import segment_frames
 from pitchvision_schemas import PipelineConfig, Segment
@@ -118,7 +122,7 @@ def load_pitch_model(registry: ModelRegistry | None = None, runtime: Any | None 
 
 def run_pitch(normalized: Path, segment: Segment, out_dir: Path, config: PipelineConfig | None = None, *,
               model: KeypointModel | None = None, cuts_ms: Sequence[int] = (),
-              registry: ModelRegistry | None = None) -> PitchOutput:
+              registry: ModelRegistry | None = None, track_camera: bool = True) -> PitchOutput:
     cfg = config or PipelineConfig()
     t_all = time.perf_counter()
     if model is None:
@@ -129,7 +133,9 @@ def run_pitch(normalized: Path, segment: Segment, out_dir: Path, config: Pipelin
     fps = float(cfg.target_fps)
     i0, i1 = segment_frames(segment, fps)
     every = cfg.keypoint_every_n
-    reader = VideoReader(normalized, segment.t0_ms / 1000, segment.t1_ms / 1000, stride=every, target_fps=fps)
+    # every frame is decoded when tracking the camera (cheap); the keypoint model only runs every `every` frames
+    reader = VideoReader(normalized, segment.t0_ms / 1000, segment.t1_ms / 1000, stride=1 if track_camera else every,
+                         target_fps=fps)  # fmt: skip
     n_kf = max(1, (i1 - i0) // every + 2)
     smoother = HomographySmoother(SMOOTH_WINDOW, image_size=reader.size, history=max(512, n_kf + 16))
     cuts = sorted({math.floor(c * fps / 1000 + 0.5) for c in cuts_ms} & set(range(i0 + 1, i1)))
@@ -137,22 +143,41 @@ def run_pitch(normalized: Path, segment: Segment, out_dir: Path, config: Pipelin
     kp_frames = ok_frames = 0
     qualities: list[float] = []
     reasons: dict[str, int] = {}
-    for batch in reader.batches(BATCH):
-        kps = model([f.image for f in batch])
-        for fr, kp in zip(batch, kps, strict=True):
-            while ci < len(cuts) and cuts[ci] <= fr.idx:
+    camera = CameraMotion()
+    motion: dict[int, np.ndarray | None] = {}
+    keyframes: list[tuple[int, np.ndarray]] = []
+
+    def measure(batch: list[tuple[int, np.ndarray]]) -> None:
+        nonlocal kp_frames, ok_frames, ci
+        for (idx, image), kp in zip(batch, model([im for _, im in batch]), strict=True):
+            while ci < len(cuts) and cuts[ci] <= idx:
                 smoother.reset(cuts[ci])
                 ci += 1
             kp_frames += 1
             est = estimate_homography(kp)
-            q = h_quality(fr.image, est.H_inv) if est.ok and est.H_inv is not None else 0.0
+            q = h_quality(image, est.H_inv) if est.ok and est.H_inv is not None else 0.0
             if est.ok:
                 ok_frames += 1
                 qualities.append(q)
             else:
                 key = est.reason.split(" (")[0]
                 reasons[key] = reasons.get(key, 0) + 1
-            smoother.update(fr.idx, est.H, q)
+            smoother.update(idx, est.H, q)
+
+    cut_set = set(cuts)
+    for batch in reader.batches(BATCH):
+        for fr in batch:
+            if track_camera:
+                if fr.idx in cut_set:
+                    camera.reset()
+                motion[fr.idx] = camera.step(fr.image)
+            if (fr.idx - i0) % every == 0 or not track_camera:
+                keyframes.append((fr.idx, fr.image))
+        if len(keyframes) >= BATCH:
+            measure(keyframes)
+            keyframes = []
+    if keyframes:
+        measure(keyframes)
     for c in cuts[ci:]:
         smoother.reset(c)
 
@@ -163,9 +188,19 @@ def run_pitch(normalized: Path, segment: Segment, out_dir: Path, config: Pipelin
         H, q = smoother.at(f)
         if H is not None:
             Hs[k], qs[k] = H, q
+    tracked = 0
+    if track_camera:
+        keys = {k: (Hs[k], float(qs[k])) for k, f in enumerate(frames.tolist())
+                if (f - i0) % every == 0 and np.isfinite(Hs[k, 0, 0])}  # fmt: skip
+        prop, pq = propagate(len(frames), keys, [motion.get(int(f)) for f in frames],
+                             {c - i0 for c in cuts}, image_size=reader.size)  # fmt: skip
+        for k, H in enumerate(prop):
+            if H is not None:
+                Hs[k], qs[k] = H, pq[k]
+                tracked += 1
     with_h = int(np.isfinite(Hs[:, 0, 0]).sum())
     stats = {"segment": segment.model_dump(), "keypoint_every_n": every, "keypoint_frames": kp_frames,
-             "estimates_ok": ok_frames, "frames_with_h": with_h, "cuts": cuts,
+             "estimates_ok": ok_frames, "frames_with_h": with_h, "frames_camera_tracked": tracked, "cuts": cuts,
              "mean_measured_quality": round(float(np.mean(qualities)), 4) if qualities else None,
              "rejections": reasons}  # fmt: skip
     meta = {"stage": "pitch", "version": HOMOGRAPHY_VERSION, "fps": fps, "segment": segment.model_dump(),
