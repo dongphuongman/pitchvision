@@ -49,7 +49,7 @@ exclude = ["spikes/", "data/"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["packages/schemas/tests", "packages/cv-core/tests", "apps/api/tests", "apps/identity/tests", "workers/tests", "eval/tests"]
+testpaths = ["packages/schemas/tests", "packages/cv-core/tests", "apps/api/tests", "apps/identity/tests", "workers/tests", "eval/tests", "training/keypoints"]
 
 # AD §5 dependency boundaries — enforced in CI (M1-BE-01)
 [tool.importlinter]

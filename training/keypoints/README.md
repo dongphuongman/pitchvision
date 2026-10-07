@@ -22,6 +22,17 @@ decodes the exported ONNX graph through `cv_core.runtime`.
 export feeds both training and the golden calibration eval (M1-CV-18) — keep **eval frames out of training** (split
 by video; the golden `split: test` matches are eval-only).
 
+## Labelling (our own frames, no CVAT needed)
+```bash
+uv run python training/keypoints/convert.py frames --sp09 --out-dir training/keypoints/data/frames
+uv run python training/keypoints/label_tool.py --frames training/keypoints/data/frames \
+    --out training/keypoints/data/kp/ours.json     # → http://127.0.0.1:8765
+```
+Click a landmark on the pitch diagram, then on the frame; from 4 points the whole pitch is drawn over the frame
+(RMSE px) so a wrong click shows at once. Aim for 6+ spread points per frame (≤ 6 px RMSE); X marks "no pitch".
+Writes `pv-pitch-keypoints/v1` directly (feeds `convert.py yolo` and the golden eval). **Never pre-fill from a
+research-only model** (PnLCalib / SoccerNet): the labels must stay ours.
+
 ## Smoke test (Mac, done)
 ```bash
 uv sync --project training/keypoints
