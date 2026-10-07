@@ -23,8 +23,9 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from typing import Any
 
-from celery import Celery
+from celery import Celery, signals
 from kombu import Queue
 
 QUEUE_ORCHESTRATE = "orchestrate"
@@ -109,6 +110,25 @@ def create_app(broker_url: str | None = None) -> Celery:
         worker_hijack_root_logger=False,
     )
     return app
+
+
+def init_sentry(cfg: Any) -> bool:
+    """Errors to Sentry when PV_SENTRY_DSN is set (AD §17): release = image tag, tags service = worker role."""
+    if not cfg.sentry_dsn:
+        return False
+    import sentry_sdk
+
+    sentry_sdk.init(dsn=cfg.sentry_dsn, environment=cfg.env, release=cfg.image_tag, send_default_pii=False)
+    sentry_sdk.set_tag("service", f"worker-{os.environ.get('WORKER_ROLE', 'cpu')}")
+    sentry_sdk.set_tag("region", cfg.region)
+    return True
+
+
+@signals.celeryd_init.connect
+def _sentry_on_start(**_: Any) -> None:
+    from pitchvision_worker.config import WorkerConfig
+
+    init_sentry(WorkerConfig.from_env())
 
 
 app = create_app()

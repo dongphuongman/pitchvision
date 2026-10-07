@@ -6,6 +6,7 @@ import './i18n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { initMonitoring } from './lib/monitoring';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('#root element missing from index.html');
@@ -18,6 +19,8 @@ async function enableMocks(): Promise<void> {
     await startMockApi();
   }
 }
+
+void initMonitoring().catch(() => undefined); // never blocks the app
 
 void enableMocks().then(() => {
   createRoot(root).render(

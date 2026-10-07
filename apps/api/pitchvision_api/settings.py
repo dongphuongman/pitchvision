@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     # GET /results/{id}/calibration/frame: wait this long for the cpu worker to extract a missing still
     frame_task_timeout_s: float = 20.0
 
+    # --- observability (AD §17, M1-OPS-08) ---
+    sentry_dsn: str | None = None  # unset = Sentry off
+    sentry_traces_sample_rate: float = 0.0
+    metrics_token: str | None = None  # bearer for GET /metrics; unset = /metrics only in env=local
+
     # --- WebSocket (M1-BE-12, AD §10.3) ---
     ws_heartbeat_s: float = 25.0
     ws_max_topics: int = 50  # subscriptions per connection

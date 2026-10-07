@@ -40,6 +40,7 @@ Thị trường quốc tế, giao diện EN trước. GPU chạy hybrid: tự ho
 | [`docs/contracts/identity-api.md`](docs/contracts/identity-api.md) | Hợp đồng auth/org: endpoint, JWT, cookie, mã lỗi |
 | [`docs/contracts/pipeline-stages.md`](docs/contracts/pipeline-stages.md) | Hợp đồng giữa orchestrator và các stage CV |
 | [`infra/compose/README.md`](infra/compose/README.md) | Chạy stack local / self-host |
+| [`infra/staging/README.md`](infra/staging/README.md) | Staging 1 VM: deploy, smoke test, Sentry, Prometheus, cảnh báo |
 | [`infra/terraform/README.md`](infra/terraform/README.md) | R2 bucket, CORS, lifecycle, token |
 | [`training/README.md`](training/README.md), [`eval/README.md`](eval/README.md) | Huấn luyện / export model, golden set và đo chất lượng |
 

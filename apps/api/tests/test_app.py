@@ -75,10 +75,16 @@ async def test_readyz_503_when_db_down(client: httpx.AsyncClient) -> None:
     assert_problem(await client.get("/readyz"), 503, "INTERNAL")
 
 
-async def test_readyz_ok_with_db(migrated: Db) -> None:
-    async for c in client_for(build(database_url=migrated.app_url)):
+async def test_readyz_ok_with_db_and_redis(migrated: Db, redis_url: str) -> None:
+    async for c in client_for(build(database_url=migrated.app_url, redis_url=redis_url)):
         r = await c.get("/readyz")
         assert r.status_code == 200, r.text
+
+
+async def test_readyz_503_when_redis_down(migrated: Db) -> None:
+    async for c in client_for(build(database_url=migrated.app_url, redis_url="redis://127.0.0.1:1/0")):
+        p = assert_problem(await c.get("/readyz"), 503, "INTERNAL")
+        assert p["detail"] == "redis unreachable"
 
 
 async def test_meta(client: httpx.AsyncClient) -> None:

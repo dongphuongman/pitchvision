@@ -37,7 +37,7 @@ x-pv-env: &pv-env
   PV_LOCAL_GPU_QUEUE: ${PV_LOCAL_GPU_QUEUE:-gpu}
   PV_COMPUTE_BACKENDS: ${PV_COMPUTE_BACKENDS:-local}
   # Only this URL changes when the object store is swapped (SeaweedFS -> Garage -> R2).
-  PV_STORAGE_ENDPOINT: http://storage:8333
+  PV_STORAGE_ENDPOINT: ${PV_STORAGE_ENDPOINT:-http://storage:8333}
   PV_STORAGE_PUBLIC_ENDPOINT: ${PV_STORAGE_PUBLIC_ENDPOINT:-http://localhost:8333}
   PV_STORAGE_BUCKET: ${PV_STORAGE_BUCKET:?set in .env}
   PV_STORAGE_REGION: ${PV_STORAGE_REGION:-us-east-1}
@@ -47,6 +47,9 @@ x-pv-env: &pv-env
   AWS_ACCESS_KEY_ID: ${PV_STORAGE_ACCESS_KEY}
   AWS_SECRET_ACCESS_KEY: ${PV_STORAGE_SECRET_KEY}
   AWS_DEFAULT_REGION: ${PV_STORAGE_REGION:-us-east-1}
+  # Observability (AD §17, M1-OPS-08): Sentry when a DSN is set; GET /metrics needs this bearer outside local.
+  PV_SENTRY_DSN: ${PV_SENTRY_DSN:-}
+  PV_METRICS_TOKEN: ${PV_METRICS_TOKEN:-}
 
 # identity-svc: global control plane. Self-host = its own database on the same Postgres server.
 x-identity-env: &identity-env
@@ -71,17 +74,19 @@ x-identity-env: &identity-env
   PV_RESEND_API_KEY: ${PV_RESEND_API_KEY:-}
   PV_GOOGLE_CLIENT_ID: ${PV_GOOGLE_CLIENT_ID:-}
   PV_GOOGLE_CLIENT_SECRET: ${PV_GOOGLE_CLIENT_SECRET:-}
+  PV_SENTRY_DSN: ${PV_SENTRY_DSN:-}
+  PV_IMAGE_TAG: ${TAG:-dev}
   # behind the web nginx on the compose network: trust its X-Forwarded-For (rate limits key on client IP)
   FORWARDED_ALLOW_IPS: "*"
 
 x-api-image: &api-image
-  image: pitchvision-api:${TAG:-dev}
+  image: ${PV_IMAGE_REGISTRY:-}pitchvision-api:${TAG:-dev}
   build:
     context: ../..
     dockerfile: infra/docker/Dockerfile.api
 
 x-worker: &worker
-  image: pitchvision-worker:${TAG:-dev}
+  image: ${PV_IMAGE_REGISTRY:-}pitchvision-worker:${TAG:-dev}
   build:
     context: ../..
     dockerfile: infra/docker/Dockerfile.worker
@@ -243,7 +248,7 @@ services:
       retries: 20
 
   web:
-    image: pitchvision-web:${TAG:-dev}
+    image: ${PV_IMAGE_REGISTRY:-}pitchvision-web:${TAG:-dev}
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
@@ -251,6 +256,10 @@ services:
     environment:
       PV_API_UPSTREAM: api:8000
       PV_IDENTITY_UPSTREAM: identity:8000
+      # /config.js for the SPA (infra/docker/web/30-pv-config.sh)
+      PV_ENV: ${PV_ENV:-local}
+      PV_IMAGE_TAG: ${TAG:-dev}
+      PV_WEB_SENTRY_DSN: ${PV_WEB_SENTRY_DSN:-}
     ports:
       - "127.0.0.1:${PV_WEB_PORT:-3000}:8080"
 

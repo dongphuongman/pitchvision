@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PV_", extra="ignore")
 
     env: Env = "local"
+    sentry_dsn: str | None = None  # PV_SENTRY_DSN; unset = Sentry off (AD §17)
+    image_tag: str = "dev"  # PV_IMAGE_TAG: Sentry release
     identity_database_url: str = "postgresql+asyncpg://pitchvision:pitchvision@localhost:5432/pitchvision_identity"
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
 

@@ -1,0 +1,64 @@
+# Prometheus alert rules (AD §17, M1-OPS-08). Series come from the api's GET /metrics
+# (apps/api/pitchvision_api/observability.py). Used by infra/staging; production reuses the file.
+groups:
+  - name: pitchvision
+    rules:
+      - alert: ApiDown
+        expr: up{job="api"} == 0
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: "api /metrics unreachable for 5 min"
+
+      - alert: DependencyDown
+        expr: pv_dependency_up == 0
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: "{{ $labels.dependency }} unreachable from the api"
+
+      - alert: Api5xxRate
+        expr: |
+          sum(rate(pv_http_requests_total{status=~"5.."}[10m]))
+            / clamp_min(sum(rate(pv_http_requests_total[10m])), 0.001) > 0.05
+        for: 10m
+        labels: {severity: warn}
+        annotations:
+          summary: "more than 5 % of api requests fail with 5xx"
+
+      # M1-OPS-08: YouTube ingest failure rate (bot checks, geo blocks; SP-10)
+      - alert: YoutubeIngestFailing
+        expr: |
+          sum(increase(pv_ingest_total{op="download",outcome="failed"}[1h]))
+            / clamp_min(sum(increase(pv_ingest_total{op="download",outcome=~"success|failed"}[1h])), 1) > 0.2
+          and sum(increase(pv_ingest_total{op="download"}[1h])) >= 5
+        for: 15m
+        labels: {severity: warn}
+        annotations:
+          summary: "more than 20 % of YouTube downloads failed in the last hour"
+          description: "Check the ingest worker's egress IP for bot checks (reason label); M1-OPS-06."
+
+      # AD §17: job failure rate > 5 % in 1 h
+      - alert: JobFailureRate
+        expr: |
+          pv_jobs_finished_last_hour{status="failed"}
+            / clamp_min(pv_jobs_finished_last_hour{status="failed"} + ignoring(status) pv_jobs_finished_last_hour{status="done"}, 1)
+            > 0.05
+          and ignoring(status) pv_jobs_finished_last_hour{status="failed"} >= 2
+        for: 10m
+        labels: {severity: warn}
+        annotations:
+          summary: "more than 5 % of jobs failed in the last hour"
+
+      # AD §17: gpu queue waiting > 20 min (approximated: tasks waiting for 20 min straight)
+      - alert: GpuQueueBacklog
+        expr: min_over_time(pv_queue_depth{queue="gpu"}[20m]) > 0
+        labels: {severity: warn}
+        annotations:
+          summary: "GPU tasks have been waiting for 20 min"
+
+      - alert: CpuQueueBacklog
+        expr: min_over_time(pv_queue_depth{queue="cpu"}[30m]) > 20
+        labels: {severity: warn}
+        annotations:
+          summary: "more than 20 cpu tasks waiting for 30 min"

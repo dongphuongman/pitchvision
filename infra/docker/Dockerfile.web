@@ -35,7 +35,10 @@ ENV PV_API_UPSTREAM=api:8000 \
     PV_IDENTITY_UPSTREAM=identity:8000 \
     PV_DNS_RESOLVER=127.0.0.11
 COPY infra/docker/web/default.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=build /src/apps/web/dist /usr/share/nginx/html
+# owned by nginx (uid 101 in the unprivileged image) so 30-pv-config.sh can write config.js at start
+COPY --from=build --chown=101:101 /src/apps/web/dist /usr/share/nginx/html
+# runtime config.js (Sentry DSN / environment / release) rendered at start; html dir writable for it
+COPY --chmod=0755 infra/docker/web/30-pv-config.sh /docker-entrypoint.d/30-pv-config.sh
 
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \

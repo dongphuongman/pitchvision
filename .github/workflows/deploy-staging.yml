@@ -1,0 +1,52 @@
+# Deploy main to the staging VM (M1-OPS-07). Manual for now: run it from the Actions tab (optionally with a tag).
+# Needs repository secrets STAGING_SSH_TARGET (user@host), STAGING_SSH_KEY (private key) and STAGING_KNOWN_HOSTS
+# (`ssh-keyscan <host>` output). Without them the job stops at the first step. See infra/staging/README.md.
+name: deploy-staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag (full git sha pushed by CI); empty = the sha of this run's commit"
+        required: false
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: staging
+    steps:
+      - name: Check secrets
+        env:
+          TARGET: ${{ secrets.STAGING_SSH_TARGET }}
+        run: |
+          if [ -z "$TARGET" ]; then
+            echo "::error::STAGING_SSH_TARGET is not set (staging VM not provisioned yet)"; exit 1
+          fi
+      - uses: actions/checkout@v5
+      - name: Images exist for the tag
+        env:
+          TAG: ${{ inputs.tag || github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for image in pitchvision-api pitchvision-worker pitchvision-web; do
+            docker manifest inspect "ghcr.io/${{ github.repository_owner }}/$image:$TAG" >/dev/null \
+              || { echo "::error::$image:$TAG not in GHCR (wait for the ci run of that commit)"; exit 1; }
+          done
+      - name: SSH key
+        env:
+          KEY: ${{ secrets.STAGING_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Deploy
+        run: infra/staging/deploy.sh "${{ secrets.STAGING_SSH_TARGET }}" "${{ inputs.tag || github.sha }}"

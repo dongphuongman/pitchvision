@@ -11,7 +11,7 @@ tactical map, stats, AI report. Read `README.md` first (layout, commands, rules)
 "Trạng thái thực hiện" (rendered from `docs/status.json`).
 
 ## Where we are (M1, plan 12/10–20/11, alpha 04/12/2026)
-Done and on `main` (Python 907 tests, web 265 tests + 5 Playwright flows; Docker images built in CI):
+Done and on `main` (Python 913 tests, web 267 tests + 5 Playwright flows; Docker images built in CI):
 - Phase 0 spikes + Gate G0; SP-07 on real R2; SP-08 rVFC sync; SP-11 detector choice.
 - W1 foundation: uv + pnpm monorepo, import-linter, `packages/schemas`, Alembic + RLS, FastAPI, cv-core runtime/VideoReader, golden eval, web shell, Compose, Dockerfiles, GitHub Actions.
 - W2: identity-svc (auth, orgs, roles, invites, Google OIDC, JWKS), API JWT, presigned multipart upload, YouTube ingest (queue `ingest`), S2 normalise, shot classifier 97.9 %, D-FINE ONNX, keypoint/homography lib, auth/onboarding screens, Terraform R2.
@@ -47,6 +47,12 @@ Done and on `main` (Python 907 tests, web 265 tests + 5 Playwright flows; Docker
 - Responsive (UIUX §09): ☰ below 1024 px, SCR-20 Video / Map / Both below 1024 px, view-only workspace and
   "Best on a larger screen" on SCR-14/15 below 768 px; `e2e/mobile.spec.ts` checks 390 px for horizontal overflow.
   Not done: context menus as long-press bottom sheets (they stay dropdowns).
+- Staging prep (M1-OPS-07/08): `infra/staging/` (README = runbook): one VM, Compose overlay with GHCR images,
+  Caddy HTTPS on `<ip>.sslip.io` (no domain needed), Prometheus + Alertmanager (`infra/observability/alerts.yml`),
+  `deploy.sh` (pull → migrate → up → readyz → smoke → rollback), `smoke.sh`, Actions `deploy-staging` (manual,
+  needs STAGING_SSH_* secrets). Sentry (api / identity / workers / web via runtime `/config.js`) when DSNs are set;
+  api `GET /metrics` (bearer `PV_METRICS_TOKEN`), `/readyz` also checks Redis. Overlay tried on the Mac with
+  `PV_SITE=localhost`: smoke 8/8, Prometheus scraping, rules loaded. No VM exists yet.
 
 Contracts: `docs/contracts/identity-api.md` (plans, quota), `docs/contracts/pipeline-stages.md` (stages, keys,
 derived jobs, exports, notifications).
@@ -55,7 +61,8 @@ derived jobs, exports, notifications).
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.
-3. Staging prep without a domain (M1-OPS-07/08): deploy scripts, Sentry, health checks.
+3. Staging go-live needs the PO: rent the VM (README sizes it), GHCR read token on it, Sentry project DSNs, a
+   Slack/Discord webhook for alerts; then `infra/staging/deploy.sh deploy@<ip> <sha> --models`.
 4. Later (needs PO): Stripe (SCR-41 Choose Pro, B03 portal), API keys (Pro).
 
 Compose on the Mac: `cd infra/compose && docker compose up -d --build`, web at http://localhost:23000, Mailpit at

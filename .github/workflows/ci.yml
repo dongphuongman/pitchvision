@@ -151,7 +151,7 @@ jobs:
 
   # ---------------------------------------------------------------- compose
   compose:
-    name: compose config
+    name: compose config (local + staging)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -160,6 +160,12 @@ jobs:
         run: |
           cp infra/compose/.env.example infra/compose/.env
           docker compose -f infra/compose/docker-compose.yml --profile gpu-local --profile live config --quiet
+      - name: Validate the staging overlay with infra/staging/.env.example
+        run: |
+          cd infra
+          docker compose --env-file staging/.env.example -f compose/docker-compose.yml \
+            -f staging/docker-compose.staging.yml config --quiet
+          bash -n staging/deploy.sh staging/smoke.sh
 
   # ---------------------------------------------------------------- images
   docker:

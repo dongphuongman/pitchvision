@@ -28,6 +28,8 @@ class WorkerConfig:
     # --- notifications (M1-BE-19): identity-svc sends the emails; unset = in-app only
     identity_internal_url: str | None = None  # PV_IDENTITY_INTERNAL_URL, e.g. http://identity:8001
     internal_token: str | None = None  # PV_INTERNAL_TOKEN, shared with identity-svc
+    sentry_dsn: str | None = None  # PV_SENTRY_DSN; unset = Sentry off (AD §17)
+    env: str = "local"  # PV_ENV
     region: str = "eu"  # PV_REGION: this deployment's data region (erasure requests are pulled per region)
 
     @classmethod
@@ -53,6 +55,8 @@ class WorkerConfig:
             identity_internal_url=(e.get("PV_IDENTITY_INTERNAL_URL") or "").rstrip("/") or None,
             internal_token=e.get("PV_INTERNAL_TOKEN") or None,
             region=e.get("PV_REGION") or "eu",
+            sentry_dsn=e.get("PV_SENTRY_DSN") or None,
+            env=e.get("PV_ENV") or "local",
         )
 
 

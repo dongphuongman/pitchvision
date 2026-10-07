@@ -3,15 +3,17 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
+import redis.asyncio as aioredis
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
-from pitchvision_api import __version__
+from pitchvision_api import __version__, observability
 from pitchvision_api.auth import DEV_ORG_HEADER, DEV_ROLE_HEADER, DEV_USER_HEADER, JwksClient
 from pitchvision_api.db import make_engine, make_sessionmaker
 from pitchvision_api.errors import PROBLEM_JSON, ProblemDetails, install_error_handlers
 from pitchvision_api.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
+from pitchvision_api.observability import Metrics, MetricsMiddleware, init_sentry
 from pitchvision_api.routers import (
     exports,
     health,
@@ -63,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
         await app.state.events.close()
+        await app.state.redis.aclose()
         await engine.dispose()
 
     app = FastAPI(
@@ -79,6 +82,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.storage = Storage.from_settings(settings)
     app.state.tasks = CeleryTaskQueue(settings.redis_url)  # lazy: no broker connection until first send
     app.state.events = EventHub(settings.redis_url)  # lazy: Redis pub/sub opens with the first WS subscription
+    app.state.redis = aioredis.Redis.from_url(settings.redis_url, socket_connect_timeout=2, socket_timeout=2)
+    app.state.metrics = Metrics()
+    init_sentry(settings)
     app.state.jwks = JwksClient(settings.jwks_url, timeout_s=settings.jwks_timeout_s, ttl_s=settings.jwks_cache_ttl_s)
 
     install_error_handlers(app)
@@ -93,8 +99,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         expose_headers=[REQUEST_ID_HEADER, IDEMPOTENCY_HEADER, REPLAYED_HEADER],
     )
     app.add_middleware(RequestIdMiddleware)  # outermost of ours: CORS preflights get an id too
+    app.add_middleware(MetricsMiddleware, metrics=app.state.metrics)
 
     app.include_router(health.router)
+    app.include_router(observability.router)
     app.include_router(api_router())
     app.openapi = lambda: _openapi(app)  # type: ignore[method-assign]
     return app

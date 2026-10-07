@@ -34,3 +34,6 @@ coverage/
 .DS_Store
 # --- local agent worktrees ---
 .claude/
+
+# staging deploy marker (infra/staging/deploy.sh)
+infra/staging/.deployed-tag

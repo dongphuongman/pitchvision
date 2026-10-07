@@ -36,6 +36,17 @@ def api_router() -> APIRouter:
     return router
 
 
+def _init_sentry(settings: Settings) -> None:
+    """Errors to Sentry when PV_SENTRY_DSN is set (AD §17). No PII: request bodies / emails are never sent."""
+    if not settings.sentry_dsn:
+        return
+    import sentry_sdk
+
+    sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.env, release=settings.image_tag,
+                    send_default_pii=False)  # fmt: skip
+    sentry_sdk.set_tag("service", "identity")
+
+
 def create_app(
     settings: Settings | None = None,
     *,
@@ -45,6 +56,7 @@ def create_app(
 ) -> FastAPI:
     """Tests inject `http` (fake Google), `mailer` (outbox) and `limiter`; production builds them from settings."""
     settings = settings or Settings()
+    _init_sentry(settings)
     engine = make_engine(settings.identity_database_url)  # lazy: no connection until first use
     own_http = http is None
     http = http or httpx.AsyncClient(follow_redirects=False)

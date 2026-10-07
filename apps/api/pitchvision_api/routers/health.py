@@ -1,4 +1,4 @@
-"""Probes, outside /api/v1: /healthz = process alive (no deps), /readyz = can serve (DB reachable)."""
+"""Probes, outside /api/v1: /healthz = process alive (no deps), /readyz = can serve (DB + Redis reachable)."""
 import asyncio
 import logging
 from typing import Literal
@@ -35,4 +35,10 @@ async def readyz(request: Request) -> HealthStatus:
     except Exception as e:
         log.warning("readyz: database check failed: %r", e)
         raise ApiError(ErrorCode.INTERNAL, 503, "Service not ready", "database unreachable") from None
+    try:  # job / export / WebSocket requests need the broker
+        async with asyncio.timeout(READY_TIMEOUT_S):
+            await request.app.state.redis.ping()
+    except Exception as e:
+        log.warning("readyz: redis check failed: %r", e)
+        raise ApiError(ErrorCode.INTERNAL, 503, "Service not ready", "redis unreachable") from None
     return HealthStatus()

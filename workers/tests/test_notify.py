@@ -127,3 +127,17 @@ def test_pull_member_events(worker_db: Engine) -> None:
 
     assert notify.pull_member_events(worker_db, cfg, down, post) == 0
     assert notify.pull_member_events(worker_db, WorkerConfig.from_env({}), fetch, post) == 0
+
+
+def test_worker_sentry_only_with_a_dsn() -> None:
+    import sentry_sdk
+    from pitchvision_worker.celery_app import init_sentry
+
+    assert init_sentry(WorkerConfig.from_env({})) is False
+    try:
+        cfg = WorkerConfig.from_env({"PV_SENTRY_DSN": "https://k@o0.ingest.sentry.io/0", "PV_IMAGE_TAG": "sha-2",
+                                     "PV_ENV": "staging"})  # fmt: skip
+        assert init_sentry(cfg) is True
+        assert sentry_sdk.get_client().options["environment"] == "staging"
+    finally:
+        sentry_sdk.init()
