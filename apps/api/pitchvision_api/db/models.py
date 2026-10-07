@@ -333,6 +333,25 @@ class DataExport(Base):
     expires_at: Mapped[datetime | None]
 
 
+class SavedTeam(Base):
+    """0009: SCR-40 O03 / SCR-14 E02 the org's team names + colours."""
+
+    __tablename__ = "saved_teams"
+    __table_args__ = (
+        CheckConstraint("char_length(name) BETWEEN 1 AND 40"),
+        CheckConstraint("color ~ '^#[0-9a-f]{6}$'"),
+        Index("uq_saved_teams_name", "org_id", text("lower(name)"), unique=True),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, server_default=GEN_UUID)
+    org_id: Mapped[uuid.UUID]
+    name: Mapped[str]
+    color: Mapped[str]
+    uses: Mapped[int] = mapped_column(server_default="1")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    last_used_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
 class Erasure(Base):
     """0008: the worker's progress on identity's erasure requests (no RLS; pv_worker only)."""
 
@@ -401,7 +420,7 @@ class Notification(Base):
         _video_fk(),
         CheckConstraint(
             "type IN ('job_ready', 'needs_teams', 'job_failed', 'export_ready', 'export_failed', 'quota_80', "
-            "'quota_100', 'data_export_ready')"
+            "'quota_100', 'data_export_ready', 'member_joined')"
         ),
         CheckConstraint("email_status IN ('pending', 'sent', 'skipped', 'failed')"),
         UniqueConstraint("user_id", "dedupe_key", name="uq_notifications_dedupe"),

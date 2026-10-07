@@ -100,11 +100,20 @@ EmailPrefKey = Literal["job_ready", "job_failed", "export_ready"]
 EMAIL_PREF_KEYS: tuple[str, ...] = ("job_ready", "job_failed", "export_ready")
 
 
+class AnalysisDefaults(_In):
+    """SCR-12 E10 "Save as my default" / SCR-40 R02 (M1 scope: mode + detection confidence)."""
+
+    mode: Literal["standard", "fast"] = "standard"
+    confidence: float = Field(0.35, ge=0.2, le=0.8)
+
+
 class MePatchIn(_In):
-    """SCR-40 Profile P01 (name) and Preferences R03 (email notifications; omitted keys unchanged)."""
+    """SCR-40 Profile P01 (name), Preferences R03 (email notifications; omitted keys unchanged) and R02 (analysis
+    defaults; ``null`` = back to the product defaults)."""
 
     name: Name | None = None
     email_prefs: dict[EmailPrefKey, bool] | None = None
+    analysis_defaults: AnalysisDefaults | None = None
 
 
 class PasswordChangeIn(_In):
@@ -167,6 +176,7 @@ class Me(User):
     memberships: list[Membership]
     email_prefs: dict[EmailPrefKey, bool] = Field(
         default_factory=dict, description="job_ready / job_failed / export_ready — every key present (default on)")
+    analysis_defaults: AnalysisDefaults | None = Field(None, description="SCR-12 defaults; null = product defaults")
 
 
 class Session(BaseModel):

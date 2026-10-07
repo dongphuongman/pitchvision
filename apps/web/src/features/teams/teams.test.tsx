@@ -61,6 +61,31 @@ describe('SCR-14 Team confirmation', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/videos/${v.id}/overview`));
   });
 
+  it('E02: suggests saved team names and applies their colour', async () => {
+    const v = seed();
+    mock.account.savedTeams.push({
+      id: 'st-1',
+      name: 'Riverside FC',
+      color: '#123456',
+      uses: 3,
+      last_used_at: '2026-10-01T00:00:00Z',
+    });
+    const user = userEvent.setup();
+    renderApp(`/videos/${v.id}/teams`, { auth: testSession() });
+    const team1 = await screen.findByRole('region', { name: 'Team 1' });
+    const name1 = within(team1).getByLabelText('Team name');
+    await waitFor(() => expect(name1).toHaveAttribute('list'));
+    const listId = name1.getAttribute('list') ?? '';
+    expect(document.getElementById(listId)?.querySelector('option')).toHaveValue('Riverside FC');
+    await user.clear(name1);
+    await user.type(name1, 'riverside fc');
+    await user.click(screen.getByRole('button', { name: 'Confirm teams' }));
+    await waitFor(() => expect(logged('PATCH teams')).toHaveLength(1));
+    expect(logged('PATCH teams')[0]).toMatchObject({
+      teams: [{ cluster: 0, name: 'riverside fc', color: '#123456' }, { cluster: 1 }],
+    });
+  });
+
   it("E05: shows the guessed attacking direction and saves the user's choice", async () => {
     const v = seed();
     const user = userEvent.setup();

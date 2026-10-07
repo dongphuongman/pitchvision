@@ -1,5 +1,6 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { identityApi, ME_KEY } from '@/api/identity';
 
 /**
  * SCR-12 Analysis settings (M1 scope): mode + detection confidence. Format is 11v11 only in M1
@@ -25,13 +26,26 @@ export function toJobConfig(s: AnalysisSettings): Record<string, unknown> | unde
   return Object.keys(config).length ? config : undefined;
 }
 
-/** E10 "Save as my default" (client-side until server-backed preferences, SCR-40). */
-export const useAnalysisDefaults = create<{
+/**
+ * E10 "Save as my default" / SCR-40 R02: the user's defaults live on the account (identity `Me`
+ * `analysis_defaults`, null = product defaults), so they follow the user across browsers.
+ */
+export function useAnalysisDefaults(): {
   settings: AnalysisSettings;
-  save: (s: AnalysisSettings) => void;
-}>()(
-  persist((set) => ({ settings: DEFAULT_SETTINGS, save: (settings) => set({ settings }) }), {
-    name: 'pv-analysis-defaults',
-    version: 1,
-  }),
-);
+  loaded: boolean;
+  save: (s: AnalysisSettings | null) => Promise<void>;
+} {
+  const qc = useQueryClient();
+  const me = useQuery({ queryKey: ME_KEY, queryFn: ({ signal }) => identityApi.me(signal) });
+  const save = useCallback(
+    async (s: AnalysisSettings | null) => {
+      qc.setQueryData(ME_KEY, await identityApi.updateMe({ analysis_defaults: s }));
+    },
+    [qc],
+  );
+  return {
+    settings: me.data?.analysis_defaults ?? DEFAULT_SETTINGS,
+    loaded: !me.isPending,
+    save,
+  };
+}

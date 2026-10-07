@@ -40,6 +40,7 @@ from pitchvision_api.schemas.results import (
     TeamsPatch,
 )
 from pitchvision_api.services import jobs as jobs_service
+from pitchvision_api.services import saved_teams
 from pitchvision_api.services.tasks import TaskQueue
 from pitchvision_api.services.videos import not_found
 from pitchvision_api.settings import Settings
@@ -94,6 +95,9 @@ async def patch_teams(session: AsyncSession, principal: Principal, video_id: uui
             other = "left" if body.attack_h1 == "right" else "right"
             team.attack_h1, team.attack_source = (body.attack_h1 if team.cluster == 0 else other), "user"
     await session.flush()
+    if body.confirmed:
+        await saved_teams.remember(session, principal.org_id,
+                                   [(t.name, t.color) for t in rows if t.cluster in (0, 1) and t.name and t.color])
     await _record(session, principal, video, "teams", {
         "teams": [{"cluster": t.cluster, "name": t.name, "color": t.color, "attack_h1": t.attack_h1} for t in rows],
         "edits": [e.model_dump() for e in body.teams], "swap": body.swap, "confirmed": body.confirmed,

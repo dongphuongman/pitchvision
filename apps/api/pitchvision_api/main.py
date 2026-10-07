@@ -21,6 +21,7 @@ from pitchvision_api.routers import (
     notifications,
     privacy,
     results,
+    saved_teams,
     tiles,
     usage,
     videos,
@@ -48,6 +49,7 @@ def api_router() -> APIRouter:
     router.include_router(usage.router)
     router.include_router(notifications.router)
     router.include_router(privacy.router)
+    router.include_router(saved_teams.router)
     router.include_router(tiles.router)  # signature-authenticated (no bearer): the tile URL is the credential
     router.include_router(ws.router)  # WebSocket /api/v1/ws (not in OpenAPI; protocol in routers/ws.py)
     return router

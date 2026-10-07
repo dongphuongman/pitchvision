@@ -17,6 +17,7 @@ def get_settings(request: Request) -> Settings:
 
 CurrentPrincipal = Annotated[Principal, Depends(current_principal)]
 EditorPrincipal = Annotated[Principal, Depends(require_role(Role.EDITOR))]
+AdminPrincipal = Annotated[Principal, Depends(require_role(Role.ADMIN))]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 

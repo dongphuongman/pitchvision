@@ -11,7 +11,7 @@ tactical map, stats, AI report. Read `README.md` first (layout, commands, rules)
 "Trạng thái thực hiện" (rendered from `docs/status.json`).
 
 ## Where we are (M1, plan 12/10–20/11, alpha 04/12/2026)
-Done and on `main` (Python 903 tests, web 260 tests + 4 Playwright flows; Docker images built in CI):
+Done and on `main` (Python 907 tests, web 263 tests + 4 Playwright flows; Docker images built in CI):
 - Phase 0 spikes + Gate G0; SP-07 on real R2; SP-08 rVFC sync; SP-11 detector choice.
 - W1 foundation: uv + pnpm monorepo, import-linter, `packages/schemas`, Alembic + RLS, FastAPI, cv-core runtime/VideoReader, golden eval, web shell, Compose, Dockerfiles, GitHub Actions.
 - W2: identity-svc (auth, orgs, roles, invites, Google OIDC, JWKS), API JWT, presigned multipart upload, YouTube ingest (queue `ingest`), S2 normalise, shot classifier 97.9 %, D-FINE ONNX, keypoint/homography lib, auth/onboarding screens, Terraform R2.
@@ -41,6 +41,9 @@ Done and on `main` (Python 903 tests, web 260 tests + 4 Playwright flows; Docker
   DLG-08. Identity deletes at once + `erasure_requests` (migration 0004, `/internal/v1/erasures`); regional API
   migration 0008 (`data_exports`, `erasures`, `pv_purge_org` / `pv_purge_user`); worker `cpu.build_data_export` +
   `cpu.privacy_sweep` (first pass, final pass ≥ 4 h, ack). Not yet run on Compose end to end.
+- Same day: `member_joined` notifications (identity `member_events`, migration 0005, pulled by the email beat),
+  R02 analysis defaults on the account (`Me.analysis_defaults`, replaces the localStorage store), O03 saved teams
+  (API migration 0009, `/api/v1/saved-teams`, remembered on team confirm, suggested in SCR-14).
 
 Contracts: `docs/contracts/identity-api.md` (plans, quota), `docs/contracts/pipeline-stages.md` (stages, keys,
 derived jobs, exports, notifications).
@@ -49,11 +52,9 @@ derived jobs, exports, notifications).
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.
-3. "Member joined" notification (identity event → regional notifications), SCR-40 R02 default analysis settings,
-   O03 saved team names / colours.
-4. Mobile layouts < 768 px for the screens UIUX lists (Library, Processing, Workspace view-only, Exports, Settings).
-5. Staging prep without a domain (M1-OPS-07/08): deploy scripts, Sentry, health checks.
-6. Later (needs PO): Stripe (SCR-41 Choose Pro, B03 portal), API keys (Pro).
+3. Mobile layouts < 768 px for the screens UIUX lists (Library, Processing, Workspace view-only, Exports, Settings).
+4. Staging prep without a domain (M1-OPS-07/08): deploy scripts, Sentry, health checks.
+5. Later (needs PO): Stripe (SCR-41 Choose Pro, B03 portal), API keys (Pro).
 
 Compose on the Mac: `cd infra/compose && docker compose up -d --build`, web at http://localhost:23000, Mailpit at
 http://localhost:8025. A 20 s clip takes ~9 min on CPU (S4 ~7 min). Before a run, make sure no old job is still

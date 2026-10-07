@@ -540,6 +540,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/saved-teams': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Saved Teams
+     * @description The org's team names + colours, most used first (≤ 200). Saved when teams are confirmed (SCR-14).
+     */
+    get: operations['list_saved_teams_api_v1_saved_teams_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/saved-teams/{team_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete Saved Team */
+    delete: operations['delete_saved_team_api_v1_saved_teams__team_id__delete'];
+    options?: never;
+    head?: never;
+    /**
+     * Patch Saved Team
+     * @description Rename / recolour (admin+). 409 `name_taken`. Videos already analysed keep their names.
+     */
+    patch: operations['patch_saved_team_api_v1_saved_teams__team_id__patch'];
+    trace?: never;
+  };
   '/api/v1/tiles/{video_id}/{job_id}/r{revision}/{tile_no}.json.gz': {
     parameters: {
       query?: never;
@@ -1480,7 +1521,8 @@ export interface components {
         | 'export_failed'
         | 'quota_80'
         | 'quota_100'
-        | 'data_export_ready';
+        | 'data_export_ready'
+        | 'member_joined';
       /** Video Id */
       video_id: string | null;
       /** Video Title */
@@ -1642,6 +1684,32 @@ export interface components {
       url: string;
       /** Width */
       width: number;
+    };
+    /** SavedTeamOut */
+    SavedTeamOut: {
+      /** Color */
+      color: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Last Used At
+       * Format: date-time
+       */
+      last_used_at: string;
+      /** Name */
+      name: string;
+      /** Uses */
+      uses: number;
+    };
+    /** SavedTeamPatch */
+    SavedTeamPatch: {
+      /** Color */
+      color?: string | null;
+      /** Name */
+      name?: string | null;
     };
     /** SeedBox */
     SeedBox: {
@@ -3362,6 +3430,126 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['PitchTemplateInfo'];
+        };
+      };
+    };
+  };
+  list_saved_teams_api_v1_saved_teams_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SavedTeamOut'][];
+        };
+      };
+    };
+  };
+  delete_saved_team_api_v1_saved_teams__team_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        team_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  patch_saved_team_api_v1_saved_teams__team_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        team_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SavedTeamPatch'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SavedTeamOut'];
         };
       };
     };

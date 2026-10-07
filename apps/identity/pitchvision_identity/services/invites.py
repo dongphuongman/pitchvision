@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from pitchvision_identity import mail, schemas
 from pitchvision_identity.context import Ctx
-from pitchvision_identity.db.models import Invite, Membership, Org, User
+from pitchvision_identity.db.models import Invite, MemberEvent, Membership, Org, User
 from pitchvision_identity.errors import ApiError
 from pitchvision_identity.mail import EmailMessage
 from pitchvision_identity.security import hash_token, new_token, utcnow
@@ -63,10 +63,18 @@ async def load_acceptable(s: AsyncSession, raw: str) -> Invite:
 
 
 async def accept_rows(s: AsyncSession, inv: Invite, user: User) -> None:
-    """Membership (keeps an existing one as is), invite consumed, email proven by the link."""
+    """Membership (keeps an existing one as is) + a member_events row for the org's admins, invite consumed, email
+    proven by the link."""
     now = utcnow()
     if await s.get(Membership, (inv.org_id, user.id)) is None:
         s.add(Membership(org_id=inv.org_id, user_id=user.id, role=inv.role))
+        org = await s.get(Org, inv.org_id)
+        admins = list(await s.scalars(select(Membership.user_id).where(
+            Membership.org_id == inv.org_id, Membership.role.in_(("admin", "owner")),
+            Membership.user_id != user.id)))  # fmt: skip
+        if org is not None and admins:
+            s.add(MemberEvent(org_id=org.id, region=org.region, user_id=user.id, user_name=user.name,
+                              org_name=org.name, role=inv.role, recipients=admins))  # fmt: skip
     inv.accepted_at, inv.accepted_by = now, user.id
     if user.email_verified_at is None:
         user.email_verified_at = now

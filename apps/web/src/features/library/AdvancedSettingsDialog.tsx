@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Checkbox, Dialog, SegmentedControl } from '@/ui';
+import { Button, Checkbox, Dialog, SegmentedControl, toast } from '@/ui';
 import {
   CONFIDENCE_RANGE,
   DEFAULT_SETTINGS,
@@ -14,6 +14,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   value: AnalysisSettings;
   onApply: (s: AnalysisSettings) => void;
+  /** `defaults` (SCR-40 R02): edits the account defaults — Apply saves them, no E10 checkbox. */
+  mode?: 'apply' | 'defaults';
 }
 
 /** SCR-12 Advanced settings (modal md, over SCR-11) — M1-FE-10. Mounted only while open so the
@@ -22,15 +24,27 @@ export function AdvancedSettingsDialog(props: Props) {
   return props.open ? <SettingsDialog {...props} /> : null;
 }
 
-function SettingsDialog({ open, onOpenChange, value, onApply }: Props) {
+function SettingsDialog({ open, onOpenChange, value, onApply, mode = 'apply' }: Props) {
   const { t } = useTranslation('library');
   const { t: tc } = useTranslation();
-  const saveDefault = useAnalysisDefaults((s) => s.save);
+  const { save: saveDefault } = useAnalysisDefaults();
   const [draft, setDraft] = useState(value);
   const [asDefault, setAsDefault] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const apply = () => {
-    if (asDefault) saveDefault(draft);
+  const apply = async () => {
+    if (asDefault || mode === 'defaults') {
+      setSaving(true);
+      try {
+        await saveDefault(draft);
+        toast({ title: t('settings.defaultSaved'), tone: 'success' });
+      } catch {
+        toast({ title: t('settings.defaultFailed'), tone: 'error' });
+        if (mode === 'defaults') return;
+      } finally {
+        setSaving(false);
+      }
+    }
     onApply(draft);
     onOpenChange(false);
   };
@@ -39,15 +53,15 @@ function SettingsDialog({ open, onOpenChange, value, onApply }: Props) {
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={t('settings.title')}
+      title={mode === 'defaults' ? t('settings.defaultsTitle') : t('settings.title')}
       footer={
         <>
           <Button variant="ghost" className="mr-auto" onClick={() => setDraft(DEFAULT_SETTINGS)}>
             {t('settings.reset')}
           </Button>
           <Button onClick={() => onOpenChange(false)}>{tc('actions.cancel')}</Button>
-          <Button variant="primary" onClick={apply}>
-            {t('settings.apply')}
+          <Button variant="primary" loading={saving} onClick={() => void apply()}>
+            {mode === 'defaults' ? t('settings.saveDefaults') : t('settings.apply')}
           </Button>
         </>
       }
@@ -84,11 +98,13 @@ function SettingsDialog({ open, onOpenChange, value, onApply }: Props) {
           />
           <span className="text-caption text-fg-3">{t('settings.confidenceHelp')}</span>
         </label>
-        <Checkbox
-          label={t('settings.saveDefault')}
-          checked={asDefault}
-          onCheckedChange={(c) => setAsDefault(c === true)}
-        />
+        {mode === 'apply' && (
+          <Checkbox
+            label={t('settings.saveDefault')}
+            checked={asDefault}
+            onCheckedChange={(c) => setAsDefault(c === true)}
+          />
+        )}
       </div>
     </Dialog>
   );

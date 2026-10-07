@@ -28,6 +28,10 @@ export type EmailPrefs = Schemas['EmailPrefs'];
 export type UpgradeRequest = Schemas['UpgradeRequest'];
 export type UpgradeRequestOut = Schemas['UpgradeRequestOut'];
 export type DeletionPreview = Schemas['DeletionPreview'];
+export type AnalysisDefaults = Schemas['AnalysisDefaults'];
+
+/** GET /me (email prefs, analysis defaults); one cache entry shared by Settings and SCR-11. */
+export const ME_KEY = ['identity', 'me'] as const;
 export type InviteRole = Schemas['CreateInvitesRequest']['role'];
 
 export const ORG_KINDS: readonly OrgKind[] = [

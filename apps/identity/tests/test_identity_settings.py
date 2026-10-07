@@ -82,3 +82,16 @@ async def test_notification_email_respects_prefs(kit: Kit, jwt_key_pem: str) -> 
         r = await h.post("/internal/v1/notifications/email", json={**body, "type": "job_failed"}, headers=ok)
         assert r.json()["sent"] is True
     await app.state.engine.dispose()
+
+
+async def test_analysis_defaults(kit: Kit) -> None:
+    c, s = await kit.verified("defaults@club.com")
+    assert (await c.get("/api/v1/me", headers=auth(s))).json()["analysis_defaults"] is None
+    r = await c.patch("/api/v1/me", json={"analysis_defaults": {"mode": "fast", "confidence": 0.5}}, headers=auth(s))
+    assert r.json()["analysis_defaults"] == {"mode": "fast", "confidence": 0.5}
+    r = await c.patch("/api/v1/me", json={"name": "Still Fast"}, headers=auth(s))  # untouched when omitted
+    assert r.json()["analysis_defaults"] == {"mode": "fast", "confidence": 0.5}
+    assert_problem(await c.patch("/api/v1/me", json={"analysis_defaults": {"confidence": 0.95}}, headers=auth(s)),
+                   422, "VALIDATION_FAILED")  # fmt: skip
+    r = await c.patch("/api/v1/me", json={"analysis_defaults": None}, headers=auth(s))
+    assert r.json()["analysis_defaults"] is None

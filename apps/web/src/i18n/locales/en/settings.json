@@ -16,7 +16,10 @@
     "theme": "Theme",
     "language": "Language",
     "units": "Units",
-    "unitsHelp": "Distances and speeds, e.g. {{example}}."
+    "unitsHelp": "Distances and speeds, e.g. {{example}}.",
+    "analysisDefaults": "Default analysis settings",
+    "analysisSummary": "{{mode}} · detection confidence {{confidence}}",
+    "edit": "Edit"
   },
   "about": {
     "web": "Web app",
@@ -101,7 +104,15 @@
     "type": "Type",
     "region": "Data region",
     "regionHelp": "Chosen when the organization was created. Data stays in this region and it cannot be changed.",
-    "saved": "Organization saved"
+    "saved": "Organization saved",
+    "savedTeams": "Saved teams",
+    "savedTeamsHelp": "Team names and colours remembered when someone confirms teams. They are suggested on the team confirmation screen; analysed videos keep their own names.",
+    "noSavedTeams": "No saved teams yet. Confirm the teams of an analysed video to add some.",
+    "teamColor": "Colour of {{name}}",
+    "teamName": "Name of {{name}}",
+    "deleteTeam": "Delete {{name}}",
+    "savedTeamSaved": "Saved team updated",
+    "nameTaken": "Another saved team already has this name."
   },
   "members": {
     "invite": "Invite members",

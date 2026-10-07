@@ -160,6 +160,16 @@ describe('G.E06 usage meter + SCR-51 notifications', () => {
         created_at: new Date(Date.now() - 3_600_000).toISOString(),
         read_at: null,
       },
+      {
+        id: 'n-3',
+        type: 'member_joined',
+        video_id: null,
+        video_title: null,
+        data: { name: 'Alex', org_name: 'Riverside FC', role: 'editor' },
+        path: '/settings/members',
+        created_at: new Date(Date.now() - 86_400_000).toISOString(),
+        read_at: new Date().toISOString(),
+      },
     );
     const user = userEvent.setup();
     const { router } = renderApp('/library', { auth: testSession() });
@@ -172,6 +182,7 @@ describe('G.E06 usage meter + SCR-51 notifications', () => {
     expect(
       await screen.findByRole('menuitem', { name: /France vs Switzerland is ready/ }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Alex joined Riverside FC/ })).toBeInTheDocument();
     await user.click(screen.getByRole('menuitem', { name: /Export fra_sui_full.mp4 is ready/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/exports'));
     expect(mock.videos.log).toContain('POST /api/v1/notifications/read n-2');

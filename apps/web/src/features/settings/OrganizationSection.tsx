@@ -5,10 +5,11 @@ import { identityApi } from '@/api/identity';
 import { useApiErrorMessage } from '@/api/useApiErrorMessage';
 import { refreshSession, useActiveMembership } from '@/auth/session';
 import { Button, Card, Field, Input, toast } from '@/ui';
+import { SavedTeamsCard } from './SavedTeamsCard';
 
 const NAME_MAX = 120;
 
-/** SCR-40 Organization (admin+): O01 name; O02 data region read-only with the reason. */
+/** SCR-40 Organization (admin+): O01 name; O02 data region read-only with the reason; O03 saved teams. */
 export function OrganizationSection() {
   const { t } = useTranslation('settings');
   const { t: tc } = useTranslation();
@@ -30,23 +31,26 @@ export function OrganizationSection() {
   if (!active) return null;
 
   return (
-    <Card className="flex flex-col gap-4">
-      <Field label={t('organization.name')} error={error}>
-        <Input value={value} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} />
-      </Field>
-      <Field label={t('organization.region')} help={t('organization.regionHelp')}>
-        <Input value={tc(`regions.${active.region}`)} readOnly />
-      </Field>
-      <div>
-        <Button
-          variant="primary"
-          disabled={!value.trim() || value.trim() === active.org_name}
-          loading={save.isPending}
-          onClick={() => save.mutate()}
-        >
-          {t('profile.save')}
-        </Button>
-      </div>
-    </Card>
+    <>
+      <Card className="flex flex-col gap-4">
+        <Field label={t('organization.name')} error={error}>
+          <Input value={value} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label={t('organization.region')} help={t('organization.regionHelp')}>
+          <Input value={tc(`regions.${active.region}`)} readOnly />
+        </Field>
+        <div>
+          <Button
+            variant="primary"
+            disabled={!value.trim() || value.trim() === active.org_name}
+            loading={save.isPending}
+            onClick={() => save.mutate()}
+          >
+            {t('profile.save')}
+          </Button>
+        </div>
+      </Card>
+      <SavedTeamsCard />
+    </>
   );
 }

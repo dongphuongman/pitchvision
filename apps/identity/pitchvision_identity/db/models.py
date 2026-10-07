@@ -37,6 +37,8 @@ class User(Base):
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = _created()
     email_prefs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    analysis_defaults: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False,
+                                                              server_default=text("'{}'::jsonb"))  # fmt: skip
 
     @property
     def email_verified(self) -> bool:
@@ -196,3 +198,23 @@ class ErasureRequest(Base):
     requested_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     requested_at: Mapped[datetime] = _created()
     completed_at: Mapped[datetime | None] = mapped_column(TZ)
+
+
+class MemberEvent(Base):
+    """A new membership to announce to the org's admins (migration 0005, SCR-51 member joined)."""
+
+    __tablename__ = "member_events"
+    __table_args__ = (
+        Index("member_events_pending_idx", "region", "created_at", postgresql_where=text("delivered_at IS NULL")),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    region: Mapped[str] = mapped_column(Text, nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    user_name: Mapped[str] = mapped_column(Text, nullable=False)
+    org_name: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    recipients: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
+    created_at: Mapped[datetime] = _created()
+    delivered_at: Mapped[datetime | None] = mapped_column(TZ)

@@ -144,7 +144,11 @@
     "confidenceHelp": "Lower finds more players and the ball but adds false detections.",
     "saveDefault": "Save as my default",
     "reset": "Reset to defaults",
-    "apply": "Apply"
+    "apply": "Apply",
+    "defaultsTitle": "Default analysis settings",
+    "saveDefaults": "Save defaults",
+    "defaultSaved": "Default analysis settings saved",
+    "defaultFailed": "Couldn't save your defaults. Try again."
   },
   "tray": {
     "label": "Uploads",

@@ -4,7 +4,10 @@ import { useFormat } from '@/i18n/format';
 import { SUPPORTED_LANGUAGES, type Language } from '@/i18n/resources';
 import { usePreferences, type UnitSystem } from '@/lib/preferences';
 import { useThemeStore, type ThemePreference } from '@/lib/theme';
-import { Card, Field, Select } from '@/ui';
+import { Button, Card, Field, Select } from '@/ui';
+import { AdvancedSettingsDialog } from '@/features/library/AdvancedSettingsDialog';
+import { useAnalysisDefaults } from '@/features/library/analysisSettings';
+import { useState } from 'react';
 import { EmailNotificationsCard } from './EmailNotificationsCard';
 
 /** Only languages with a shipped catalogue are selectable; the rest appear once translated. */
@@ -54,7 +57,41 @@ export function PreferencesSection() {
           />
         </Field>
       </Card>
+      <AnalysisDefaultsCard />
       <EmailNotificationsCard />
     </>
+  );
+}
+
+/** R02 Default analysis settings · Edit → SCR-12 in "defaults" mode (saved on the account). */
+function AnalysisDefaultsCard() {
+  const { t } = useTranslation('settings');
+  const { t: tl } = useTranslation('library');
+  const { settings, loaded } = useAnalysisDefaults();
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-1">
+        <b>{t('preferences.analysisDefaults')}</b>
+        <span className="text-fg-2">
+          {loaded
+            ? t('preferences.analysisSummary', {
+                mode: tl(`settings.${settings.mode}`),
+                confidence: settings.confidence.toFixed(2),
+              })
+            : '…'}
+        </span>
+      </div>
+      <Button variant="ghost" disabled={!loaded} onClick={() => setOpen(true)}>
+        {t('preferences.edit')}
+      </Button>
+      <AdvancedSettingsDialog
+        open={open}
+        onOpenChange={setOpen}
+        value={settings}
+        onApply={() => undefined}
+        mode="defaults"
+      />
+    </Card>
   );
 }

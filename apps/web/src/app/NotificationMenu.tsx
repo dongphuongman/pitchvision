@@ -38,6 +38,8 @@ export function NotificationMenu() {
     return t(`notifications.types.${n.type}`, {
       title: n.video_title ?? t('notifications.untitled'),
       filename: typeof d.filename === 'string' ? d.filename : '',
+      name: typeof d.name === 'string' ? d.name : '',
+      org: typeof d.org_name === 'string' ? d.org_name : '',
     });
   }
 

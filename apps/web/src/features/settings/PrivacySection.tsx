@@ -34,11 +34,17 @@ export function PrivacySection() {
         <DeleteOrgCard videos={summary.data?.videos} exports={summary.data?.exports} />
       )}
       <p className="m-0 text-sm text-fg-2">
-        <Link to="/privacy" className="rounded-sm font-semibold text-accent hover:underline focus-ring">
+        <Link
+          to="/privacy"
+          className="rounded-sm font-semibold text-accent focus-ring hover:underline"
+        >
           {t('privacy.policy')}
         </Link>
         {' · '}
-        <Link to="/terms" className="rounded-sm font-semibold text-accent hover:underline focus-ring">
+        <Link
+          to="/terms"
+          className="rounded-sm font-semibold text-accent focus-ring hover:underline"
+        >
           {t('privacy.terms')}
         </Link>
       </p>
@@ -84,7 +90,11 @@ function DataExportCard({ latest, admin }: { latest: DataExportOut | null; admin
               date: latest.expires_at ? fmt.date(latest.expires_at) : '',
             })}
           </span>
-          <Button size="sm" leadingIcon={<Download size={16} />} onClick={() => void download(latest.id)}>
+          <Button
+            size="sm"
+            leadingIcon={<Download size={16} />}
+            onClick={() => void download(latest.id)}
+          >
             {t('privacy.download')}
           </Button>
         </div>
@@ -129,7 +139,13 @@ function DeleteAccountCard({ videos }: { videos: number | undefined }) {
   );
 }
 
-function DeleteAccountDialog({ videos, onClose }: { videos: number | undefined; onClose: () => void }) {
+function DeleteAccountDialog({
+  videos,
+  onClose,
+}: {
+  videos: number | undefined;
+  onClose: () => void;
+}) {
   const { t } = useTranslation('settings');
   const { t: tc } = useTranslation();
   const user = useUser();

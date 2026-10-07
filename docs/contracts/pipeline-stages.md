@@ -240,7 +240,16 @@ Email: types in `EMAIL_TYPES` start `email_status = pending` (others `skipped`);
 (beat, `PV_NOTIFY_EMAIL_S` 60 s) posts them to identity-svc `POST /internal/v1/notifications/email` (bearer
 `PV_INTERNAL_TOKEN`; identity checks membership + verified email and renders the copy) → `sent` / `skipped`;
 transport errors retry, `failed` after 5 attempts or a 4xx. No token / URL configured → `skipped` (in-app only).
-Not yet: "member joined" (identity event). `data_export_ready` (→ `/settings/privacy`) always emails.
+`data_export_ready` (→ `/settings/privacy`) always emails. `member_joined {name, org_name, role, user_id}` (→
+`/settings/members`, in-app only): the same beat first pulls identity's member events for `PV_REGION` and writes one
+row per recipient (dedupe `member_joined:{event id}`), then acks.
+
+## Saved teams (SCR-40 O03, SCR-14 E02; API migration 0009)
+`saved_teams {name, color, uses, last_used_at}` per org, unique on `lower(name)`. `PATCH /results/{v}/teams` with
+`confirmed: true` upserts both clusters' names except the defaults "Team A" / "Team B" (latest colour wins,
+`uses + 1`). `GET /api/v1/saved-teams` (any member, most used first, ≤ 200) feeds the SCR-14 name suggestions —
+picking one applies its colour; `PATCH /saved-teams/{id} {name?, color?}` (admin+, 409 `name_taken`), `DELETE`
+(admin+). Videos keep their own names. An org erasure deletes them (`pv_purge_org` re-created in 0009).
 
 ## Video deletion (AD §14)
 `DELETE /api/v1/videos/{id}` cancels the active job (→ `orchestrate.cancel_job`), soft-deletes the row and enqueues

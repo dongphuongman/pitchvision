@@ -173,7 +173,8 @@ describe('SCR-41 for non-owners', () => {
     seed('admin');
     const user = userEvent.setup();
     const assign = vi.fn();
-    const { href, origin, protocol, host, hostname, port, pathname, search, hash } = window.location;
+    const { href, origin, protocol, host, hostname, port, pathname, search, hash } =
+      window.location;
     vi.stubGlobal('location', {
       ...{ href, origin, protocol, host, hostname, port, pathname, search, hash },
       assign,
@@ -181,7 +182,9 @@ describe('SCR-41 for non-owners', () => {
     try {
       renderApp('/settings/privacy', { auth: 'bootstrap' });
       expect(await screen.findByText(/organization's data: videos/)).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Delete organization…' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Delete organization…' }),
+      ).not.toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Export my data' }));
       expect(await screen.findByText(/we'll email you a download link/)).toBeInTheDocument();
       expect(mock.videos.log).toContain('POST /api/v1/privacy/data-exports');
@@ -199,9 +202,7 @@ describe('SCR-41 for non-owners', () => {
     const user = userEvent.setup();
     renderApp('/settings/privacy', { auth: 'bootstrap' });
     await user.click(await screen.findByRole('button', { name: 'Delete account…' }));
-    expect(
-      await screen.findByText(/You are the only owner of Riverside FC/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/You are the only owner of Riverside FC/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeDisabled();
   });
 
@@ -213,7 +214,10 @@ describe('SCR-41 for non-owners', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete account…' }));
     expect(await screen.findByText(/only member of these organizations/)).toBeInTheDocument();
     const confirm = screen.getByRole('button', { name: 'Delete permanently' });
-    await user.type(screen.getByLabelText(/Type dm@riversidefc.com to confirm/), 'DM@riversidefc.com');
+    await user.type(
+      screen.getByLabelText(/Type dm@riversidefc.com to confirm/),
+      'DM@riversidefc.com',
+    );
     expect(confirm).toBeEnabled();
     await user.click(confirm);
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
@@ -236,5 +240,56 @@ describe('SCR-41 for non-owners', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(logged('DELETE /api/v1/orgs/org-1')).toHaveLength(1);
     expect(mock.db.orgs).toEqual([]);
+  });
+
+  it('preferences: R02 edits the default analysis settings on the account', async () => {
+    const me = seed();
+    const user = userEvent.setup();
+    renderApp('/settings/preferences', { auth: 'bootstrap' });
+    expect(await screen.findByText('Standard · detection confidence 0.35')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Default analysis settings' });
+    expect(within(dialog).queryByText('Save as my default')).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: 'Fast' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save defaults' }));
+    expect(await screen.findByText('Fast · detection confidence 0.35')).toBeInTheDocument();
+    expect(me.analysis_defaults).toEqual({ mode: 'fast', confidence: 0.35 });
+  });
+
+  it('organization: O03 renames, recolours and deletes saved teams', async () => {
+    seed();
+    mock.account.savedTeams.push(
+      {
+        id: 'st-1',
+        name: 'Riverside',
+        color: '#112233',
+        uses: 2,
+        last_used_at: '2026-10-01T00:00:00Z',
+      },
+      {
+        id: 'st-2',
+        name: 'Ajax U17',
+        color: '#ffffff',
+        uses: 1,
+        last_used_at: '2026-10-01T00:00:00Z',
+      },
+    );
+    const user = userEvent.setup();
+    renderApp('/settings/organization', { auth: 'bootstrap' });
+    const name = await screen.findByLabelText('Name of Ajax U17');
+    const row = within(name.closest('li') as HTMLElement);
+    await user.clear(name);
+    await user.type(name, 'Riverside');
+    await user.click(row.getByRole('button', { name: 'Save' }));
+    expect(
+      await screen.findByText('Another saved team already has this name.'),
+    ).toBeInTheDocument();
+    await user.clear(name);
+    await user.type(name, 'Ajax U19');
+    await user.click(row.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Saved team updated')).toBeInTheDocument();
+    expect(mock.account.savedTeams[1]?.name).toBe('Ajax U19');
+    await user.click(screen.getByRole('button', { name: 'Delete Riverside' }));
+    await waitFor(() => expect(mock.account.savedTeams.map((t) => t.name)).toEqual(['Ajax U19']));
   });
 });

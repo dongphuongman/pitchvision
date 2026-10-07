@@ -12,6 +12,7 @@ import {
   type SampleSheet,
   type Team,
 } from '@/api/corrections';
+import { savedTeamsKey, savedTeamsQuery } from '@/api/savedTeams';
 import { can } from '@/auth/roles';
 import { useRole } from '@/auth/session';
 import { cn } from '@/lib/cn';
@@ -111,6 +112,7 @@ function ConfirmTeams({ videoId, back }: { videoId: string; back: string }) {
     onSuccess: (data) => {
       qc.setQueryData(teamsQuery(videoId).queryKey, data);
       void qc.invalidateQueries({ queryKey: ['results', videoId, 'manifest'] });
+      void qc.invalidateQueries({ queryKey: savedTeamsKey });
       toast({ title: t('teams.confirmed'), tone: 'success' });
       void navigate({ href: back });
     },
@@ -261,6 +263,8 @@ function TeamCard({
   const { t } = useTranslation('video');
   const headingId = useId();
   const colorLabelId = useId();
+  const saved = useQuery({ ...savedTeamsQuery, enabled: !readOnly }).data ?? [];
+  const listId = useId();
   const swatches = [...new Set([suggested, ...PRESETS].filter((c): c is string => !!c))];
   const nameError = showError && !validName(draft.name) ? t('teams.nameError') : undefined;
 
@@ -283,9 +287,21 @@ function TeamCard({
             value={draft.name}
             maxLength={NAME_MAX}
             readOnly={readOnly}
-            onChange={(e) => onChange({ name: e.target.value })}
+            list={saved.length ? listId : undefined}
+            onChange={(e) => {
+              const name = e.target.value;
+              const match = saved.find((st) => st.name.toLowerCase() === name.trim().toLowerCase());
+              onChange(match ? { name, color: match.color } : { name });
+            }}
           />
         </Field>
+        {saved.length > 0 && (
+          <datalist id={listId}>
+            {saved.map((st) => (
+              <option key={st.id} value={st.name} />
+            ))}
+          </datalist>
+        )}
         <div className="grid gap-1.5">
           <span id={colorLabelId} className="text-caption font-semibold text-fg-2">
             {t('teams.color')}

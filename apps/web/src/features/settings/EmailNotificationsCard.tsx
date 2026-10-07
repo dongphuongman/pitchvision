@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { identityApi, type EmailPrefs, type Me } from '@/api/identity';
+import { identityApi, ME_KEY, type EmailPrefs, type Me } from '@/api/identity';
 import { Card, Skeleton, Switch, toast } from '@/ui';
 
 const KEYS = ['job_ready', 'job_failed', 'export_ready'] as const;
-const ME_KEY = ['identity', 'me'] as const;
 
 /** SCR-40 Preferences R03: email for job done / failed / export ready (saved on toggle). */
 export function EmailNotificationsCard() {

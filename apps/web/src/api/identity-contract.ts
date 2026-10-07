@@ -181,10 +181,20 @@ export interface components {
       memberships: S['Membership'][];
       active_org_id: string | null;
     };
-    Me: S['User'] & { memberships: S['Membership'][]; email_prefs?: S['EmailPrefs'] };
+    Me: S['User'] & {
+      memberships: S['Membership'][];
+      email_prefs?: S['EmailPrefs'];
+      analysis_defaults?: S['AnalysisDefaults'] | null;
+    };
+    /** SCR-12 E10 / SCR-40 R02; null on Me = product defaults. */
+    AnalysisDefaults: { mode: 'standard' | 'fast'; confidence: number };
     /** SCR-40 R03; every key present in responses (default on). */
     EmailPrefs: { job_ready?: boolean; job_failed?: boolean; export_ready?: boolean };
-    UpdateMeRequest: { name?: string | null; email_prefs?: S['EmailPrefs'] | null };
+    UpdateMeRequest: {
+      name?: string | null;
+      email_prefs?: S['EmailPrefs'] | null;
+      analysis_defaults?: S['AnalysisDefaults'] | null;
+    };
     ChangePasswordRequest: { current_password: string; new_password: string };
     UpgradeRequest: {
       plan?: 'pro' | 'team';

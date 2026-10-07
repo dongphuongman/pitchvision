@@ -54,7 +54,7 @@ API's JWT check (`apps/api`) and the web client. Change it in the same PR as the
 | DELETE /api/v1/me/unverified | — | 204 | "Change it" on SCR-06: deletes an unverified account and clears the cookie; verified → 409 `CONFLICT` |
 | GET /api/v1/me/deletion-preview | — | 200 `{blocking: OrgRef[], deleted_with_account: OrgRef[]}` | DLG-08; `OrgRef` = `{id, name, region}`. `blocking`: you are the only owner and others are members; `deleted_with_account`: no other member |
 | DELETE /api/v1/me | `{confirm_email}` | 204 | SCR-40 D03 / DLG-08: `confirm_email` = the account's email (trimmed, case-insensitive) else 422; any `blocking` org → 409 `LAST_OWNER`; orgs without another member are deleted too; clears the cookie; regional data via "Erasure" below |
-| PATCH /api/v1/me | `{name?, email_prefs?: {job_ready?, job_failed?, export_ready?}}` | 200 `Me` | SCR-40 P01 / R03; prefs merge (missing key = on); the internal notification-email route skips opted-out types (`needs_teams` follows `job_ready`, quota always sends) |
+| PATCH /api/v1/me | `{name?, email_prefs?: {job_ready?, job_failed?, export_ready?}, analysis_defaults?: {mode: standard\|fast, confidence: 0.2–0.8} \| null}` | 200 `Me` | SCR-40 P01 / R03, R02 + SCR-12 E10 (`analysis_defaults`, `null` = product defaults; omitted = unchanged); prefs merge (missing key = on); the internal notification-email route skips opted-out types (`needs_teams` follows `job_ready`, quota always sends) |
 | POST /api/v1/auth/password/change | `{current_password, new_password}` | 204 | SCR-40 P03; wrong current → 401 `INVALID_CREDENTIALS`; revokes every other refresh family (this cookie's stays) |
 | POST /api/v1/auth/sessions/revoke-others | — | 204 | SCR-40 P04; under /auth so the refresh cookie identifies this browser |
 | POST /api/v1/orgs/{id}/upgrade-requests | `{plan: pro\|team, period: monthly\|annual, reason?: quota\|feature\|seats\|quality}` | 202 `{id, plan, period, owners_notified, created_at}` | SCR-41 waitlist while billing is not live; any member; a non-owner's request emails every owner (E07) |
@@ -75,7 +75,7 @@ Shapes:
 - `Session` = `{access_token, token_type:"bearer", expires_in, user: User, memberships: Membership[], active_org_id}` (+ sets cookie)
 - `User` = `{id, name, email, email_verified, created_at}`
 - `Membership` = `{org_id, org_name, role, region}`
-- `Me` = `User & {memberships, email_prefs}`
+- `Me` = `User & {memberships, email_prefs, analysis_defaults: {mode, confidence} | null}`
 - `Org` = `{id, name, kind, region, created_at}`; `kind` ∈ `club|academy|media|agency|individual|other`
 - `Member` = `{user_id, name, email, role, joined_at}`; `Invite` = `{id, email, role, expires_at, created_at, invited_by}`
 - `InvitePreview` = `{org_name, inviter_name|null, email, role, region, expired}` (`region` added for SCR-52 "Data stored in EU")
@@ -94,6 +94,12 @@ membership in (none → complete at once). Regional workers pull and ack with th
 - `GET /internal/v1/users/{id}/export` → the account part of a data export (profile, memberships, linked Google
   account, live sessions, upgrade requests); 404 once the user is gone.
 The worker side (purge passes, data exports) is in `pipeline-stages.md` "Data & privacy".
+
+## Member events (SCR-51 "X joined Org")
+A new membership (invite accepted, at sign-up or later) writes `member_events` (migration 0005) with `recipients` =
+the org's admins + owners at that moment, minus the new member (none → no row). The org's regional worker pulls
+`GET /internal/v1/member-events?region=&limit=` → `[{id, org_id, user_id, user_name, org_name, role, recipients,
+created_at}]` (undelivered) and acks `POST /internal/v1/member-events/{id}/done` (204, idempotent).
 
 ## Regional API side (apps/api)
 - Verifies RS256 with JWKS (`PV_JWKS_URL`, cached, refetch on unknown `kid`), checks iss/aud/exp, requires

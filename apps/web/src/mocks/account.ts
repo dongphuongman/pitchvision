@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import type { ExportCreate, ExportOut } from '@/api/exports';
 import type { DataExportOut } from '@/api/privacy';
+import type { SavedTeam } from '@/api/savedTeams';
 import type { AppNotification, Usage } from '@/api/usage';
 import type { MockVideoDb } from './videos';
 
@@ -16,6 +17,8 @@ export interface MockAccount {
   exportTicks: number;
   /** SCR-40 D02: the user's data exports (newest last); a queued one reads done on the next GET /privacy. */
   dataExports: DataExportOut[];
+  /** SCR-40 O03 / SCR-14 E02 */
+  savedTeams: SavedTeam[];
 }
 
 function monthBounds(now = new Date()): [string, string] {
@@ -40,6 +43,7 @@ export function createAccount(partial: Partial<MockAccount> = {}): MockAccount {
     notifications: [],
     exportTicks: 0,
     dataExports: [],
+    savedTeams: [],
     ...partial,
   };
 }
@@ -64,6 +68,23 @@ export function accountHandlers(acct: MockAccount, videos: MockVideoDb) {
   const find = (id: unknown) => acct.exports.find((e) => e.id === id);
   return [
     http.get('*/api/v1/usage', () => HttpResponse.json(acct.usage)),
+    http.get('*/api/v1/saved-teams', () => HttpResponse.json(acct.savedTeams)),
+    http.patch('*/api/v1/saved-teams/:id', async ({ request, params }) => {
+      const team = acct.savedTeams.find((x) => x.id === params.id);
+      if (!team) return problem(404, 'NOT_FOUND');
+      const body = (await request.json()) as { name?: string; color?: string };
+      const clash = acct.savedTeams.some(
+        (x) => x.id !== team.id && x.name.toLowerCase() === body.name?.toLowerCase(),
+      );
+      if (clash) return problem(409, 'CONFLICT', { reason: 'name_taken' });
+      Object.assign(team, body);
+      videos.log.push(`PATCH /api/v1/saved-teams/${team.id} ${JSON.stringify(body)}`);
+      return HttpResponse.json(team);
+    }),
+    http.delete('*/api/v1/saved-teams/:id', ({ params }) => {
+      acct.savedTeams = acct.savedTeams.filter((x) => x.id !== params.id);
+      return new HttpResponse(null, { status: 204 });
+    }),
     http.get('*/api/v1/privacy', () => {
       const latest = acct.dataExports.at(-1) ?? null;
       if (latest?.status === 'queued') {

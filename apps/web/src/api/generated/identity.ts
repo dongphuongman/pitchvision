@@ -573,6 +573,23 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     /**
+     * AnalysisDefaults
+     * @description SCR-12 E10 "Save as my default" / SCR-40 R02 (M1 scope: mode + detection confidence).
+     */
+    AnalysisDefaults: {
+      /**
+       * Confidence
+       * @default 0.35
+       */
+      confidence: number;
+      /**
+       * Mode
+       * @default standard
+       * @enum {string}
+       */
+      mode: 'standard' | 'fast';
+    };
+    /**
      * DeletionPreview
      * @description What DELETE /me would do: ``blocking`` orgs need another owner first (you are their only owner and they have
      *     other members); ``deleted_with_account`` orgs have no other member and are deleted with the account.
@@ -733,6 +750,8 @@ export interface components {
     };
     /** Me */
     Me: {
+      /** @description SCR-12 defaults; null = product defaults */
+      analysis_defaults?: components['schemas']['AnalysisDefaults'] | null;
       /**
        * Created At
        * Format: date-time
@@ -819,9 +838,11 @@ export interface components {
     };
     /**
      * MePatchIn
-     * @description SCR-40 Profile P01 (name) and Preferences R03 (email notifications; omitted keys unchanged).
+     * @description SCR-40 Profile P01 (name), Preferences R03 (email notifications; omitted keys unchanged) and R02 (analysis
+     *     defaults; ``null`` = back to the product defaults).
      */
     MePatchIn: {
+      analysis_defaults?: components['schemas']['AnalysisDefaults'] | null;
       /** Email Prefs */
       email_prefs?: {
         [key: string]: boolean;

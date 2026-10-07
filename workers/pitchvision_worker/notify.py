@@ -8,6 +8,9 @@ a redelivered step inserts nothing new.
 email type to identity-svc (``POST {PV_IDENTITY_INTERNAL_URL}/internal/v1/notifications/email``, bearer
 ``PV_INTERNAL_TOKEN``) — identity owns the addresses and the mailer. Without that config the rows become
 ``skipped`` (in-app only). Transient errors are retried on the next run, ``failed`` after ``MAX_EMAIL_ATTEMPTS``.
+
+The same task first pulls identity's new memberships for ``PV_REGION`` (``GET /internal/v1/member-events``) and
+writes one in-app ``member_joined`` per recipient (the org's admins + owners), then acks each event.
 """
 
 from __future__ import annotations
@@ -117,8 +120,46 @@ def _deliver_one(row: Mapping[str, Any], cfg: WorkerConfig, post: Post) -> str:
     return "retry"
 
 
+# ---------------------------------------------------------------- member joined (identity → region)
+Fetch = Callable[[str, dict[str, str]], httpx.Response]
+
+
+def _get(url: str, headers: dict[str, str]) -> httpx.Response:
+    return httpx.get(url, headers=headers, timeout=HTTP_TIMEOUT_S)
+
+
+def pull_member_events(engine: Any, cfg: WorkerConfig, fetch: Fetch = _get, post: Post = _post) -> int:
+    """→ notifications written. Identity unreachable → nothing now, retried next run."""
+    if not cfg.identity_internal_url or not cfg.internal_token:
+        return 0
+    auth = {"Authorization": f"Bearer {cfg.internal_token}"}
+    base = f"{cfg.identity_internal_url}/internal/v1/member-events"
+    try:
+        r = fetch(f"{base}?region={cfg.region}&limit=100", auth)
+        r.raise_for_status()
+        events = r.json()
+    except httpx.HTTPError as e:
+        log.warning("member events: identity unreachable: %r", e)
+        return 0
+    written = 0
+    for ev in events:
+        org = uuid.UUID(ev["org_id"])
+        data = {"name": ev["user_name"], "org_name": ev["org_name"], "role": ev["role"], "user_id": ev["user_id"]}
+        with org_tx(engine, org) as conn:
+            for rcpt in ev["recipients"]:
+                written += add(conn, org_id=org, user_id=uuid.UUID(rcpt), type_="member_joined", video_id=None,
+                               data=data, dedupe_key=f"member_joined:{ev['id']}")  # fmt: skip
+        try:
+            post(f"{base}/{ev['id']}/done", {}, auth)
+        except httpx.HTTPError as e:  # redelivered next run; the dedupe key keeps it single
+            log.warning("member event %s: ack failed: %r", ev["id"], e)
+    return written
+
+
 @app.task(name=TASK_DELIVER_EMAILS, queue=QUEUE_CPU, acks_late=False)
 def deliver_notification_emails() -> dict[str, int]:
     cfg = WorkerConfig.from_env()
-    d = deliver_emails(repository.engine_for(cfg.database_url), cfg)
-    return {"sent": d.sent, "skipped": d.skipped, "failed": d.failed, "retry": d.retry}
+    engine = repository.engine_for(cfg.database_url)
+    joined = pull_member_events(engine, cfg)
+    d = deliver_emails(engine, cfg)
+    return {"member_joined": joined, "sent": d.sent, "skipped": d.skipped, "failed": d.failed, "retry": d.retry}

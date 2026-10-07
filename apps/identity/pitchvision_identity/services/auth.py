@@ -189,6 +189,8 @@ async def me(ctx: Ctx, user_id: uuid.UUID) -> schemas.Me:
         created_at=user.created_at,
         memberships=[membership_out(m, o) for m, o in ms],
         email_prefs=email_prefs(user),
+        analysis_defaults=schemas.AnalysisDefaults.model_validate(user.analysis_defaults)
+        if user.analysis_defaults else None,
     )
 
 
@@ -206,6 +208,8 @@ async def patch_me(ctx: Ctx, user_id: uuid.UUID, body: schemas.MePatchIn) -> sch
             user.name = body.name
         if body.email_prefs:
             user.email_prefs = {**(user.email_prefs or {}), **{str(k): v for k, v in body.email_prefs.items()}}
+        if "analysis_defaults" in body.model_fields_set:
+            user.analysis_defaults = body.analysis_defaults.model_dump() if body.analysis_defaults else {}
         user.updated_at = utcnow()
     return await me(ctx, user_id)
 

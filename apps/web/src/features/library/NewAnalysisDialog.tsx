@@ -80,8 +80,10 @@ export function NewAnalysisDialog() {
   const dialog = useSearchDialog<NewAnalysisSource>('new');
   const navigate = useNavigate();
   const tab = dialog.value ?? 'youtube';
-  const defaults = useAnalysisDefaults((st) => st.settings);
-  const [settings, setSettings] = useState<AnalysisSettings>(defaults);
+  const { settings: defaults } = useAnalysisDefaults();
+  // follows the account defaults (they may load after the dialog opens) until changed here
+  const [chosen, setSettings] = useState<AnalysisSettings | null>(null);
+  const settings = chosen ?? defaults;
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const summary = <ModeSummary settings={settings} onEdit={() => setAdvancedOpen(true)} />;
 

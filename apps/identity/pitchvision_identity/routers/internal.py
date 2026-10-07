@@ -8,6 +8,9 @@ longer a member of the org, or not verified, or the type has no email copy.
 GET /internal/v1/erasures?region= + POST /internal/v1/erasures/{id}/done: deleted orgs / accounts whose data the
 region still has to purge (services/erasure.py). GET /internal/v1/users/{id}/export: the account part of a data
 export (SCR-40 D02).
+
+GET /internal/v1/member-events?region= + POST /internal/v1/member-events/{id}/done: new memberships the region turns
+into ``member_joined`` notifications for the org's admins (SCR-51).
 """
 
 import hmac
@@ -19,9 +22,9 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pitchvision_schemas import ErrorCode
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 
-from pitchvision_identity.db.models import Membership, User
+from pitchvision_identity.db.models import MemberEvent, Membership, User
 from pitchvision_identity.deps import AppCtx
 from pitchvision_identity.errors import ApiError
 from pitchvision_identity.mail.templates import notification_email
@@ -111,3 +114,33 @@ async def user_export(user_id: uuid.UUID, ctx: AppCtx) -> dict[str, Any]:
     if out is None:
         raise ApiError(ErrorCode.NOT_FOUND, 404, "User not found")
     return out
+
+
+class MemberEventOut(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    user_id: uuid.UUID
+    user_name: str
+    org_name: str
+    role: str
+    recipients: list[uuid.UUID]
+    created_at: datetime
+
+
+@router.get("/member-events", dependencies=[Depends(_service)])
+async def pending_member_events(ctx: AppCtx, region: Annotated[Literal["eu", "us"], Query()],
+                                limit: Annotated[int, Query(ge=1, le=200)] = 100) -> list[MemberEventOut]:  # fmt: skip
+    async with ctx.sm() as s:
+        rows = await s.scalars(select(MemberEvent).where(MemberEvent.region == region,
+                                                         MemberEvent.delivered_at.is_(None))
+                               .order_by(MemberEvent.created_at).limit(limit))  # fmt: skip
+        return [MemberEventOut(id=e.id, org_id=e.org_id, user_id=e.user_id, user_name=e.user_name,
+                               org_name=e.org_name, role=e.role, recipients=e.recipients,
+                               created_at=e.created_at) for e in rows]  # fmt: skip
+
+
+@router.post("/member-events/{event_id}/done", status_code=204, dependencies=[Depends(_service)])
+async def member_event_done(event_id: uuid.UUID, ctx: AppCtx) -> None:
+    async with ctx.sm() as s, s.begin():
+        await s.execute(update(MemberEvent).where(MemberEvent.id == event_id, MemberEvent.delivered_at.is_(None))
+                        .values(delivered_at=func.now()))  # fmt: skip

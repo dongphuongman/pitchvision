@@ -23,6 +23,7 @@ export interface MockUser {
   email_verified: boolean;
   created_at: string;
   email_prefs?: { job_ready?: boolean; job_failed?: boolean; export_ready?: boolean };
+  analysis_defaults?: { mode: 'standard' | 'fast'; confidence: number } | null;
 }
 
 export interface MockInvite {
@@ -136,9 +137,20 @@ export function sessionFor(db: MockDb, userId: string, activeOrgId?: string | nu
   };
 }
 
+/** The user behind `testSession()` (id `u-1`), created on first use. */
+function testSessionUser(db: MockDb): MockUser {
+  let user = db.users.find((u) => u.id === 'u-1');
+  if (!user) {
+    user = mockUser({ id: 'u-1', email: 'dm@riversidefc.com', name: 'Dong Man' });
+    db.users.push(user);
+  }
+  return user;
+}
+
 function authUser(db: MockDb, request: Request): MockUser | null {
   const header = request.headers.get('Authorization') ?? '';
   const token = header.replace(/^Bearer\s+/i, '');
+  if (token === 'test-token') return testSessionUser(db); // renderApp's default testSession()
   if (!token.startsWith('mock.') || db.rejectedTokens.has(token)) return null;
   const userId = token.split('.')[1];
   return db.users.find((u) => u.id === userId) ?? null;
@@ -186,6 +198,7 @@ export function identityHandlers(db: MockDb): HttpHandler[] {
       job_failed: user.email_prefs?.job_failed ?? true,
       export_ready: user.email_prefs?.export_ready ?? true,
     },
+    analysis_defaults: user.analysis_defaults ?? null,
   });
   const log = async (request: Request) => {
     const body = await request.clone().text();
@@ -290,13 +303,18 @@ export function identityHandlers(db: MockDb): HttpHandler[] {
       await log(request);
       const user = authUser(db, request);
       if (!user) return problem(401, 'UNAUTHENTICATED');
-      const body = await jsonBody<{ name: string; email_prefs: MockUser['email_prefs'] }>(request);
+      const body = await jsonBody<{
+        name: string;
+        email_prefs: MockUser['email_prefs'];
+        analysis_defaults: MockUser['analysis_defaults'];
+      }>(request);
       if (body.name !== undefined) {
         const name = body.name.trim();
         if (!name) return problem(422, 'VALIDATION_FAILED');
         user.name = name;
       }
       if (body.email_prefs) user.email_prefs = { ...user.email_prefs, ...body.email_prefs };
+      if ('analysis_defaults' in body) user.analysis_defaults = body.analysis_defaults ?? null;
       return HttpResponse.json(meOf(user));
     }),
 
