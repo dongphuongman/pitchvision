@@ -21,8 +21,8 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex items-center gap-3.5">
-      <h1>{title}</h1>
+    <div className="mb-5 flex flex-wrap items-center gap-x-3.5 gap-y-2">
+      <h1 className="min-w-0 break-words">{title}</h1>
       {meta && <span className="text-fg-3">{meta}</span>}
       <div className="flex-1" />
       {actions}

@@ -3,6 +3,7 @@ import { getRouteApi, Link } from '@tanstack/react-router';
 import { ArrowLeftRight, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LargerScreenHint } from '@/app/LargerScreenHint';
 import { Page } from '@/app/Page';
 import {
   patchTeams,
@@ -86,6 +87,9 @@ export function TeamsPage() {
       <BackLink href={back} />
       <h1 className="mt-2.5 mb-1">{manual ? t('teams.titleManual') : t('teams.title')}</h1>
       <p className="mt-0 mb-5 text-fg-2">{manual ? t('teams.introManual') : t('teams.intro')}</p>
+      <div className="mb-4 md:hidden">
+        <LargerScreenHint />
+      </div>
       {manual ? <ManualTeams videoId={videoId} /> : <ConfirmTeams videoId={videoId} back={back} />}
     </Page>
   );

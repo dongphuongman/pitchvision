@@ -3,6 +3,7 @@ import { getRouteApi, Link } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LargerScreenHint } from '@/app/LargerScreenHint';
 import { Page } from '@/app/Page';
 import {
   adoptJob,
@@ -242,6 +243,9 @@ export function CalibrationPage() {
   return (
     <Page>
       <BackLink href={back} />
+      <div className="mt-2.5 md:hidden">
+        <LargerScreenHint />
+      </div>
       <div className="mt-2.5 mb-1 flex flex-wrap items-center gap-3">
         <h1 className="m-0">{t('calibrate.title')}</h1>
         {pitchStatus && (

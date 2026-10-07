@@ -180,7 +180,12 @@ export const identityApi = {
     });
     return required(data, 'invites');
   },
-  async invite(id: string, emails: string[], role: InviteRole, message?: string): Promise<Invite[]> {
+  async invite(
+    id: string,
+    emails: string[],
+    role: InviteRole,
+    message?: string,
+  ): Promise<Invite[]> {
     const { data } = await client.POST('/api/v1/orgs/{id}/invites', {
       params: { path: { id } },
       body: { emails, role, ...(message ? { message } : {}) },

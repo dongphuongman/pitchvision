@@ -1,7 +1,16 @@
 import { cn } from '@/lib/cn';
 
 /** Prototype `.logo`: green gradient tile with a centre-circle mark + wordmark. */
-export function Logo({ size = 'md', label }: { size?: 'md' | 'lg'; label: string }) {
+export function Logo({
+  size = 'md',
+  label,
+  compact = false,
+}: {
+  size?: 'md' | 'lg';
+  label: string;
+  /** Wordmark hidden below `sm` (phone top bar); stays the accessible name. */
+  compact?: boolean;
+}) {
   return (
     <span
       className={cn(
@@ -17,7 +26,7 @@ export function Logo({ size = 'md', label }: { size?: 'md' | 'lg'; label: string
           size === 'lg' ? 'size-[30px]' : 'size-6',
         )}
       />
-      {label}
+      <span className={compact ? 'sr-only sm:not-sr-only' : undefined}>{label}</span>
     </span>
   );
 }

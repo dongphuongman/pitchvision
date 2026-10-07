@@ -31,6 +31,21 @@ describe('SCR-20 Analysis workspace', () => {
     expect(screen.queryByText(/tactical map is empty/)).not.toBeInTheDocument();
   });
 
+  it('< 1024 px: Video / Map / Both chooses which pane shows (UIUX §09)', async () => {
+    const v = seed({ status: 'done', progress: 100, pitch_calibration: 'ok' });
+    const user = userEvent.setup();
+    renderApp(`/videos/${v.id}/overview`, { auth: testSession() });
+    const map = await screen.findByTestId('tactical-map');
+    const video = await screen.findByTestId('workspace-video');
+    const panes = screen.getByRole('radiogroup', { name: 'Show' });
+    const hidden = (el: HTMLElement) => !!el.closest('.max-lg\\:hidden');
+    expect([hidden(video), hidden(map)]).toEqual([false, false]);
+    await user.click(within(panes).getByRole('radio', { name: 'Map' }));
+    expect([hidden(video), hidden(map)]).toEqual([true, false]);
+    await user.click(within(panes).getByRole('radio', { name: 'Video' }));
+    expect([hidden(video), hidden(map)]).toEqual([false, true]);
+  });
+
   it('explains a missing pitch mapping', async () => {
     const v = seed({ status: 'done', progress: 100, pitch_calibration: 'unavailable' });
     renderApp(`/videos/${v.id}/overview`, { auth: testSession() });

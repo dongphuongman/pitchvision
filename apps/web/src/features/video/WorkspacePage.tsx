@@ -21,6 +21,7 @@ import { can } from '@/auth/roles';
 import { ExportDialog } from '@/features/exports/ExportDialog';
 import { useRole } from '@/auth/session';
 import { useFormat } from '@/i18n/format';
+import { cn } from '@/lib/cn';
 import { msForFrame } from '@/player/frames';
 import { DEFAULT_LAYERS, type OverlayLayers } from '@/player/overlay';
 import { ShotTimeline } from '@/player/ShotTimeline';
@@ -35,6 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   IconButton,
+  SegmentedControl,
   Select,
   Skeleton,
   Tabs,
@@ -55,6 +57,9 @@ function isTypingTarget(el: EventTarget | null): boolean {
   );
 }
 
+type Pane = 'video' | 'map' | 'both';
+const PANES: readonly Pane[] = ['video', 'map', 'both'];
+
 /** SCR-20 Analysis workspace (M1-FE-12): video + overlay ↔ tactical map, shot timeline, tabs. */
 export function WorkspacePage() {
   const { videoId, tab } = route.useParams();
@@ -64,6 +69,7 @@ export function WorkspacePage() {
   const { t: tc } = useTranslation();
   const fmt = useFormat();
   const canEdit = can(useRole(), 'editor');
+  const [pane, setPane] = useState<Pane>('both');
 
   const video = useQuery(videoQuery(videoId));
   const manifest = useQuery(manifestQuery(videoId));
@@ -163,42 +169,45 @@ export function WorkspacePage() {
             {t('workspace.export')}
           </Button>
         )}
+        {/* < 768 px the workspace is view-only (UIUX §09): no team / calibration entry points */}
         {canEdit && (
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <IconButton
-                label={t('workspace.more')}
-                tooltip={false}
-                icon={<MoreVertical size={17} />}
-              />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem
-                icon={<Shirt size={16} />}
-                onSelect={() =>
-                  void navigate({
-                    to: '/videos/$videoId/teams',
-                    params: { videoId },
-                    search: { return_to: here },
-                  })
-                }
-              >
-                {t('workspace.teamsColors')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                icon={<Crosshair size={16} />}
-                onSelect={() =>
-                  void navigate({
-                    to: '/videos/$videoId/calibrate',
-                    params: { videoId },
-                    search: calibrateSearch,
-                  })
-                }
-              >
-                {t('workspace.calibratePitch')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="hidden md:block">
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <IconButton
+                  label={t('workspace.more')}
+                  tooltip={false}
+                  icon={<MoreVertical size={17} />}
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  icon={<Shirt size={16} />}
+                  onSelect={() =>
+                    void navigate({
+                      to: '/videos/$videoId/teams',
+                      params: { videoId },
+                      search: { return_to: here },
+                    })
+                  }
+                >
+                  {t('workspace.teamsColors')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  icon={<Crosshair size={16} />}
+                  onSelect={() =>
+                    void navigate({
+                      to: '/videos/$videoId/calibrate',
+                      params: { videoId },
+                      search: calibrateSearch,
+                    })
+                  }
+                >
+                  {t('workspace.calibratePitch')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       </nav>
 
@@ -238,7 +247,7 @@ export function WorkspacePage() {
           actions={
             <>
               {canEdit && (
-                <Button asChild size="sm">
+                <Button asChild size="sm" className="hidden md:inline-flex">
                   <Link
                     to="/videos/$videoId/calibrate"
                     params={{ videoId }}
@@ -259,8 +268,19 @@ export function WorkspacePage() {
       )}
 
       {!notReady && (
+        <div className="mb-3 lg:hidden">
+          {/* 768–1023 px and phones (UIUX §09): video above the map, pick what to show */}
+          <SegmentedControl<Pane>
+            aria-label={t('workspace.pane.label')}
+            value={pane}
+            onValueChange={setPane}
+            options={PANES.map((p) => ({ value: p, label: t(`workspace.pane.${p}`) }))}
+          />
+        </div>
+      )}
+      {!notReady && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="flex min-w-0 flex-col gap-2">
+          <div className={cn('flex min-w-0 flex-col gap-2', pane === 'map' && 'max-lg:hidden')}>
             <p className="m-0 font-mono text-caption text-fg-3" aria-live="off">
               {t('workspace.frameInfo', { fps, frame, total: m?.frame_count ?? 0 })}
               {state?.approximate ? ` · ${t('workspace.approximateSync')}` : ''}
@@ -347,7 +367,9 @@ export function WorkspacePage() {
               ))}
             </fieldset>
           </div>
-          <Card className="flex flex-col gap-2 self-start">
+          <Card
+            className={cn('flex flex-col gap-2 self-start', pane === 'video' && 'max-lg:hidden')}
+          >
             <h2 className="m-0 text-caption font-semibold tracking-wide text-fg-2 uppercase">
               {t('player.tacticalMap')}
             </h2>
@@ -396,7 +418,7 @@ export function WorkspacePage() {
                   ))}
                 </div>
                 {canEdit && m.teams.some((team) => !team.confirmed) && (
-                  <Button asChild size="sm" className="self-start">
+                  <Button asChild size="sm" className="hidden self-start md:inline-flex">
                     <Link
                       to="/videos/$videoId/teams"
                       params={{ videoId }}

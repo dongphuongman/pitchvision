@@ -60,7 +60,13 @@
     "calibratePitch": "Calibrate pitch",
     "calibrate": "Calibrate",
     "confirmTeams": "Confirm teams",
-    "export": "Export"
+    "export": "Export",
+    "pane": {
+      "label": "Show",
+      "video": "Video",
+      "map": "Map",
+      "both": "Both"
+    }
   },
   "player": {
     "timeline": "Timeline",

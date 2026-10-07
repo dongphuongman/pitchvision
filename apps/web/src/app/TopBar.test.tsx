@@ -41,6 +41,15 @@ describe('top bar G — role-based visibility', () => {
     expect(within(menu).queryByRole('menuitem', { name: /Switch organization/ })).toBeNull();
   });
 
+  it('☰ menu (< 1024 px) reaches Library and Exports', async () => {
+    const user = userEvent.setup();
+    const { router } = renderApp('/library', { auth: testSession() });
+    await screen.findByRole('heading', { name: 'Library' });
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Exports' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/exports'));
+  });
+
   it('viewer: the N shortcut does not open New analysis', async () => {
     const user = userEvent.setup();
     const { router } = renderApp('/library', { auth: testSession({ role: 'viewer' }) });

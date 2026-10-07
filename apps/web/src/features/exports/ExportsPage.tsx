@@ -104,120 +104,126 @@ export function ExportsPage() {
           }
         />
       ) : (
-        <table className="w-full border-collapse text-control">
-          <thead>
-            <tr className="border-b border-line text-left text-xs text-fg-3">
-              <th className="py-2 pr-3 font-semibold">{t('exports.col.file')}</th>
-              <th className="py-2 pr-3 font-semibold">{t('exports.col.source')}</th>
-              <th className="py-2 pr-3 font-semibold">{t('exports.col.status')}</th>
-              <th className="py-2 pr-3 font-semibold">{t('exports.col.expires')}</th>
-              <th className="py-2 font-semibold">
-                <span className="sr-only">{t('exports.col.actions')}</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((e) => {
-              const left = e.status === 'done' ? daysLeft(e.expires_at) : null;
-              return (
-                <tr key={e.id} className="border-b border-line">
-                  <td className="py-2.5 pr-3">
-                    <div className="font-semibold text-fg">{e.filename}</div>
-                    {e.size_bytes ? (
-                      <div className="text-xs text-fg-3">
-                        {formatBytes(i18n.language, e.size_bytes)}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td className="py-2.5 pr-3">
-                    <Link
-                      to="/videos/$videoId/$tab"
-                      params={{ videoId: e.video_id, tab: 'overview' }}
-                      className="rounded-xs text-fg-2 focus-ring hover:text-fg hover:underline"
-                    >
-                      {e.video_title ?? e.video_id}
-                    </Link>
-                  </td>
-                  <td className="py-2.5 pr-3">
-                    {e.status === 'running' ? (
-                      <div className="flex w-40 items-center gap-2">
-                        <Progress value={e.progress} label={e.filename} size="sm" />
-                        <span className="text-xs text-fg-2 tabular-nums">
-                          {t('exports.status.running', { pct: Math.round(e.progress) })}
-                        </span>
-                      </div>
-                    ) : (
-                      <Badge tone={statusTone(e.status)}>{t(`exports.status.${e.status}`)}</Badge>
-                    )}
-                  </td>
-                  <td className="py-2.5 pr-3 text-fg-2">
-                    {left === null
-                      ? '—'
-                      : left === 0
-                        ? t('exports.expiresToday')
-                        : t('exports.expiresIn', { count: left })}
-                  </td>
-                  <td className="py-2.5">
-                    <div className="flex items-center justify-end gap-1">
-                      {e.status === 'done' && (
-                        <IconButton
-                          label={t('exports.download')}
-                          icon={<Download size={16} />}
-                          onClick={() => void download(e)}
-                        />
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-control">
+            <thead>
+              <tr className="border-b border-line text-left text-xs text-fg-3">
+                <th className="py-2 pr-3 font-semibold">{t('exports.col.file')}</th>
+                <th className="hidden py-2 pr-3 font-semibold sm:table-cell">
+                  {t('exports.col.source')}
+                </th>
+                <th className="py-2 pr-3 font-semibold">{t('exports.col.status')}</th>
+                <th className="hidden py-2 pr-3 font-semibold sm:table-cell">
+                  {t('exports.col.expires')}
+                </th>
+                <th className="py-2 font-semibold">
+                  <span className="sr-only">{t('exports.col.actions')}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((e) => {
+                const left = e.status === 'done' ? daysLeft(e.expires_at) : null;
+                return (
+                  <tr key={e.id} className="border-b border-line">
+                    <td className="py-2.5 pr-3">
+                      <div className="font-semibold break-all text-fg">{e.filename}</div>
+                      {e.size_bytes ? (
+                        <div className="text-xs text-fg-3">
+                          {formatBytes(i18n.language, e.size_bytes)}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="hidden py-2.5 pr-3 sm:table-cell">
+                      <Link
+                        to="/videos/$videoId/$tab"
+                        params={{ videoId: e.video_id, tab: 'overview' }}
+                        className="rounded-xs text-fg-2 focus-ring hover:text-fg hover:underline"
+                      >
+                        {e.video_title ?? e.video_id}
+                      </Link>
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      {e.status === 'running' ? (
+                        <div className="flex w-28 items-center gap-2 sm:w-40">
+                          <Progress value={e.progress} label={e.filename} size="sm" />
+                          <span className="text-xs text-fg-2 tabular-nums">
+                            {t('exports.status.running', { pct: Math.round(e.progress) })}
+                          </span>
+                        </div>
+                      ) : (
+                        <Badge tone={statusTone(e.status)}>{t(`exports.status.${e.status}`)}</Badge>
                       )}
-                      {(e.status === 'queued' || e.status === 'running') && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => cancel.mutate(e.id)}
-                          loading={cancel.isPending && cancel.variables === e.id}
-                        >
-                          <X size={14} aria-hidden="true" />
-                          {t('exports.cancel')}
-                        </Button>
-                      )}
-                      {(e.status === 'failed' || e.status === 'cancelled') && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => retry.mutate(e.id)}
-                          loading={retry.isPending && retry.variables === e.id}
-                        >
-                          <RotateCcw size={14} aria-hidden="true" />
-                          {t('exports.retry')}
-                        </Button>
-                      )}
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
+                    </td>
+                    <td className="hidden py-2.5 pr-3 text-fg-2 sm:table-cell">
+                      {left === null
+                        ? '—'
+                        : left === 0
+                          ? t('exports.expiresToday')
+                          : t('exports.expiresIn', { count: left })}
+                    </td>
+                    <td className="py-2.5">
+                      <div className="flex items-center justify-end gap-1">
+                        {e.status === 'done' && (
                           <IconButton
-                            label={t('exports.more', { file: e.filename })}
-                            tooltip={false}
-                            icon={<MoreHorizontal size={16} />}
+                            label={t('exports.download')}
+                            icon={<Download size={16} />}
+                            onClick={() => void download(e)}
                           />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              void navigator.clipboard
-                                .writeText(`${window.location.origin}/exports`)
-                                .then(() => toast({ title: t('exports.linkCopied') }));
-                            }}
+                        )}
+                        {(e.status === 'queued' || e.status === 'running') && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => cancel.mutate(e.id)}
+                            loading={cancel.isPending && cancel.variables === e.id}
                           >
-                            {t('exports.copyLink')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => setToDelete(e)}>
-                            {t('exports.delete')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                            <X size={14} aria-hidden="true" />
+                            {t('exports.cancel')}
+                          </Button>
+                        )}
+                        {(e.status === 'failed' || e.status === 'cancelled') && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => retry.mutate(e.id)}
+                            loading={retry.isPending && retry.variables === e.id}
+                          >
+                            <RotateCcw size={14} aria-hidden="true" />
+                            {t('exports.retry')}
+                          </Button>
+                        )}
+                        <DropdownMenu modal={false}>
+                          <DropdownMenuTrigger asChild>
+                            <IconButton
+                              label={t('exports.more', { file: e.filename })}
+                              tooltip={false}
+                              icon={<MoreHorizontal size={16} />}
+                            />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                void navigator.clipboard
+                                  .writeText(`${window.location.origin}/exports`)
+                                  .then(() => toast({ title: t('exports.linkCopied') }));
+                              }}
+                            >
+                              {t('exports.copyLink')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setToDelete(e)}>
+                              {t('exports.delete')}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
       <Dialog
         open={toDelete !== null}

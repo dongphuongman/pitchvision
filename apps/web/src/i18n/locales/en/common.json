@@ -31,7 +31,8 @@
     "signOut": "Sign out",
     "usage": "{{used}}/{{limit}} min",
     "usageLabel": "Analysis minutes this month: {{used}} of {{limit}}",
-    "usageResets": "Resets on {{date}}"
+    "usageResets": "Resets on {{date}}",
+    "menu": "Menu"
   },
   "signOutDialog": {
     "title": "An upload is in progress",
@@ -134,5 +135,6 @@
   "forbidden": {
     "title": "You don't have access",
     "body": "Your role in this organization does not allow this page. Ask an admin if you need it."
-  }
+  },
+  "largerScreen": "Best on a larger screen. You can still make basic changes here."
 }

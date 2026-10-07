@@ -53,15 +53,19 @@ export function SettingsPage() {
   return (
     <Page>
       <PageHeader title={t('title')} />
-      <div className="grid gap-8 md:grid-cols-[230px_1fr]">
-        <nav aria-label={t('nav')} className="flex flex-col gap-0.5">
+      <div className="grid gap-6 md:grid-cols-[230px_1fr] md:gap-8">
+        {/* < 768 px: one scrollable row of sections instead of the side list */}
+        <nav
+          aria-label={t('nav')}
+          className="-mx-4 flex gap-0.5 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-col md:overflow-visible md:px-0 md:pb-0"
+        >
           {visible.map((s) => (
             <Link
               key={s}
               to="/settings/$section"
               params={{ section: s }}
               className={cn(
-                'flex items-center gap-2.5 rounded-[9px] px-3 py-[9px] font-semibold text-fg-2 focus-ring hover:bg-surface-3 hover:text-fg',
+                'flex shrink-0 items-center gap-2.5 rounded-[9px] px-3 py-[9px] font-semibold whitespace-nowrap text-fg-2 focus-ring hover:bg-surface-3 hover:text-fg',
                 s === section && 'bg-surface-3 text-fg',
               )}
               aria-current={s === section ? 'page' : undefined}
@@ -70,7 +74,7 @@ export function SettingsPage() {
             </Link>
           ))}
         </nav>
-        <section className="flex max-w-[760px] flex-col gap-[18px]">
+        <section className="flex max-w-[760px] min-w-0 flex-col gap-[18px]">
           <h2>{t(`sections.${section}`)}</h2>
           {allowed ? <Body section={section} /> : <Banner tone="warn">{t('forbidden')}</Banner>}
         </section>

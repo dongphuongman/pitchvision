@@ -22,7 +22,7 @@ export function UsageMeter() {
   const used = data.minutes_used;
   const limit = data.minutes_limit;
   const className = cn(
-    'rounded-md px-2 py-1 text-control font-semibold tabular-nums focus-ring hover:bg-surface-3',
+    'rounded-md px-2 py-1 text-control font-semibold whitespace-nowrap tabular-nums focus-ring hover:bg-surface-3',
     TONE[usageLevel(data)],
   );
   const label = t('nav.usageLabel', { used, limit });

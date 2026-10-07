@@ -181,7 +181,8 @@ function ownersOf(db: MockDb, orgId: string): number {
 function deletionPlan(db: MockDb, userId: string) {
   const ref = (o: Org) => ({ id: o.id, name: o.name, region: o.region });
   const owned = db.orgs.filter((o) => rankOf(db, o.id, userId) === RANK.owner);
-  const others = (o: Org) => db.memberships.filter((m) => m.org_id === o.id && m.user_id !== userId);
+  const others = (o: Org) =>
+    db.memberships.filter((m) => m.org_id === o.id && m.user_id !== userId);
   return {
     blocking: owned.filter((o) => others(o).length > 0 && ownersOf(db, o.id) === 1).map(ref),
     deleted_with_account: owned.filter((o) => others(o).length === 0).map(ref),

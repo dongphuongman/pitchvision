@@ -5,8 +5,11 @@ import {
   Check,
   CircleHelp,
   CreditCard,
+  Download,
   Keyboard,
+  Film,
   LogOut,
+  Menu,
   Moon,
   Plus,
   SlidersHorizontal,
@@ -98,11 +101,39 @@ export function TopBar({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-[58px] items-center gap-[22px] border-b border-line bg-surface-1 px-5">
+    <header className="sticky top-0 z-30 flex h-[58px] items-center gap-2 border-b border-line bg-surface-1 px-3 sm:gap-3 sm:px-5 lg:gap-[22px]">
+      {/* < 1024 px (UIUX §09): Library / Exports collapse into ☰ */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={t('nav.menu')}
+            className="grid size-8 place-items-center rounded-md text-fg-2 focus-ring hover:bg-surface-3 hover:text-fg lg:hidden"
+          >
+            <Menu size={18} aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-[220px]">
+          <DropdownMenuItem
+            icon={<Film size={16} />}
+            aria-current={libraryActive ? 'page' : undefined}
+            onSelect={() => void navigate({ to: '/library' })}
+          >
+            {t('nav.library')}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            icon={<Download size={16} />}
+            aria-current={pathname.startsWith('/exports') ? 'page' : undefined}
+            onSelect={() => void navigate({ to: '/exports' })}
+          >
+            {t('nav.exports')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Link to="/library" aria-label={t('nav.home')} className="rounded-md focus-ring">
-        <Logo label={t('appName')} />
+        <Logo label={t('appName')} compact />
       </Link>
-      <nav aria-label={t('nav.primary')} className="flex gap-0.5">
+      <nav aria-label={t('nav.primary')} className="hidden gap-0.5 lg:flex">
         <Link
           to="/library"
           className={cn(navLink, libraryActive && navActive)}
@@ -120,7 +151,7 @@ export function TopBar({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
           <Button asChild variant="primary" size="sm">
             <Link to="/library" search={{ new: 'youtube' }} state={{ pvDialog: 'new' } as never}>
               <Plus size={16} aria-hidden="true" />
-              {t('nav.newAnalysis')}
+              <span className="sr-only sm:not-sr-only">{t('nav.newAnalysis')}</span>
             </Link>
           </Button>
         </Tooltip>
