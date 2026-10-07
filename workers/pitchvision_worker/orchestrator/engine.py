@@ -491,7 +491,7 @@ class _Run:
             self._task_failed(row, StageFailure(ErrorCode.INTERNAL, f"backend not implemented: {e}", False))
             return
         store.update_task(self.conn, row, status="running", backend=handle.backend, external_id=handle.external_id,
-                          attempts=row["attempts"] + 1, dispatched_at=self.now, not_before=None,
+                          attempts=row["attempts"] + 1, dispatched_at=self.now, not_before=None, running_since=None,
                           started_at=row["started_at"] or self.now)  # fmt: skip
         log.info("job %s: dispatched %s → %s %s (attempt %d)", self.id, row["task_key"], handle.backend,
                  handle.external_id, row["attempts"])  # fmt: skip
@@ -652,7 +652,11 @@ class _Run:
             if state == "failed" or state == "done":  # done without _SUCCESS = the stage didn't finish its contract
                 self._task_failed(row, StageFailure(ErrorCode.INTERNAL, f"{key} {state} on backend without "
                                                     "_SUCCESS", retryable=True))  # fmt: skip
-            elif state == "running" and age > timeout + RUNNING_GRACE_S:
+            elif state == "running" and row.get("running_since") is None:
+                # the stage limit counts from the start, not from dispatch: with fewer worker processes than
+                # dispatched segments a task can wait in the queue longer than its timeout
+                store.update_task(self.conn, row, running_since=self.now)
+            elif state == "running" and (self.now - row["running_since"]).total_seconds() > timeout + RUNNING_GRACE_S:
                 self._task_failed(row, StageFailure(ErrorCode.INTERNAL, f"{key} timed out", retryable=True))
             elif state == "queued" and age > STALE_QUEUED_S:
                 self._task_failed(row, StageFailure(ErrorCode.INTERNAL, f"{key} lost in queue", retryable=True))

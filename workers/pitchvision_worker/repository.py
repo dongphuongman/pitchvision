@@ -98,6 +98,7 @@ job_tasks = Table(
     Column("not_before", TZ),
     Column("dispatched_at", TZ),
     Column("updated_at", TZ),
+    Column("running_since", TZ),  # 0011
 )
 shots = Table(
     "shots",

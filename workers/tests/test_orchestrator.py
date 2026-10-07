@@ -573,3 +573,26 @@ def test_team_rerun_inherits_ingest_and_seeds_calibrate(h: Harness) -> None:
     assert job["status"] == "done" and job["detail"]["team_seeds"] == seeds
     assert set(job["detail"]["inherit"]) == {"normalize", "shots", "plan"}
     assert h.stages.calls["normalize"] == 1 and h.stages.calls["calibrate"] == 2
+
+
+def test_timeout_counts_from_start_not_dispatch(h: Harness) -> None:
+    """Fewer worker processes than dispatched segments: a task that waited in the queue longer than its stage
+    limit must not be failed as "timed out" the moment it starts (14 min match on the Mac, 2 cpu processes)."""
+    h.setup()
+    h.advance()
+    ext, _ = h.backend.submitted[-1]  # normalize, dispatched now
+    limit = eng.TIMEOUT_S["normalize"] + eng.RUNNING_GRACE_S
+    h.clock.tick(limit + 60)  # sat in the broker queue all that time
+    h.sweep()
+    assert h.tasks()["normalize"]["status"] == "running" and h.tasks()["normalize"]["running_since"] is None
+    h.backend.states[ext] = "running"  # a worker picks it up now
+    h.sweep()
+    row = h.tasks()["normalize"]
+    assert row["status"] == "running" and row["attempts"] == 1 and row["running_since"] == h.clock.now
+    h.clock.tick(limit - 60)
+    h.sweep()
+    assert h.tasks()["normalize"]["status"] == "running"
+    h.clock.tick(120)  # now it really ran past its limit
+    h.sweep()
+    row = h.tasks()["normalize"]
+    assert row["status"] == "queued" and row["attempts"] == 1 and "timed out" in (row["error"] or "")

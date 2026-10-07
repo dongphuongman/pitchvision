@@ -135,6 +135,7 @@ class JobTask(Base):
     not_before: Mapped[datetime | None]
     dispatched_at: Mapped[datetime | None]
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    running_since: Mapped[datetime | None]  # 0011: first seen running (timeouts count from here)
 
 
 class Team(Base):
