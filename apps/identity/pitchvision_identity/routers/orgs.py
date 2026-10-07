@@ -6,6 +6,7 @@ from fastapi import APIRouter, Response, status
 
 from pitchvision_identity import schemas
 from pitchvision_identity.deps import AppCtx, UserId
+from pitchvision_identity.services import erasure as erasure_svc
 from pitchvision_identity.services import invites as invite_svc
 from pitchvision_identity.services import orgs as svc
 
@@ -29,6 +30,14 @@ async def get_org(org_id: uuid.UUID, user_id: UserId, ctx: AppCtx) -> schemas.Or
 async def patch_org(org_id: uuid.UUID, body: schemas.OrgPatchIn, user_id: UserId, ctx: AppCtx) -> schemas.Org:
     """Admin+. Region is immutable."""
     return await svc.patch(ctx, user_id, org_id, body)
+
+
+@router.delete("/{org_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_org(org_id: uuid.UUID, body: schemas.OrgDeleteIn, user_id: UserId, ctx: AppCtx) -> Response:
+    """SCR-40 D04 / DLG-08, owner only: `confirm_name` must equal the org's name (422 otherwise). Members lose
+    access at once; videos, results and files in the org's region are purged within 24 h."""
+    await erasure_svc.delete_org(ctx, user_id, org_id, body)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{org_id}/members")

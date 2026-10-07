@@ -305,7 +305,12 @@ export interface paths {
     get: operations['get_me_api_v1_me_get'];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete Me
+     * @description SCR-40 D03: `confirm_email` must be the account's email (422). 409 LAST_OWNER while you are the only owner
+     *     of an org with other members; orgs with no other member are deleted too. Clears the refresh cookie.
+     */
+    delete: operations['delete_me_api_v1_me_delete'];
     options?: never;
     head?: never;
     /**
@@ -313,6 +318,26 @@ export interface paths {
      * @description SCR-40 P01 name, R03 email notifications (`email_prefs`, partial).
      */
     patch: operations['patch_me_api_v1_me_patch'];
+    trace?: never;
+  };
+  '/api/v1/me/deletion-preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Deletion Preview
+     * @description DLG-08: orgs that block deleting the account, and orgs that would be deleted with it.
+     */
+    get: operations['deletion_preview_api_v1_me_deletion_preview_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   '/api/v1/me/unverified': {
@@ -370,7 +395,12 @@ export interface paths {
     get: operations['get_org_api_v1_orgs__org_id__get'];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete Org
+     * @description SCR-40 D04 / DLG-08, owner only: `confirm_name` must equal the org's name (422 otherwise). Members lose
+     *     access at once; videos, results and files in the org's region are purged within 24 h.
+     */
+    delete: operations['delete_org_api_v1_orgs__org_id__delete'];
     options?: never;
     head?: never;
     /**
@@ -542,6 +572,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /**
+     * DeletionPreview
+     * @description What DELETE /me would do: ``blocking`` orgs need another owner first (you are their only owner and they have
+     *     other members); ``deleted_with_account`` orgs have no other member and are deleted with the account.
+     */
+    DeletionPreview: {
+      /** Blocking */
+      blocking: components['schemas']['OrgRef'][];
+      /** Deleted With Account */
+      deleted_with_account: components['schemas']['OrgRef'][];
+    };
     /**
      * ErrorCode
      * @enum {string}
@@ -718,6 +759,14 @@ export interface components {
       /** Name */
       name: string;
     };
+    /**
+     * MeDeleteIn
+     * @description DLG-08: the account's email typed again (compared trimmed, case-insensitive).
+     */
+    MeDeleteIn: {
+      /** Confirm Email */
+      confirm_email: string;
+    };
     /** Member */
     Member: {
       /** Email */
@@ -823,12 +872,35 @@ export interface components {
       region: 'eu' | 'us';
     };
     /**
+     * OrgDeleteIn
+     * @description DLG-08: the org's name typed again (compared trimmed, case-sensitive).
+     */
+    OrgDeleteIn: {
+      /** Confirm Name */
+      confirm_name: string;
+    };
+    /**
      * OrgPatchIn
      * @description Region is not accepted: it is chosen once at creation (sending it is a 422).
      */
     OrgPatchIn: {
       /** Name */
       name?: string | null;
+    };
+    /** OrgRef */
+    OrgRef: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /**
+       * Region
+       * @enum {string}
+       */
+      region: 'eu' | 'us';
     };
     /** PasswordChangeIn */
     PasswordChangeIn: {
@@ -1593,6 +1665,46 @@ export interface operations {
       };
     };
   };
+  delete_me_api_v1_me_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MeDeleteIn'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   patch_me_api_v1_me_patch: {
     parameters: {
       query?: never;
@@ -1631,6 +1743,44 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Me'];
+        };
+      };
+    };
+  };
+  deletion_preview_api_v1_me_deletion_preview_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DeletionPreview'];
         };
       };
     };
@@ -1750,6 +1900,48 @@ export interface operations {
         content: {
           'application/json': components['schemas']['Org'];
         };
+      };
+    };
+  };
+  delete_org_api_v1_orgs__org_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrgDeleteIn'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

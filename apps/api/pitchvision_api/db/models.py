@@ -57,7 +57,7 @@ class Video(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, server_default=GEN_UUID)
     org_id: Mapped[uuid.UUID]
-    created_by: Mapped[uuid.UUID]
+    created_by: Mapped[uuid.UUID | None]  # NULL once the uploader's account is erased (0008)
     source_type: Mapped[str | None]
     source_uri: Mapped[str | None]
     title: Mapped[str | None]
@@ -308,6 +308,46 @@ class IdempotencyKey(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
+class DataExport(Base):
+    """0008: SCR-40 D02 GDPR data export archives (built by the cpu worker)."""
+
+    __tablename__ = "data_exports"
+    __table_args__ = (
+        CheckConstraint("scope IN ('org', 'account')"),
+        CheckConstraint("status IN ('queued', 'running', 'done', 'failed')"),
+        Index("ix_data_exports_user", "org_id", "user_id", "created_at"),
+        Index("ix_data_exports_purge", "expires_at", postgresql_where=text("object_key IS NOT NULL")),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, server_default=GEN_UUID)
+    org_id: Mapped[uuid.UUID]
+    user_id: Mapped[uuid.UUID]
+    scope: Mapped[str]
+    status: Mapped[str] = mapped_column(server_default="queued")
+    object_key: Mapped[str | None]
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    error: Mapped[dict[str, Any] | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    started_at: Mapped[datetime | None]
+    finished_at: Mapped[datetime | None]
+    expires_at: Mapped[datetime | None]
+
+
+class Erasure(Base):
+    """0008: the worker's progress on identity's erasure requests (no RLS; pv_worker only)."""
+
+    __tablename__ = "erasures"
+    __table_args__ = (CheckConstraint("kind IN ('org', 'user')"),)
+
+    request_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    kind: Mapped[str]
+    subject_id: Mapped[uuid.UUID]
+    passes: Mapped[int] = mapped_column(server_default="0")
+    last_pass_at: Mapped[datetime | None]
+    acked_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
 # Views live outside Base.metadata so autogenerate never tries to create them as tables.
 view_metadata = MetaData()
 
@@ -361,7 +401,7 @@ class Notification(Base):
         _video_fk(),
         CheckConstraint(
             "type IN ('job_ready', 'needs_teams', 'job_failed', 'export_ready', 'export_failed', 'quota_80', "
-            "'quota_100')"
+            "'quota_100', 'data_export_ready')"
         ),
         CheckConstraint("email_status IN ('pending', 'sent', 'skipped', 'failed')"),
         UniqueConstraint("user_id", "dedupe_key", name="uq_notifications_dedupe"),

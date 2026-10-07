@@ -34,6 +34,7 @@ QUEUE_CPU = "cpu"
 TASK_DELETE_VIDEO_OBJECTS = "cpu.delete_video_objects"
 TASK_EXTRACT_FRAME = "cpu.extract_frame"
 TASK_RENDER_EXPORT = "cpu.render_export"
+TASK_BUILD_DATA_EXPORT = "cpu.build_data_export"
 
 
 class TaskUnavailable(Exception):

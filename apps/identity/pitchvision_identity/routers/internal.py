@@ -4,13 +4,18 @@ setting every route answers 404.
 POST /internal/v1/notifications/email (M1-BE-19): a regional worker asks identity — which owns users' addresses
 and the mailer — to email a SCR-51 notification. Not sent (``{"sent": false, reason}``) when the user is gone, no
 longer a member of the org, or not verified, or the type has no email copy.
+
+GET /internal/v1/erasures?region= + POST /internal/v1/erasures/{id}/done: deleted orgs / accounts whose data the
+region still has to purge (services/erasure.py). GET /internal/v1/users/{id}/export: the account part of a data
+export (SCR-40 D02).
 """
 
 import hmac
 import uuid
-from typing import Annotated, Any
+from datetime import datetime
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pitchvision_schemas import ErrorCode
 from pydantic import BaseModel, Field
@@ -20,6 +25,7 @@ from pitchvision_identity.db.models import Membership, User
 from pitchvision_identity.deps import AppCtx
 from pitchvision_identity.errors import ApiError
 from pitchvision_identity.mail.templates import notification_email
+from pitchvision_identity.services import erasure as erasure_svc
 
 router = APIRouter(prefix="/internal/v1", include_in_schema=False)
 # notification type → users.email_prefs key (SCR-40 R03); types without a key (quota) always send
@@ -69,3 +75,39 @@ async def notification_email_route(body: NotificationEmailIn, request: Request, 
         return EmailOutcome(sent=False, reason="no_email_for_type")
     await ctx.mailer.send(msg)
     return EmailOutcome(sent=True)
+
+
+class ErasureOut(BaseModel):
+    id: uuid.UUID
+    kind: Literal["org", "user"]
+    subject_id: uuid.UUID
+    requested_at: datetime
+
+
+class ErasureDoneIn(BaseModel):
+    region: Literal["eu", "us"]
+
+
+class ErasureDoneOut(BaseModel):
+    completed: bool
+
+
+@router.get("/erasures", dependencies=[Depends(_service)])
+async def pending_erasures(ctx: AppCtx, region: Annotated[Literal["eu", "us"], Query()],
+                           limit: Annotated[int, Query(ge=1, le=200)] = 50) -> list[ErasureOut]:  # fmt: skip
+    rows = await erasure_svc.pending(ctx, region, limit)
+    return [ErasureOut(id=r.id, kind=r.kind, subject_id=r.subject_id, requested_at=r.requested_at)  # type: ignore[arg-type]
+            for r in rows]  # fmt: skip
+
+
+@router.post("/erasures/{request_id}/done", dependencies=[Depends(_service)])
+async def erasure_done(request_id: uuid.UUID, body: ErasureDoneIn, ctx: AppCtx) -> ErasureDoneOut:
+    return ErasureDoneOut(completed=await erasure_svc.mark_done(ctx, request_id, body.region))
+
+
+@router.get("/users/{user_id}/export", dependencies=[Depends(_service)])
+async def user_export(user_id: uuid.UUID, ctx: AppCtx) -> dict[str, Any]:
+    out = await erasure_svc.user_export(ctx, user_id)
+    if out is None:
+        raise ApiError(ErrorCode.NOT_FOUND, 404, "User not found")
+    return out

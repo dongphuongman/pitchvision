@@ -74,6 +74,11 @@ export interface paths {
     parameters: NoParams;
     get: Op<NoParams, undefined, { 200: Json<S['Me']> }>;
     patch: Op<NoParams, JsonBody<S['UpdateMeRequest']>, { 200: Json<S['Me']> }>;
+    delete: Op<NoParams, JsonBody<S['DeleteMeRequest']>, { 204: NoContent }>;
+  };
+  '/api/v1/me/deletion-preview': {
+    parameters: NoParams;
+    get: Op<NoParams, undefined, { 200: Json<S['DeletionPreview']> }>;
   };
   '/api/v1/auth/password/change': {
     parameters: NoParams;
@@ -103,6 +108,7 @@ export interface paths {
     parameters: PathParams<{ id: string }>;
     get: Op<PathParams<{ id: string }>, undefined, { 200: Json<S['Org']> }>;
     patch: Op<PathParams<{ id: string }>, JsonBody<S['UpdateOrgRequest']>, { 200: Json<S['Org']> }>;
+    delete: Op<PathParams<{ id: string }>, JsonBody<S['DeleteOrgRequest']>, { 204: NoContent }>;
   };
   '/api/v1/orgs/{id}/members': {
     parameters: PathParams<{ id: string }>;
@@ -250,6 +256,13 @@ export interface components {
       region: S['Region'];
     };
     UpdateOrgRequest: { name?: string };
+    /** DLG-08: the org's name typed again. */
+    DeleteOrgRequest: { confirm_name: string };
+    /** DLG-08: the account's email typed again. */
+    DeleteMeRequest: { confirm_email: string };
+    OrgRef: { id: string; name: string; region: S['Region'] };
+    /** `blocking`: orgs where you are the only owner and others are members; `deleted_with_account`: orgs with no other member. */
+    DeletionPreview: { blocking: S['OrgRef'][]; deleted_with_account: S['OrgRef'][] };
     UpdateMemberRequest: { role: S['Role'] };
     CreateInvitesRequest: {
       emails: string[];

@@ -168,4 +168,73 @@ describe('SCR-41 for non-owners', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Maybe later' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
+
+  it('data & privacy: exports all data and downloads the archive', async () => {
+    seed('admin');
+    const user = userEvent.setup();
+    const assign = vi.fn();
+    const { href, origin, protocol, host, hostname, port, pathname, search, hash } = window.location;
+    vi.stubGlobal('location', {
+      ...{ href, origin, protocol, host, hostname, port, pathname, search, hash },
+      assign,
+    });
+    try {
+      renderApp('/settings/privacy', { auth: 'bootstrap' });
+      expect(await screen.findByText(/organization's data: videos/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Delete organization…' })).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Export my data' }));
+      expect(await screen.findByText(/we'll email you a download link/)).toBeInTheDocument();
+      expect(mock.videos.log).toContain('POST /api/v1/privacy/data-exports');
+      await user.click(await screen.findByRole('button', { name: 'Download' }));
+      await waitFor(() =>
+        expect(assign).toHaveBeenCalledWith(expect.stringMatching(/\/data\/dx-\d+\.zip$/)),
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('data & privacy: the only owner must hand over before deleting the account', async () => {
+    seed();
+    const user = userEvent.setup();
+    renderApp('/settings/privacy', { auth: 'bootstrap' });
+    await user.click(await screen.findByRole('button', { name: 'Delete account…' }));
+    expect(
+      await screen.findByText(/You are the only owner of Riverside FC/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeDisabled();
+  });
+
+  it('data & privacy: deletes the account (and the org nobody else is in) → landing', async () => {
+    const me = seed();
+    mock.db.memberships = mock.db.memberships.filter((m) => m.user_id === me.id);
+    const user = userEvent.setup();
+    const { router } = renderApp('/settings/privacy', { auth: 'bootstrap' });
+    await user.click(await screen.findByRole('button', { name: 'Delete account…' }));
+    expect(await screen.findByText(/only member of these organizations/)).toBeInTheDocument();
+    const confirm = screen.getByRole('button', { name: 'Delete permanently' });
+    await user.type(screen.getByLabelText(/Type dm@riversidefc.com to confirm/), 'DM@riversidefc.com');
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(mock.db.users.some((u) => u.id === me.id)).toBe(false);
+    expect(mock.db.orgs).toEqual([]);
+  });
+
+  it('data & privacy: the owner deletes the organization after typing its name', async () => {
+    seed();
+    const user = userEvent.setup();
+    const { router } = renderApp('/settings/privacy', { auth: 'bootstrap' });
+    await user.click(await screen.findByRole('button', { name: 'Delete organization…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Riverside FC?' });
+    expect(within(dialog).getByText(/videos and 0 exports will be deleted/)).toBeInTheDocument();
+    const confirm = within(dialog).getByRole('button', { name: 'Delete permanently' });
+    await user.type(within(dialog).getByLabelText('Type Riverside FC to confirm'), 'Riverside');
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText('Type Riverside FC to confirm'), ' FC');
+    await user.click(confirm);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(logged('DELETE /api/v1/orgs/org-1')).toHaveLength(1);
+    expect(mock.db.orgs).toEqual([]);
+  });
 });

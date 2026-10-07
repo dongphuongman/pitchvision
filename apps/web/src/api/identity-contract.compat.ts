@@ -21,4 +21,7 @@ export type IdentityContractInSync = [
   Assert<Same<H['InvitePreview'], G['InvitePreview']>>,
   Assert<Same<H['ChangePasswordRequest'], G['PasswordChangeIn']>>,
   Assert<Same<H['UpgradeRequestOut'], G['UpgradeRequestOut']>>,
+  Assert<Same<H['DeletionPreview'], G['DeletionPreview']>>,
+  Assert<Same<H['DeleteOrgRequest'], G['OrgDeleteIn']>>,
+  Assert<Same<H['DeleteMeRequest'], G['MeDeleteIn']>>,
 ];

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import ForeignKey, Index, MetaData, Text, func, text
-from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 TZ = TIMESTAMP(timezone=True)
@@ -178,3 +178,21 @@ class OAuthAccount(Base):
     )
     email: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = _created()
+
+
+class ErasureRequest(Base):
+    """A deleted org / account whose regional data is still to be purged (migration 0004)."""
+
+    __tablename__ = "erasure_requests"
+    __table_args__ = (
+        Index("erasure_requests_pending_idx", "requested_at", postgresql_where=text("completed_at IS NULL")),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    kind: Mapped[str] = mapped_column(Text, nullable=False)  # org | user
+    subject_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    regions: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    regions_done: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default=text("'{}'"))
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    requested_at: Mapped[datetime] = _created()
+    completed_at: Mapped[datetime | None] = mapped_column(TZ)

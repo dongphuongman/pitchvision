@@ -240,10 +240,32 @@ Email: types in `EMAIL_TYPES` start `email_status = pending` (others `skipped`);
 (beat, `PV_NOTIFY_EMAIL_S` 60 s) posts them to identity-svc `POST /internal/v1/notifications/email` (bearer
 `PV_INTERNAL_TOKEN`; identity checks membership + verified email and renders the copy) → `sent` / `skipped`;
 transport errors retry, `failed` after 5 attempts or a 4xx. No token / URL configured → `skipped` (in-app only).
-Not yet: "member joined" (identity event), per-user email preferences (SCR-40 /preferences).
+Not yet: "member joined" (identity event). `data_export_ready` (→ `/settings/privacy`) always emails.
 
 ## Video deletion (AD §14)
 `DELETE /api/v1/videos/{id}` cancels the active job (→ `orchestrate.cancel_job`), soft-deletes the row and enqueues
 `cpu.delete_video_objects(org_id, video_id)` (`pitchvision_worker.erasure`): every object under
 `keys.video_prefixes` + in-progress multipart uploads, with a final pass 4 h later for outputs of stage tasks that
 were mid-flight. Stages must therefore only write under the keys above.
+
+## Data & privacy (SCR-40 D02–D04, API migration 0008)
+**Data export (D02).** `POST /api/v1/privacy/data-exports` (any member; 409 `in_progress` while the caller's last
+export is queued / running and < 1 h old) → `data_exports {scope: org (admin+) | account}` + `cpu.build_data_export
+{export_id, org_id}`. The worker (`pitchvision_worker.privacy`) zips `README.txt`, `account.json` (identity
+`GET /internal/v1/users/{id}/export`), `notifications.json` (own), `org/{table}.json` (scope `org`: every row of
+videos, jobs, teams, players, corrections, shots, exports, stats, tactics, reports; scope `account`: only rows with
+`created_by` = the user) and, scope `org`, `org/positions/{video}.csv` (from `positions_org`). No video files. Upload
+to `keys.data_export_key(org, id)` (`exports/orgs/{org}/data/{id}.zip`), `done` + `data_export_ready` notification
+in one transaction; `expires_at` = +7 days. `GET /api/v1/privacy` → `{videos, exports, data_export}` (DLG-08
+counts + the caller's latest export, `expired` past `expires_at`); `GET /privacy/data-exports/{id}/download` →
+presigned 15 min, requester only (409 `not_ready`, 410 `expired`).
+
+**Org / account erasure (D03 / D04).** Identity deletes and records an erasure request (identity-api.md "Erasure").
+`cpu.privacy_sweep` (beat, `PV_PRIVACY_SWEEP_S`, 10 min) deletes expired archives
+(`pv_data_export_purge_candidates`), then pulls `GET /internal/v1/erasures?region=PV_REGION` and per request:
+- pass = org: `pv_purge_org(org)` (SECURITY DEFINER, pv_worker only: positions + every tenant table) and every
+  object under `keys.org_prefixes(org)` (multipart uploads aborted); user: `pv_purge_user(user)` (notifications and
+  data exports deleted, `created_by` cleared on videos / jobs / corrections / exports) and the archives' files.
+- first pass at once, final pass ≥ 4 h later (stage tasks in flight, access tokens minted before the delete live
+  15 min), then `POST /internal/v1/erasures/{id}/done`. Progress in `erasures` (no RLS, pv_worker only); a request
+  still listed after the ack is acked again. Without `PV_IDENTITY_INTERNAL_URL` / `PV_INTERNAL_TOKEN` nothing runs.

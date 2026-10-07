@@ -70,6 +70,32 @@ class OrgPatchIn(_In):
     name: Name | None = None
 
 
+class OrgDeleteIn(_In):
+    """DLG-08: the org's name typed again (compared trimmed, case-sensitive)."""
+
+    confirm_name: str = Field(max_length=200)
+
+
+class MeDeleteIn(_In):
+    """DLG-08: the account's email typed again (compared trimmed, case-insensitive)."""
+
+    confirm_email: str = Field(max_length=320)
+
+
+class OrgRef(BaseModel):
+    id: uuid.UUID
+    name: str
+    region: Region
+
+
+class DeletionPreview(BaseModel):
+    """What DELETE /me would do: ``blocking`` orgs need another owner first (you are their only owner and they have
+    other members); ``deleted_with_account`` orgs have no other member and are deleted with the account."""
+
+    blocking: list[OrgRef]
+    deleted_with_account: list[OrgRef]
+
+
 EmailPrefKey = Literal["job_ready", "job_failed", "export_ready"]
 EMAIL_PREF_KEYS: tuple[str, ...] = ("job_ready", "job_failed", "export_ready")
 

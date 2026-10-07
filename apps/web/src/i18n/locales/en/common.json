@@ -125,7 +125,8 @@
       "export_ready": "Export {{filename}} is ready",
       "export_failed": "Export {{filename}} failed",
       "quota_80": "You've used 80% of this month's minutes",
-      "quota_100": "You've used all of this month's minutes"
+      "quota_100": "You've used all of this month's minutes",
+      "data_export_ready": "Your data export is ready"
     },
     "untitled": "Your video"
   },

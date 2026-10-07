@@ -742,6 +742,54 @@
           }
         ]
       },
+      "delete": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Delete Me",
+        "description": "SCR-40 D03: `confirm_email` must be the account's email (422). 409 LAST_OWNER while you are the only owner\nof an org with other members; orgs with no other member are deleted too. Clears the refresh cookie.",
+        "operationId": "delete_me_api_v1_me_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeDeleteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
       "patch": {
         "tags": [
           "me"
@@ -809,6 +857,53 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/deletion-preview": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Deletion Preview",
+        "description": "DLG-08: orgs that block deleting the account, and orgs that would be deleted with it.",
+        "operationId": "deletion_preview_api_v1_me_deletion_preview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionPreview"
+                }
+              }
+            }
           },
           "4XX": {
             "description": "Client Error",
@@ -997,6 +1092,66 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "orgs"
+        ],
+        "summary": "Delete Org",
+        "description": "SCR-40 D04 / DLG-08, owner only: `confirm_name` must equal the org's name (422 otherwise). Members lose\naccess at once; videos, results and files in the org's region are purged within 24 h.",
+        "operationId": "delete_org_api_v1_orgs__org_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Org Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgDeleteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "4XX": {
             "content": {
@@ -1671,6 +1826,31 @@
   },
   "components": {
     "schemas": {
+      "DeletionPreview": {
+        "properties": {
+          "blocking": {
+            "items": {
+              "$ref": "#/components/schemas/OrgRef"
+            },
+            "type": "array",
+            "title": "Blocking"
+          },
+          "deleted_with_account": {
+            "items": {
+              "$ref": "#/components/schemas/OrgRef"
+            },
+            "type": "array",
+            "title": "Deleted With Account"
+          }
+        },
+        "type": "object",
+        "required": [
+          "blocking",
+          "deleted_with_account"
+        ],
+        "title": "DeletionPreview",
+        "description": "What DELETE /me would do: ``blocking`` orgs need another owner first (you are their only owner and they have\nother members); ``deleted_with_account`` orgs have no other member and are deleted with the account."
+      },
       "ErrorCode": {
         "type": "string",
         "enum": [
@@ -2047,6 +2227,22 @@
         ],
         "title": "Me"
       },
+      "MeDeleteIn": {
+        "properties": {
+          "confirm_email": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Confirm Email"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirm_email"
+        ],
+        "title": "MeDeleteIn",
+        "description": "DLG-08: the account's email typed again (compared trimmed, case-insensitive)."
+      },
       "MePatchIn": {
         "properties": {
           "name": {
@@ -2286,6 +2482,22 @@
         ],
         "title": "OrgCreateIn"
       },
+      "OrgDeleteIn": {
+        "properties": {
+          "confirm_name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Confirm Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirm_name"
+        ],
+        "title": "OrgDeleteIn",
+        "description": "DLG-08: the org's name typed again (compared trimmed, case-sensitive)."
+      },
       "OrgPatchIn": {
         "properties": {
           "name": {
@@ -2306,6 +2518,34 @@
         "type": "object",
         "title": "OrgPatchIn",
         "description": "Region is not accepted: it is chosen once at creation (sending it is a 422)."
+      },
+      "OrgRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "region": {
+            "type": "string",
+            "enum": [
+              "eu",
+              "us"
+            ],
+            "title": "Region"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "region"
+        ],
+        "title": "OrgRef"
       },
       "PasswordChangeIn": {
         "properties": {

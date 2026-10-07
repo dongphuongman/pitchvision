@@ -139,8 +139,39 @@
     "saved": "Notification settings saved"
   },
   "soon": {
-    "api-keys": "API keys arrive with the Pro plan.",
-    "privacy": "Data export and account deletion are coming. Contact support meanwhile."
+    "api-keys": "API keys arrive with the Pro plan."
   },
-  "forbidden": "You don't have access to this section."
+  "forbidden": "You don't have access to this section.",
+  "privacy": {
+    "exportTitle": "Export all data",
+    "exportOrg": "Download a copy of your account and this organization's data: videos, analyses, teams, corrections, exports and tracked positions (video files are not included). We email you a link when it's ready.",
+    "exportAccount": "Download a copy of your account data and what you created in this organization. We email you a link when it's ready. Ask an admin for the whole organization's data.",
+    "exportButton": "Export my data",
+    "exportStarted": "Export started — we'll email you a download link",
+    "exportPreparing": "Preparing your archive…",
+    "exportReady": "Your archive is ready ({{size}}) · available until {{date}}",
+    "exportFailed": "The last export failed. Try again.",
+    "download": "Download",
+    "downloadFailed": "The download link has expired. Request a new export.",
+    "deleteAccountTitle": "Delete my account",
+    "deleteAccountBody": "Deletes your account, your sign-in methods and your notifications. Videos you uploaded stay with their organization.",
+    "deleteAccount": "Delete account…",
+    "deleteAccountWarn": "This can't be undone. You will be signed out everywhere and your data is removed within 24 hours.",
+    "orgsDeletedWithAccount": "You are the only member of these organizations, so they are deleted too, with all their videos:",
+    "videoCount_one": "{{count}} video",
+    "videoCount_other": "{{count}} videos",
+    "blocking": "You are the only owner of {{orgs}}. Make another member owner, or delete the organization, before deleting your account.",
+    "typeEmail": "Type {{email}} to confirm",
+    "deletePermanently": "Delete permanently",
+    "deleteOrgTitle": "Delete organization",
+    "deleteOrgBody": "Deletes {{name}} for every member: videos, analyses, exports and settings.",
+    "deleteOrg": "Delete organization…",
+    "deleteOrgConfirmTitle": "Delete {{name}}?",
+    "deleteOrgCounts": "{{videos}} videos and {{exports}} exports will be deleted for every member. This can't be undone; data is removed within 24 hours.",
+    "deleteOrgWarn": "All videos and exports will be deleted for every member. This can't be undone.",
+    "typeOrgName": "Type {{name}} to confirm",
+    "nameMismatch": "The name doesn't match.",
+    "policy": "Privacy policy",
+    "terms": "Terms of service"
+  }
 }

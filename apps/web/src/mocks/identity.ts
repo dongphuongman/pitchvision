@@ -165,6 +165,17 @@ function ownersOf(db: MockDb, orgId: string): number {
   return db.memberships.filter((m) => m.org_id === orgId && m.role === 'owner').length;
 }
 
+/** DELETE /me rules: sole owner of an org with other members blocks; orgs with no other member go too. */
+function deletionPlan(db: MockDb, userId: string) {
+  const ref = (o: Org) => ({ id: o.id, name: o.name, region: o.region });
+  const owned = db.orgs.filter((o) => rankOf(db, o.id, userId) === RANK.owner);
+  const others = (o: Org) => db.memberships.filter((m) => m.org_id === o.id && m.user_id !== userId);
+  return {
+    blocking: owned.filter((o) => others(o).length > 0 && ownersOf(db, o.id) === 1).map(ref),
+    deleted_with_account: owned.filter((o) => others(o).length === 0).map(ref),
+  };
+}
+
 /** Handlers for every identity endpoint in the contract (matched on any origin). */
 export function identityHandlers(db: MockDb): HttpHandler[] {
   const meOf = (user: MockUser) => ({
@@ -445,6 +456,44 @@ export function identityHandlers(db: MockDb): HttpHandler[] {
         },
         { status: 202 },
       );
+    }),
+
+    // SCR-40 D03 / D04, DLG-08
+    http.get('*/api/v1/me/deletion-preview', ({ request }) => {
+      const user = authUser(db, request);
+      if (!user) return problem(401, 'UNAUTHENTICATED');
+      return HttpResponse.json(deletionPlan(db, user.id));
+    }),
+    http.delete('*/api/v1/me', async ({ request }) => {
+      await log(request);
+      const user = authUser(db, request);
+      if (!user) return problem(401, 'UNAUTHENTICATED');
+      const body = await jsonBody<{ confirm_email: string }>(request);
+      if (body.confirm_email?.trim().toLowerCase() !== user.email) {
+        return problem(422, 'VALIDATION_FAILED');
+      }
+      const plan = deletionPlan(db, user.id);
+      if (plan.blocking.length) return problem(409, 'LAST_OWNER');
+      const gone = new Set(plan.deleted_with_account.map((o) => o.id));
+      db.orgs = db.orgs.filter((o) => !gone.has(o.id));
+      db.memberships = db.memberships.filter((m) => m.user_id !== user.id && !gone.has(m.org_id));
+      db.users = db.users.filter((u) => u.id !== user.id);
+      db.cookie = null;
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.delete<{ id: string }>('*/api/v1/orgs/:id', async ({ request, params }) => {
+      await log(request);
+      const user = authUser(db, request);
+      if (!user) return problem(401, 'UNAUTHENTICATED');
+      const org = db.orgs.find((o) => o.id === params.id);
+      if (!org || rankOf(db, org.id, user.id) < 0) return problem(404, 'NOT_FOUND');
+      if (rankOf(db, org.id, user.id) < RANK.owner) return problem(403, 'FORBIDDEN');
+      const body = await jsonBody<{ confirm_name: string }>(request);
+      if (body.confirm_name?.trim() !== org.name) return problem(422, 'VALIDATION_FAILED');
+      db.orgs = db.orgs.filter((o) => o.id !== org.id);
+      db.memberships = db.memberships.filter((m) => m.org_id !== org.id);
+      if (db.cookie?.activeOrgId === org.id) db.cookie.activeOrgId = null;
+      return new HttpResponse(null, { status: 204 });
     }),
 
     http.delete('*/api/v1/me/unverified', async ({ request }) => {

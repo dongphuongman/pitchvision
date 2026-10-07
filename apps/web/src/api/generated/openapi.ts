@@ -249,6 +249,67 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/privacy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Summary
+     * @description Videos / exports the active org holds here (DLG-08) and the caller's latest data export (SCR-40 D02).
+     */
+    get: operations['get_summary_api_v1_privacy_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/privacy/data-exports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Data Export
+     * @description Start a GDPR export: a zip of your account data, plus — for admins and owners — the org's videos, analyses,
+     *     corrections and positions (not the video files). Emailed when ready; kept 7 days. 409 `in_progress`.
+     */
+    post: operations['create_data_export_api_v1_privacy_data_exports_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/privacy/data-exports/{export_id}/download': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Download Data Export
+     * @description Presigned URL (15 min), requester only. 409 `not_ready`; 410 `expired`.
+     */
+    get: operations['download_data_export_api_v1_privacy_data_exports__export_id__download_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/results/{video_id}/calibration': {
     parameters: {
       query?: never;
@@ -850,6 +911,48 @@ export interface components {
        */
       main_wide_pct: number;
     };
+    /** DataExportDownload */
+    DataExportDownload: {
+      /** Expires In */
+      expires_in: number;
+      /** Filename */
+      filename: string;
+      /** Url */
+      url: string;
+    };
+    /** DataExportOut */
+    DataExportOut: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Error */
+      error: {
+        [key: string]: unknown;
+      } | null;
+      /** Expires At */
+      expires_at: string | null;
+      /** Finished At */
+      finished_at: string | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Scope
+       * @enum {string}
+       */
+      scope: 'org' | 'account';
+      /** Size Bytes */
+      size_bytes: number | null;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'queued' | 'running' | 'done' | 'failed' | 'expired';
+    };
     /**
      * ErrorCode
      * @enum {string}
@@ -1376,7 +1479,8 @@ export interface components {
         | 'export_ready'
         | 'export_failed'
         | 'quota_80'
-        | 'quota_100';
+        | 'quota_100'
+        | 'data_export_ready';
       /** Video Id */
       video_id: string | null;
       /** Video Title */
@@ -1475,6 +1579,17 @@ export interface components {
     PlayersPatch: {
       /** Changes */
       changes: components['schemas']['PlayerFix'][];
+    };
+    /**
+     * PrivacySummary
+     * @description What the active org holds in this region (DLG-08 "N videos will be deleted") + the caller's latest export.
+     */
+    PrivacySummary: {
+      data_export: components['schemas']['DataExportOut'] | null;
+      /** Exports */
+      exports: number;
+      /** Videos */
+      videos: number;
     };
     /**
      * ProblemDetails
@@ -2581,6 +2696,122 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  get_summary_api_v1_privacy_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PrivacySummary'];
+        };
+      };
+    };
+  };
+  create_data_export_api_v1_privacy_data_exports_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DataExportOut'];
+        };
+      };
+    };
+  };
+  download_data_export_api_v1_privacy_data_exports__export_id__download_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        export_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DataExportDownload'];
+        };
       };
     };
   };

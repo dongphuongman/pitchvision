@@ -52,6 +52,8 @@ API's JWT check (`apps/api`) and the web client. Change it in the same PR as the
 | GET /api/v1/auth/oidc/google/callback | — | 302 to web `/auth/callback#…` | Google-verified email ⇒ email_verified; links to existing user by verified email (see OIDC below) |
 | GET /api/v1/me | — | 200 `Me` | |
 | DELETE /api/v1/me/unverified | — | 204 | "Change it" on SCR-06: deletes an unverified account and clears the cookie; verified → 409 `CONFLICT` |
+| GET /api/v1/me/deletion-preview | — | 200 `{blocking: OrgRef[], deleted_with_account: OrgRef[]}` | DLG-08; `OrgRef` = `{id, name, region}`. `blocking`: you are the only owner and others are members; `deleted_with_account`: no other member |
+| DELETE /api/v1/me | `{confirm_email}` | 204 | SCR-40 D03 / DLG-08: `confirm_email` = the account's email (trimmed, case-insensitive) else 422; any `blocking` org → 409 `LAST_OWNER`; orgs without another member are deleted too; clears the cookie; regional data via "Erasure" below |
 | PATCH /api/v1/me | `{name?, email_prefs?: {job_ready?, job_failed?, export_ready?}}` | 200 `Me` | SCR-40 P01 / R03; prefs merge (missing key = on); the internal notification-email route skips opted-out types (`needs_teams` follows `job_ready`, quota always sends) |
 | POST /api/v1/auth/password/change | `{current_password, new_password}` | 204 | SCR-40 P03; wrong current → 401 `INVALID_CREDENTIALS`; revokes every other refresh family (this cookie's stays) |
 | POST /api/v1/auth/sessions/revoke-others | — | 204 | SCR-40 P04; under /auth so the refresh cookie identifies this browser |
@@ -59,6 +61,7 @@ API's JWT check (`apps/api`) and the web client. Change it in the same PR as the
 | POST /api/v1/orgs | `{name, kind, my_role_title?, region}` | 201 `Org` | creator = owner; unverified email → 403 `EMAIL_NOT_VERIFIED`; becomes the user's last active org, so the next refresh (with or without `{org_id}`) lands in it |
 | GET /api/v1/orgs/{id} | — | 200 `Org` | member only; non-members get 404 (all `/orgs/{id}*` routes) |
 | PATCH /api/v1/orgs/{id} | `{name?}` | 200 `Org` | admin+; region is immutable (unknown fields such as `region` → 422; DB trigger as backstop) |
+| DELETE /api/v1/orgs/{id} | `{confirm_name}` | 204 | SCR-40 D04 / DLG-08, owner only (else 403); `confirm_name` = the org's name (trimmed, case-sensitive) else 422; memberships, invites, subscription go at once (members' next refresh has no such org); regional data via "Erasure" below |
 | GET /api/v1/orgs/{id}/members | — | 200 `Member[]` | admin+ |
 | PATCH /api/v1/orgs/{id}/members/{user_id} | `{role}` | 200 `Member` | admin+; only an owner may grant `owner` or change an owner (else 403); cannot demote the last owner (409 `LAST_OWNER`) |
 | DELETE /api/v1/orgs/{id}/members/{user_id} | — | 204 | admin+, or any member removing themselves (leave); only owners remove owners; same last-owner rule |
@@ -81,6 +84,16 @@ Shapes:
 
 New error codes to add to `pitchvision_schemas.ErrorCode`: `EMAIL_TAKEN`, `INVALID_CREDENTIALS`,
 `EMAIL_NOT_VERIFIED`, `TOKEN_EXPIRED`, `LAST_OWNER`, `INVITE_EMAIL_MISMATCH`, `REGION_MISMATCH`.
+
+## Erasure (SCR-40 D03 / D04, AD §14: everything gone within 24 h)
+Identity deletes its own rows at once and, in the same transaction, records an `erasure_requests` row (migration
+0004): `{kind: org|user, subject_id, regions[], regions_done[]}` — an org's region, or every region the user had a
+membership in (none → complete at once). Regional workers pull and ack with the service token (`PV_INTERNAL_TOKEN`):
+- `GET /internal/v1/erasures?region=eu|us&limit=` → `[{id, kind, subject_id, requested_at}]` not yet acked by that region.
+- `POST /internal/v1/erasures/{id}/done {region}` → `{completed}`; 404 unknown id, 409 region not in the request.
+- `GET /internal/v1/users/{id}/export` → the account part of a data export (profile, memberships, linked Google
+  account, live sessions, upgrade requests); 404 once the user is gone.
+The worker side (purge passes, data exports) is in `pipeline-stages.md` "Data & privacy".
 
 ## Regional API side (apps/api)
 - Verifies RS256 with JWKS (`PV_JWKS_URL`, cached, refetch on unknown `kid`), checks iss/aud/exp, requires

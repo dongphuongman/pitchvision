@@ -12,6 +12,8 @@ Task names (the contract — the API publishes by name only):
 - ``orchestrate.*``   orchestrator (pitchvision_worker.orchestrator.tasks)
 - ``cpu.run_stage``   CpuTask executor (S2 normalise)
 - ``cpu.delete_video_objects``  video erasure: every object under keys.video_prefixes (pitchvision_worker.erasure)
+- ``cpu.build_data_export`` / ``cpu.privacy_sweep``  SCR-40 data export zip; expired archives + org / account
+  erasure pulled from identity-svc (pitchvision_worker.privacy)
 - ``cpu.extract_frame``  still JPEG of normalized.mp4 for SCR-14/15, cached under media/…/frames/ (frames.py)
 - ``gpu.run_stage``   GpuTask executor, queue ``PV_LOCAL_GPU_QUEUE`` (pitchvision_worker.compute.tasks)
 - ``ingest.*``        S1 (pitchvision_worker.tasks)
@@ -43,6 +45,7 @@ TASK_VIDEO_READY = "orchestrate.video_ready"
 TASK_SWEEP = "orchestrate.sweep"
 TASK_SWEEP_EXPORTS = "cpu.sweep_exports"
 TASK_DELIVER_EMAILS = "cpu.deliver_notification_emails"
+TASK_PRIVACY_SWEEP = "cpu.privacy_sweep"
 
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 
@@ -65,11 +68,15 @@ def _notify_email_s() -> float:
     return float(os.environ.get("PV_NOTIFY_EMAIL_S") or 60)
 
 
+def _privacy_sweep_s() -> float:
+    return float(os.environ.get("PV_PRIVACY_SWEEP_S") or 600)
+
+
 def create_app(broker_url: str | None = None) -> Celery:
     url = broker_url or redis_url()
     include = ["pitchvision_worker.tasks", "pitchvision_worker.compute.tasks", "pitchvision_worker.orchestrator.tasks",
                "pitchvision_worker.erasure", "pitchvision_worker.frames", "pitchvision_worker.exports",
-               "pitchvision_worker.notify"]
+               "pitchvision_worker.notify", "pitchvision_worker.privacy"]
     app = Celery("pitchvision_worker", broker=url, backend=url, include=include)
     app.conf.update(
         task_queues=[Queue(name) for name in QUEUES],
@@ -84,7 +91,10 @@ def create_app(broker_url: str | None = None) -> Celery:
                                          "options": {"queue": QUEUE_CPU, "expires": _export_sweep_s()}},
                        # notifications: hand pending emails to identity-svc
                        "notification-emails": {"task": TASK_DELIVER_EMAILS, "schedule": _notify_email_s(),
-                                               "options": {"queue": QUEUE_CPU, "expires": _notify_email_s()}}},
+                                               "options": {"queue": QUEUE_CPU, "expires": _notify_email_s()}},
+                       # SCR-40 data & privacy: expired data exports, org / account erasure (AD §14, 24 h)
+                       "privacy-sweep": {"task": TASK_PRIVACY_SWEEP, "schedule": _privacy_sweep_s(),
+                                         "options": {"queue": QUEUE_CPU, "expires": _privacy_sweep_s()}}},
         task_track_started=True,  # LocalBackend.status() distinguishes queued from running
         broker_transport_options={"visibility_timeout": VISIBILITY_TIMEOUT_S},
         task_serializer="json",

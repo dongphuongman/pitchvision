@@ -28,6 +28,7 @@ class WorkerConfig:
     # --- notifications (M1-BE-19): identity-svc sends the emails; unset = in-app only
     identity_internal_url: str | None = None  # PV_IDENTITY_INTERNAL_URL, e.g. http://identity:8001
     internal_token: str | None = None  # PV_INTERNAL_TOKEN, shared with identity-svc
+    region: str = "eu"  # PV_REGION: this deployment's data region (erasure requests are pulled per region)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> WorkerConfig:
@@ -51,6 +52,7 @@ class WorkerConfig:
             sweep_interval_s=float(e.get("PV_SWEEP_INTERVAL_S") or 30),
             identity_internal_url=(e.get("PV_IDENTITY_INTERNAL_URL") or "").rstrip("/") or None,
             internal_token=e.get("PV_INTERNAL_TOKEN") or None,
+            region=e.get("PV_REGION") or "eu",
         )
 
 

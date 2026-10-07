@@ -2660,6 +2660,159 @@
         ]
       }
     },
+    "/api/v1/privacy": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Get Summary",
+        "description": "Videos / exports the active org holds here (DLG-08) and the caller's latest data export (SCR-40 D02).",
+        "operationId": "get_summary_api_v1_privacy_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacySummary"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/privacy/data-exports": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Create Data Export",
+        "description": "Start a GDPR export: a zip of your account data, plus — for admins and owners — the org's videos, analyses,\ncorrections and positions (not the video files). Emailed when ready; kept 7 days. 409 `in_progress`.",
+        "operationId": "create_data_export_api_v1_privacy_data_exports_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataExportOut"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/privacy/data-exports/{export_id}/download": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Download Data Export",
+        "description": "Presigned URL (15 min), requester only. 409 `not_ready`; 410 `expired`.",
+        "operationId": "download_data_export_api_v1_privacy_data_exports__export_id__download_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataExportDownload"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/tiles/{video_id}/{job_id}/r{revision}/{tile_no}.json.gz": {
       "get": {
         "tags": [
@@ -3013,6 +3166,121 @@
           "homography_ok_pct"
         ],
         "title": "Coverage"
+      },
+      "DataExportDownload": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "filename",
+          "expires_in"
+        ],
+        "title": "DataExportDownload"
+      },
+      "DataExportOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "org",
+              "account"
+            ],
+            "title": "Scope"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed",
+              "expired"
+            ],
+            "title": "Status"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "scope",
+          "status",
+          "size_bytes",
+          "error",
+          "created_at",
+          "finished_at",
+          "expires_at"
+        ],
+        "title": "DataExportOut"
       },
       "ErrorCode": {
         "type": "string",
@@ -4112,7 +4380,8 @@
               "export_ready",
               "export_failed",
               "quota_80",
-              "quota_100"
+              "quota_100",
+              "data_export_ready"
             ],
             "title": "Type"
           },
@@ -4408,6 +4677,36 @@
         ],
         "title": "PlayersPatch",
         "description": "SCR-14 E06 \"Fix assignment\": display-only (tiles keep the detection; the manifest's track_overrides apply)."
+      },
+      "PrivacySummary": {
+        "properties": {
+          "videos": {
+            "type": "integer",
+            "title": "Videos"
+          },
+          "exports": {
+            "type": "integer",
+            "title": "Exports"
+          },
+          "data_export": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataExportOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "videos",
+          "exports",
+          "data_export"
+        ],
+        "title": "PrivacySummary",
+        "description": "What the active org holds in this region (DLG-08 \"N videos will be deleted\") + the caller's latest export."
       },
       "ProblemDetails": {
         "properties": {

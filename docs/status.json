@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-06",
+  "updated": "2026-10-07",
   "items": [
     {
       "id": "SP-01",
@@ -101,7 +101,7 @@
       "id": "M1-W6",
       "title": "M1 tuần 6–7 (export, quota, thông báo)",
       "state": "partial",
-      "note": "<strong>Xong:</strong> gói Free/Pro/Team (bảng subscriptions ở identity, claim plan trong token); export S11 MP4 có box/nhãn/bóng/trails, panel sơ đồ sân, watermark gói Free, 1080p chỉ Pro, giữ 7 ngày (M1-BE-17); quota phút theo tháng + GET /usage, chặn 402 khi upload/nhập/tạo job (M1-BE-18); thông báo in-app + email qua identity-svc (M1-BE-19); web SCR-25 modal export, SCR-26 trang Exports, đồng hồ phút G.E06, chuông thông báo SCR-51. Hiệu chỉnh tay sau lỗi HOMOGRAPHY_UNAVAILABLE đã có test. SCR-14 E05 hướng tấn công hiệp 1 (tự đoán từ vị trí thủ môn, người dùng sửa) + E06 sửa đội/vai trò thủ môn & trọng tài (chỉ hiển thị, áp lên overlay, sơ đồ và export). Settings SCR-40: hồ sơ (tên, đổi mật khẩu, đăng xuất phiên khác), tổ chức (tên, vùng dữ liệu chỉ đọc), thành viên (mời, đổi quyền, xoá, lời mời chờ), billing (gói, phút đã dùng), tuỳ chọn email thông báo; mục ẩn theo quyền. SCR-41 nâng cấp dạng danh sách chờ (chưa có thanh toán), người không phải Owner có \"Notify owner\"; mở từ đồng hồ phút, export 1080p, lỗi quota 402. SCR-01 landing (\"Analyze any broadcast match\", tính năng, bảng giá, Choose Pro → đăng ký plan=pro → xong onboarding mở SCR-41), SCR-50 thêm trang 403. Playwright E2E F1 (đăng ký → xác minh → onboarding), F3 (upload → xử lý → workspace), F4 (YouTube), F8 (export → tải) chạy trên dev server chế độ mock API, có job CI; E2E đã bắt được 1 lỗi thật (đóng modal New analysis làm mất điều hướng sang Processing). <strong>Kiểm tra:</strong> Python 889 test, web 256 test, E2E 4 luồng. <strong>Hạn chế:</strong> 1080p là phóng từ bản 720p; chưa có thanh toán thật (Stripe), API keys, xuất/xoá dữ liệu, thông báo \"thành viên mới\"; email thật cần domain + Resend. <strong>Còn lại M1:</strong> model keypoint + E2E GPU, staging."
+      "note": "<strong>Xong:</strong> gói Free/Pro/Team (bảng subscriptions ở identity, claim plan trong token); export S11 MP4 có box/nhãn/bóng/trails, panel sơ đồ sân, watermark gói Free, 1080p chỉ Pro, giữ 7 ngày (M1-BE-17); quota phút theo tháng + GET /usage, chặn 402 khi upload/nhập/tạo job (M1-BE-18); thông báo in-app + email qua identity-svc (M1-BE-19); web SCR-25 modal export, SCR-26 trang Exports, đồng hồ phút G.E06, chuông thông báo SCR-51. Hiệu chỉnh tay sau lỗi HOMOGRAPHY_UNAVAILABLE đã có test. SCR-14 E05 hướng tấn công hiệp 1 (tự đoán từ vị trí thủ môn, người dùng sửa) + E06 sửa đội/vai trò thủ môn & trọng tài (chỉ hiển thị, áp lên overlay, sơ đồ và export). Settings SCR-40: hồ sơ (tên, đổi mật khẩu, đăng xuất phiên khác), tổ chức (tên, vùng dữ liệu chỉ đọc), thành viên (mời, đổi quyền, xoá, lời mời chờ), billing (gói, phút đã dùng), tuỳ chọn email thông báo; mục ẩn theo quyền. SCR-41 nâng cấp dạng danh sách chờ (chưa có thanh toán), người không phải Owner có \"Notify owner\"; mở từ đồng hồ phút, export 1080p, lỗi quota 402. SCR-01 landing (\"Analyze any broadcast match\", tính năng, bảng giá, Choose Pro → đăng ký plan=pro → xong onboarding mở SCR-41), SCR-50 thêm trang 403. Playwright E2E F1 (đăng ký → xác minh → onboarding), F3 (upload → xử lý → workspace), F4 (YouTube), F8 (export → tải) chạy trên dev server chế độ mock API, có job CI; E2E đã bắt được 1 lỗi thật (đóng modal New analysis làm mất điều hướng sang Processing). SCR-40 Data &amp; privacy (07/10): xuất toàn bộ dữ liệu dạng zip (Admin+ cả tổ chức, thành viên khác chỉ dữ liệu của mình; email link tải, giữ 7 ngày), xoá tài khoản và xoá tổ chức qua DLG-08 (gõ lại email / tên tổ chức; Owner duy nhất của tổ chức còn người khác phải chuyển quyền trước, tổ chức chỉ có mình thì xoá cùng tài khoản); identity xoá ngay và ghi phiếu xoá, worker từng region xoá DB + object 2 lượt cách 4 giờ rồi báo lại (trong 24 giờ). <strong>Kiểm tra:</strong> Python 903 test, web 260 test, E2E 4 luồng. <strong>Hạn chế:</strong> 1080p là phóng từ bản 720p; chưa có thanh toán thật (Stripe), API keys, thông báo \"thành viên mới\"; email thật cần domain + Resend. <strong>Còn lại M1:</strong> model keypoint + E2E GPU, staging."
     }
   ],
   "log": [
@@ -224,6 +224,10 @@
     {
       "date": "2026-10-06",
       "text": "Sửa CI web đỏ (Vitest quét nhầm spec Playwright, ESLint quét thư mục báo cáo). Lưu HANDOFF cho phiên mới: việc tiếp theo là Data & privacy, thông báo thành viên mới, mobile, chuẩn bị staging."
+    },
+    {
+      "date": "2026-10-07",
+      "text": "SCR-40 Data & privacy: xuất toàn bộ dữ liệu (zip, email link, giữ 7 ngày), xoá tài khoản / xoá tổ chức (DLG-08). Identity: DELETE /me, DELETE /orgs/{id}, phiếu erasure_requests + /internal/v1/erasures; API migration 0008 (data_exports, erasures, pv_purge_org / pv_purge_user); worker cpu.build_data_export + cpu.privacy_sweep. Python 903 test, web 260 test."
     }
   ]
 }

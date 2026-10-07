@@ -56,7 +56,7 @@ x-identity-env: &identity-env
   # Browser-facing origin: email links, OIDC redirect, and the JWT `iss`.
   PV_WEB_URL: ${PV_WEB_URL:-http://localhost:3000}
   PV_JWT_ISSUER: ${PV_WEB_URL:-http://localhost:3000}
-  PV_INTERNAL_TOKEN: ${PV_INTERNAL_TOKEN:-}  # workers' notification emails (/internal/v1)
+  PV_INTERNAL_TOKEN: ${PV_INTERNAL_TOKEN:-}  # workers: notification emails, erasure requests, data exports (/internal/v1)
   # Local: migrate-identity generates a signing key once into the identity-keys volume so sessions survive
   # restarts. Production: set PV_JWT_PRIVATE_KEY_PEM from the secret store instead.
   PV_JWT_PRIVATE_KEY_PEM: ${PV_JWT_PRIVATE_KEY_PEM:-}

@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import type { ExportCreate, ExportOut } from '@/api/exports';
+import type { DataExportOut } from '@/api/privacy';
 import type { AppNotification, Usage } from '@/api/usage';
 import type { MockVideoDb } from './videos';
 
@@ -13,6 +14,8 @@ export interface MockAccount {
   notifications: AppNotification[];
   /** list reads before a queued / running export is done (0 = stays running). */
   exportTicks: number;
+  /** SCR-40 D02: the user's data exports (newest last); a queued one reads done on the next GET /privacy. */
+  dataExports: DataExportOut[];
 }
 
 function monthBounds(now = new Date()): [string, string] {
@@ -36,6 +39,7 @@ export function createAccount(partial: Partial<MockAccount> = {}): MockAccount {
     exports: [],
     notifications: [],
     exportTicks: 0,
+    dataExports: [],
     ...partial,
   };
 }
@@ -60,6 +64,53 @@ export function accountHandlers(acct: MockAccount, videos: MockVideoDb) {
   const find = (id: unknown) => acct.exports.find((e) => e.id === id);
   return [
     http.get('*/api/v1/usage', () => HttpResponse.json(acct.usage)),
+    http.get('*/api/v1/privacy', () => {
+      const latest = acct.dataExports.at(-1) ?? null;
+      if (latest?.status === 'queued') {
+        const now = Date.now();
+        Object.assign(latest, {
+          status: 'done',
+          size_bytes: 1_250_000,
+          finished_at: new Date(now).toISOString(),
+          expires_at: new Date(now + 7 * 86_400_000).toISOString(),
+        });
+      }
+      return HttpResponse.json({
+        videos: videos.videos.filter((v) => v.status !== 'deleted').length,
+        exports: acct.exports.length,
+        data_export: latest,
+      });
+    }),
+    http.post('*/api/v1/privacy/data-exports', () => {
+      const latest = acct.dataExports.at(-1);
+      if (latest?.status === 'queued' || latest?.status === 'running') {
+        return problem(409, 'CONFLICT', { reason: 'in_progress' });
+      }
+      seq += 1;
+      const d: DataExportOut = {
+        id: `dx-${String(seq)}`,
+        scope: 'org',
+        status: 'queued',
+        size_bytes: null,
+        error: null,
+        created_at: new Date().toISOString(),
+        finished_at: null,
+        expires_at: null,
+      };
+      acct.dataExports.push(d);
+      videos.log.push('POST /api/v1/privacy/data-exports');
+      return HttpResponse.json(d, { status: 202 });
+    }),
+    http.get('*/api/v1/privacy/data-exports/:id/download', ({ params }) => {
+      const d = acct.dataExports.find((x) => x.id === params.id);
+      if (!d) return problem(404, 'NOT_FOUND');
+      if (d.status !== 'done') return problem(409, 'CONFLICT', { reason: 'not_ready' });
+      return HttpResponse.json({
+        url: `https://storage.example/data/${d.id}.zip`,
+        filename: 'pitchvision-data.zip',
+        expires_in: 900,
+      });
+    }),
     http.get('*/api/v1/notifications', () =>
       HttpResponse.json({
         items: [...acct.notifications].sort((a, b) => b.created_at.localeCompare(a.created_at)),

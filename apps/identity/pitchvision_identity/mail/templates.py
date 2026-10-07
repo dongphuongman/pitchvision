@@ -75,6 +75,8 @@ NOTIFICATION_COPY: dict[str, tuple[str, str, str, str]] = {
                    "We couldn't finish analysing {title}. Open it to see what went wrong and retry.", "See details"),
     "export_ready": ("Your export {filename} is ready", "Your export is ready",
                      "{filename} is ready to download. The file is kept for 7 days.", "Download"),
+    "data_export_ready": ("Your PitchVision data export is ready", "Your data export is ready",
+                          "The archive with your data is ready to download. It is kept for 7 days.", "Download"),
     "quota_100": ("You've used this month's analysis minutes", "Monthly minutes used up",
                   "Your organization has used all {limit} analysis minutes this month. Upgrade to keep analysing.",
                   "See plans"),

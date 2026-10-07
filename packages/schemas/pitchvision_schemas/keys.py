@@ -65,3 +65,13 @@ def export_key(org_id: str, video_id: str, export_id: str, ext: str) -> str:
 def video_prefixes(org_id: str, video_id: str) -> list[str]:
     """Every prefix holding data for a video — erasure requests delete all of them (AD §14)."""
     return [_video(c, org_id, video_id) for c in STORAGE_CLASSES]
+
+
+def data_export_key(org_id: str, export_id: str) -> str:
+    """SCR-40 D02 GDPR archive (zip); under the org so an org erasure removes it too."""
+    return f"exports/orgs/{org_id}/data/{export_id}.zip"
+
+
+def org_prefixes(org_id: str) -> list[str]:
+    """Every prefix holding data for an org (all its videos + data exports) — org erasure deletes all of them."""
+    return [f"{c}/orgs/{org_id}/" for c in STORAGE_CLASSES]

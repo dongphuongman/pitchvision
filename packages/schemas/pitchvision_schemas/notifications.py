@@ -8,16 +8,18 @@ web client agree.
 from typing import Literal
 
 NotificationType = Literal["job_ready", "needs_teams", "job_failed", "export_ready", "export_failed", "quota_80",
-                           "quota_100"]  # fmt: skip
+                           "quota_100", "data_export_ready"]  # fmt: skip
 NOTIFICATION_TYPES: tuple[NotificationType, ...] = ("job_ready", "needs_teams", "job_failed", "export_ready",
-                                                    "export_failed", "quota_80", "quota_100")  # fmt: skip
+                                                    "export_failed", "quota_80", "quota_100",
+                                                    "data_export_ready")  # fmt: skip
 # also sent by email (the rest are in-app only)
-EMAIL_TYPES: frozenset[str] = frozenset({"job_ready", "needs_teams", "job_failed", "export_ready", "quota_100"})
+EMAIL_TYPES: frozenset[str] = frozenset({"job_ready", "needs_teams", "job_failed", "export_ready", "quota_100",
+                                         "data_export_ready"})  # fmt: skip
 
 
 def notification_path(type_: str, video_id: str | None) -> str:
     """SCR-51 E02 destinations: ready → SCR-20, failed → SCR-13, needs teams → SCR-14, export → SCR-26,
-    quota → SCR-40 billing."""
+    quota → SCR-40 billing, data export → SCR-40 Data & privacy."""
     if video_id and type_ == "job_ready":
         return f"/videos/{video_id}"
     if video_id and type_ == "needs_teams":
@@ -28,4 +30,6 @@ def notification_path(type_: str, video_id: str | None) -> str:
         return "/exports"
     if type_ in ("quota_80", "quota_100"):
         return "/settings/billing"
+    if type_ == "data_export_ready":
+        return "/settings/privacy"
     return "/library"

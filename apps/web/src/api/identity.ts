@@ -27,6 +27,7 @@ export type Invite = Schemas['Invite'];
 export type EmailPrefs = Schemas['EmailPrefs'];
 export type UpgradeRequest = Schemas['UpgradeRequest'];
 export type UpgradeRequestOut = Schemas['UpgradeRequestOut'];
+export type DeletionPreview = Schemas['DeletionPreview'];
 export type InviteRole = Schemas['CreateInvitesRequest']['role'];
 
 export const ORG_KINDS: readonly OrgKind[] = [
@@ -102,6 +103,22 @@ export const identityApi = {
   async me(signal?: AbortSignal): Promise<Me> {
     const { data } = await client.GET('/api/v1/me', { signal });
     return required(data, 'me');
+  },
+  /** SCR-40 D03 / DLG-08: orgs that block deleting the account, orgs deleted with it. */
+  async deletionPreview(signal?: AbortSignal): Promise<DeletionPreview> {
+    const { data } = await client.GET('/api/v1/me/deletion-preview', { signal });
+    return required(data, 'deletion preview');
+  },
+  /** SCR-40 D03: 409 LAST_OWNER while you are an org's only owner; clears the refresh cookie. */
+  async deleteAccount(confirmEmail: string): Promise<void> {
+    await client.DELETE('/api/v1/me', { body: { confirm_email: confirmEmail } });
+  },
+  /** SCR-40 D04 (owner): `confirmName` must equal the org's name. */
+  async deleteOrg(id: string, confirmName: string): Promise<void> {
+    await client.DELETE('/api/v1/orgs/{id}', {
+      params: { path: { id } },
+      body: { confirm_name: confirmName },
+    });
   },
   async deleteUnverified(): Promise<void> {
     await client.DELETE('/api/v1/me/unverified');

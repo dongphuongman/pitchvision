@@ -10,6 +10,7 @@ import { BillingSection } from './BillingSection';
 import { MembersSection } from './MembersSection';
 import { OrganizationSection } from './OrganizationSection';
 import { PreferencesSection } from './PreferencesSection';
+import { PrivacySection } from './PrivacySection';
 import { ProfileSection } from './ProfileSection';
 import { SECTION_ROLE, SETTINGS_SECTIONS, type SettingsSection } from './sections';
 
@@ -26,6 +27,8 @@ function Body({ section }: { section: SettingsSection }) {
       return <BillingSection />;
     case 'preferences':
       return <PreferencesSection />;
+    case 'privacy':
+      return <PrivacySection />;
     case 'about':
       return <AboutSection />;
     default:
