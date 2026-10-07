@@ -104,11 +104,18 @@ derived jobs, exports, notifications).
   35.5 km/h. Old analyses show "re-analyse to get stats" (`available: false`) until a job re-runs load_db
   (recalibrate / repitch / re-analyse). Not done: possession / passes (ball, M3-CV-02), halves / phase filters,
   compare, M3-CV-04 validation vs official numbers, imperial units.
+- M3-CV-02 possession + passes (2026-10-07, night): `pitchvision_worker.stages.possession` in the S8 task (now gets
+  `shots`) → `stats_team` + per-track pass counts; API `/stats` (possession_pct, passes, thirds,
+  `possession_timeline`) + `GET /results/{v}/passes`; web Overview rows + possession-over-time bars, SCR-20d Passing
+  tab (pass map + list, ▶ seeks 1 s before). ESP–CZE on Compose: 44/56 %, 21 passes (13 completed), spot-checked
+  on frames. The pretrained detector misses many balls and fires on boots (ball cleaning drops ~25 %); a
+  dedicated ball model (FR-403) is what will raise pass counts. Pass network needs ReID (M2).
 - Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
 0. Pick up from here: label frames with the tool (needs a person, ~300 frames) → GPU run (README recipe) to replace
-   PnLCalib; M3 next: possession + passes from the ball track (M3-CV-02), then validate stats vs official numbers.
+   PnLCalib; M3 next: validate stats vs official numbers (M3-CV-04, needs a full match analysed on a GPU box),
+   export JSON/CSV with shot_type / estimated flags (M3-BE-03).
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.

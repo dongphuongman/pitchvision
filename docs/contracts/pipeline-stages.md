@@ -205,6 +205,19 @@ m per observed player-minute × 11 × video minutes, labelled "Estimated" in the
 bins the 5 Hz `positions_org` (q ≥ 0.5, no ball / referees) on 2.5 m cells, by team / track / time. `stats_team`
 stays unused (teams are derived at read time). Analyses made before S9 return `available: false`.
 
+**Possession & passes (S9 ball part, M3-CV-02).** Same `load_db` task (`stages.possession.run_possession`; the task
+now also gets `shots` so nothing chains across a cut) → `stats_team` per team (`pv-possession/v1`: `possession_ms`,
+`possession_pct`, `thirds_ms` {left, middle, right as filmed}, `timeline_ms` per video minute, `passes`,
+`passes_completed`, `balls_lost`, `pass_list` ≤ 5000) and per-track `touches`, `possession_s`, `passes`,
+`passes_completed`, `received` merged into `stats_player`. Ball cleaning: detections chained while ≤ 40 m/s
+(+1 m), chains < 0.2 s dropped. Contact = nearest player / goalkeeper of a team within 2.5 m (FR-406 says 2 m; both
+ground points carry ~0.5–0.7 m of noise). Spell = one track's contacts ≤ 0.4 s apart spanning ≥ 0.4 s (≥ 3
+contacts); overlaps go to the stronger; a < 0.8 s spell of the other team between two of one team is a duel.
+Spells ≤ 5 s apart in one shot: same team → completed pass (≥ 2 m of ball travel), other team → lost ball.
+Possession = own spells + completed passes in flight. API: `/stats` teams carry them + `possession_timeline`;
+`GET /results/{v}/passes?cluster=&completed=`. Team = the S5 track team (later SCR-14 team fixes don't re-assign
+possession; physical totals do).
+
 **Stills.** `cpu.extract_frame {org_id, video_id, t_ms}` (`pitchvision_worker.frames`): t snapped to the 25 fps grid,
 ffmpeg input-seeks normalized.mp4 through a 5-min presigned URL, JPEG cached at `keys.frame_key` (`media/…/frames/
 {t_ms:09d}.jpg`, erased with the video). The API calls it synchronously (`PV_FRAME_TASK_TIMEOUT_S`, 20 s) only when
