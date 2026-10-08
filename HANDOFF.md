@@ -1,7 +1,7 @@
 ---
 status: in-progress
 branch: main → origin https://github.com/dongphuongman/pitchvision (private), everything pushed; check the last CI run
-timestamp: 2026-10-07 (evening)
+timestamp: 2026-10-08
 ---
 
 # PitchVision AI — handoff
@@ -117,12 +117,23 @@ derived jobs, exports, notifications).
   Gotchas: `docker compose up --build` can race on the shared worker image ("already exists") — build first
   (`docker compose build cpu-worker api web`); Playwright browsers live in ~/Library/Caches/ms-playwright
   (reinstall: `pnpm -C apps/web exec playwright install chromium`).
+- M2-BE-01/02 track corrections (2026-10-08, pulled forward from M2): `/api/v1/results/{v}/corrections` (GET state,
+  POST merge / split / remove, DELETE = undo, POST `/apply`; `services/corrections.py`, `schemas/track_edits.py`) →
+  one debounced `edit` job per burst (`detail.apply_after` +30 s) → CPU `edit_tracks`
+  (`pitchvision_worker.stages.edit_tracks`) re-applies the whole live list to the nearest NON-edit ancestor's
+  tracks → tiles / load_db / manifest, no notification. Contract: `docs/contracts/pipeline-stages.md` "Track
+  corrections". Compose ESP–CZE: 3 ops applied in 52 s; undo-all restored 1025 tracks / 25 844 rows (that run caught
+  "undo did nothing" — edits stacked on the previous edit; fixed with `_tracks_base`). Not done: SCR-22 UI
+  (M2-FE-03 — client must call `/apply` when `pending && !job` after another job finishes), clearing corrections
+  on a re-analysis (track ids change).
 - Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
 0. Pick up from here: label frames with the tool (needs a person, ~300 frames) → GPU run (README recipe) to replace
    PnLCalib; M3 next: validate stats vs official numbers (M3-CV-04, needs a full match analysed on a GPU box),
    API keys for the data API (needs the PO: Pro plan), stats compare / halves once the match clock exists (M2).
+   Doable now without anyone: SCR-22 track editing UI on video / map + Undo toast (M2-FE-03) on the new
+   corrections API (optimistic on the tiles, then refetch the manifest when the edit job completes).
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.

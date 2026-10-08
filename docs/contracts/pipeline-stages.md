@@ -148,13 +148,14 @@ ordinary jobs (same one-active-job rule, `orchestrate.start_job`, WS topic `job:
 On its first step the orchestrator INHERITS the parent's finished stages: their `job_tasks` rows are copied as `done`
 (`backend = "inherited"`, `external_id` = the job that produced the objects) and `detail.inherit = {task_key:
 job_id}` makes `_prefix(key)` read that job's objects (chains resolve to the real producer). `detail` keys `kind,
-parent_job_id, inherit, team_seeds, calibration, correction_id` survive progress updates.
+parent_job_id, inherit, team_seeds, calibration, correction_id, apply_after, correction_ids` survive progress updates.
 
 | kind | inherits | runs | API |
 |---|---|---|---|
 | `team_rerun` | normalize, shots, plan (when done in the parent — e.g. the job that failed `TEAM_SEPARATION_FAILED`) | calibrate with input `seeds` (`detail.team_seeds` → `results/…/jobs/{job}/inputs/team_seeds.json`), then infer / pitch / stitch / tiles / load_db / manifest as usual (GPU) | `POST /results/{v}/teams/manual` |
 | `recalibrate` | normalize, shots, plan, calibrate (parent must be `done`) | `recompute` (CPU) → tiles → load_db → manifest; no GPU stage | `POST /results/{v}/calibration` |
 | `repitch` | normalize, shots, plan, calibrate + every `infer:NNN` (parent must be `done`) | `pitch:NNN` → stitch → tiles → load_db → manifest; fails `HOMOGRAPHY_UNAVAILABLE` when no pitch model is usable here | `POST /results/{v}/repitch` |
+| `edit` | normalize, shots, plan, calibrate (parent must be `done`) | waits `detail.apply_after` → `edit_tracks` (CPU) → tiles → load_db → manifest; no GPU, no notification | `POST /results/{v}/corrections` (debounced) |
 
 **Revisions.** `POST /calibration` bumps `videos.revision` (AD §8.4) in the same transaction as its `corrections` row
 and the job; the recalibrate job's tiles go to `keys.tile_key(org, video, NEW job, revision, n)` and the new manifest
@@ -168,6 +169,21 @@ Team renames / colours / swaps (`PATCH /teams`) never touch tiles: tiles and pos
 colour between the cluster-0 and cluster-1 rows** and the player re-colours on the next manifest fetch. No revision
 bump; the change is recorded as a `corrections` row (`type = "teams"`). `team_samples` / `calibration` rows record the
 other two actions (with `job_id`).
+
+**Track corrections (`edit`, M2-BE-01/02, SCR-22).** `POST /results/{v}/corrections` records `merge {from, into}`,
+`split {track, at_ms}` (the API fixes `new_track` = max known id + 1) or `remove {track, from_ms?, to_ms?}` (no range =
+"Not a player") as a `corrections` row, bumps `videos.revision` and queues ONE `edit` job per burst:
+`detail.apply_after` = now + 30 s, pushed back by every new correction / undo until the orchestrator dispatches
+`edit_tracks` (it then writes `detail.correction_ids` — the API's `pending` = live ids ≠ the latest done edit's).
+`DELETE /corrections/{id}` (Undo) sets `payload.undone`. `edit_tracks` (`pitchvision_worker.stages.edit_tracks`)
+re-applies the WHOLE live list, in order, to the tracks of the nearest ancestor that is not an `edit` (so an undone
+correction disappears; every operation is idempotent); output at `results/…/jobs/{job}/tracks/tracks.parquet`
+like S5, pitch verdict = that ancestor's. `recompute` also reads the unedited ancestor's tracks, so a recalibration
+or repitch after edits leaves the corrections `pending` (no edit job yet): the client calls
+`POST /corrections/apply` once that job is done (also used when a correction arrived while another job ran).
+Team / role fixes stay display-level (`PATCH /players`). Corrections are keyed by the analysis' track ids: a new
+`analyze` / `team_rerun` re-tracks, so old corrections no longer match (to clear on re-analysis — not done yet).
+Compose ESP–CZE: 3 corrections in one burst → applied 52 s after the first (30 s debounce + ~20 s CPU).
 
 **Manual H (recompute).** `cv_core.pitch.fit_homography` on the ≥ 4 (≤ 8) image ↔ template pairs (all clicked on
 one frame `frame_ms`); refused with `HOMOGRAPHY_UNAVAILABLE` (permanent) when degenerate or RMSE > 5 m. Scope `shot`:
