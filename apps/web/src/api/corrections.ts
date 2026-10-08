@@ -39,6 +39,14 @@ export type ManualCalibration = components['schemas']['ManualCalibration'];
 export type PitchTemplate = components['schemas']['PitchTemplateInfo'];
 export type TemplateKeypoint = components['schemas']['TemplateKeypoint'];
 
+/** SCR-22 track corrections (M2-BE-01/02): merge / split / remove + Undo. */
+export type CorrectionsState = components['schemas']['CorrectionsState'];
+export type CorrectionOut = components['schemas']['CorrectionOut'];
+export type MergeIn = components['schemas']['MergeIn'];
+export type SplitIn = components['schemas']['SplitIn'];
+export type RemoveIn = components['schemas']['RemoveIn'];
+export type CorrectionIn = MergeIn | SplitIn | RemoveIn;
+
 export interface Frame {
   url: string;
   t_ms: number;
@@ -274,4 +282,56 @@ export function pitchTemplateQuery() {
 /** A derived job (team_rerun / recalibrate) started: SCR-13 follows it as the video's latest job. */
 export function adoptJob(qc: QueryClient, videoId: string, job: Job): void {
   patchVideoInCache(qc, videoId, { latest_job: toLatestJob(job) });
+}
+
+/** SCR-22 live corrections (oldest first). Polls while an edit is pending. */
+export function correctionsQuery(videoId: string) {
+  return queryOptions({
+    queryKey: ['results', videoId, 'corrections'] as const,
+    queryFn: async ({ signal }): Promise<CorrectionsState> => {
+      const { data } = await api.GET('/api/v1/results/{video_id}/corrections', {
+        params: { path: { video_id: videoId } },
+        signal,
+      });
+      return required(data, 'corrections');
+    },
+    // While the debounced edit job is queued/running the badge counts down to fresh results.
+    refetchInterval: (query) => {
+      const s = query.state.data;
+      return s && (s.pending || s.job) ? 5000 : false;
+    },
+  });
+}
+
+/** SCR-22 E03–E05: record a merge / split / remove (202; one debounced `edit` job per burst). */
+export async function postCorrection(
+  videoId: string,
+  body: CorrectionIn,
+  idempotencyKey: string = crypto.randomUUID(),
+): Promise<CorrectionsState> {
+  const { data } = await api.POST('/api/v1/results/{video_id}/corrections', {
+    params: { path: { video_id: videoId } },
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body,
+  });
+  return required(data, 'correction');
+}
+
+/** SCR-22 Undo toast: the correction stops applying; results follow with the next edit job. */
+export async function undoCorrection(
+  videoId: string,
+  correctionId: string,
+): Promise<CorrectionsState> {
+  const { data } = await api.DELETE('/api/v1/results/{video_id}/corrections/{correction_id}', {
+    params: { path: { video_id: videoId, correction_id: correctionId } },
+  });
+  return required(data, 'undo correction');
+}
+
+/** Start the edit job for pending corrections (after the job that blocked them finished). */
+export async function applyCorrections(videoId: string): Promise<CorrectionsState> {
+  const { data } = await api.POST('/api/v1/results/{video_id}/corrections/apply', {
+    params: { path: { video_id: videoId } },
+  });
+  return required(data, 'apply corrections');
 }

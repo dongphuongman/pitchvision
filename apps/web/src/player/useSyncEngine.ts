@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
-import type { Manifest } from '@/api/types';
+import type { Manifest, Tile } from '@/api/types';
 import { msForFrame } from './frames';
 import { makeOverrider } from './overrides';
 import { DEFAULT_LAYERS, OverlayRenderer, teamColorMap, type OverlayLayers } from './overlay';
@@ -34,9 +34,14 @@ export function useClockState(clock: PlaybackClock | null): ClockState | null {
 /** TileStore for a manifest; loads are aborted and the decode Worker released on unmount. */
 export function useTileStore(
   manifest: Manifest | null,
-  opts: { fetch?: typeof fetch; decoder?: () => TileDecoder } = {},
+  opts: {
+    fetch?: typeof fetch;
+    decoder?: () => TileDecoder;
+    /** SCR-22 optimistic corrections (recreates the store so cached tiles re-apply). */
+    transform?: (tile: Tile) => Tile;
+  } = {},
 ) {
-  const { fetch: fetchImpl, decoder } = opts;
+  const { fetch: fetchImpl, decoder, transform } = opts;
   const store = useMemo(
     () =>
       manifest
@@ -47,9 +52,10 @@ export function useTileStore(
             tileMs: manifest.tile_ms,
             decoder: decoder ?? createTileDecoder,
             fetch: fetchImpl,
+            transform,
           })
         : null,
-    [manifest, fetchImpl, decoder],
+    [manifest, fetchImpl, decoder, transform],
   );
   useEffect(() => {
     if (!store) return;
@@ -68,6 +74,8 @@ export interface SyncEngineOptions {
   layers?: OverlayLayers;
   fetch?: typeof fetch;
   decoder?: () => TileDecoder;
+  /** SCR-22 optimistic corrections applied to tiles before indexing. */
+  transform?: (tile: Tile) => Tile;
 }
 
 /**
@@ -78,7 +86,11 @@ export interface SyncEngineOptions {
 export function useSyncEngine(opts: SyncEngineOptions) {
   const { manifest, video, overlayCanvas, mapCanvas, mapLabels } = opts;
   const clock = usePlaybackClock(video, manifest?.fps ?? 25);
-  const store = useTileStore(manifest, { fetch: opts.fetch, decoder: opts.decoder });
+  const store = useTileStore(manifest, {
+    fetch: opts.fetch,
+    decoder: opts.decoder,
+    transform: opts.transform,
+  });
   const overlayRef = useRef<OverlayRenderer | null>(null);
   const redrawRef = useRef<(() => void) | null>(null);
   const layers = opts.layers ?? DEFAULT_LAYERS;

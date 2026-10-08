@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi, Link } from '@tanstack/react-router';
 import {
   Download,
@@ -6,28 +6,38 @@ import {
   Crosshair,
   Maximize,
   MoreVertical,
+  MousePointerClick,
   Pause,
   Play,
   Shirt,
   SkipBack,
   SkipForward,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { postRepitch } from '@/api/corrections';
+import { applyCorrections, postRepitch, type CorrectionOut } from '@/api/corrections';
 import { useMeta } from '@/api/queries';
 import { manifestQuery, mediaQuery } from '@/api/results';
-import type { ShotType } from '@/api/types';
+import type { ShotType, Tile } from '@/api/types';
 import { videoQuery } from '@/api/videos';
 import { can } from '@/auth/roles';
 import { ExportDialog } from '@/features/exports/ExportDialog';
 import { useRole } from '@/auth/session';
 import { useFormat } from '@/i18n/format';
 import { cn } from '@/lib/cn';
+import { applyCorrectionsToTile } from '@/player/edits';
 import { msForFrame } from '@/player/frames';
-import { DEFAULT_LAYERS, type OverlayLayers } from '@/player/overlay';
+import { DEFAULT_LAYERS, fitContain, type OverlayLayers } from '@/player/overlay';
+import { OBJ, OBJ_CLS } from '@/player/tileCodec';
+import { mapTransform } from '@/player/tacticalMap';
 import { ShotTimeline } from '@/player/ShotTimeline';
 import { useClockState, useSyncEngine } from '@/player/useSyncEngine';
+import {
+  CorrectionsBadge,
+  TrackCorrectionMenu,
+  type TrackMenuAnchor,
+} from '@/features/video/TrackCorrections';
+import { pickMapTrack, pickVideoTrack, useCorrectionsState } from '@/features/video/trackEdits';
 import {
   Banner,
   Button,
@@ -66,6 +76,8 @@ function isTypingTarget(el: EventTarget | null): boolean {
 
 type Pane = 'video' | 'map' | 'both';
 const PANES: readonly Pane[] = ['video', 'map', 'both'];
+/** Stable empty list so the optimistic TileStore transform survives re-renders. */
+const NO_CORRECTIONS: CorrectionOut[] = [];
 
 /** SCR-20 Analysis workspace (M1-FE-12): video + overlay ↔ tactical map, shot timeline, tabs. */
 export function WorkspacePage() {
@@ -88,13 +100,32 @@ export function WorkspacePage() {
   const video = useQuery(videoQuery(videoId));
   const manifest = useQuery(manifestQuery(videoId));
   const media = useQuery(mediaQuery(videoId));
+  const queryClient = useQueryClient();
+  // SCR-22 live corrections (editors only need to write; reading is cheap for everyone).
+  const corrections = useCorrectionsState(videoId, canEdit);
 
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [overlayEl, setOverlayEl] = useState<HTMLCanvasElement | null>(null);
   const [mapEl, setMapEl] = useState<HTMLCanvasElement | null>(null);
   const [layers, setLayers] = useState<OverlayLayers>(DEFAULT_LAYERS);
   const [bannerHidden, setBannerHidden] = useState(false);
+  // SCR-22 menu anchor (viewport coords) + merge-pick mode.
+  const [menu, setMenu] = useState<TrackMenuAnchor | null>(null);
+  const [mergeFrom, setMergeFrom] = useState<number | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const touchTimer = useRef<number | undefined>(undefined);
+
+  // Optimistic tiles: re-apply the live list whenever it changes. react-query keeps
+  // the items reference stable while the payload is equal, so the TileStore (and its
+  // cached tiles) survives the 5 s polls.
+  const correctionItems = corrections.state?.items ?? NO_CORRECTIONS;
+  const correctionsTransform = useMemo(
+    () =>
+      correctionItems.length > 0
+        ? (tile: Tile) => applyCorrectionsToTile(tile, correctionItems)
+        : undefined,
+    [correctionItems],
+  );
 
   const mapLabels = useMemo(
     () => ({
@@ -104,13 +135,14 @@ export function WorkspacePage() {
     }),
     [t, tc],
   );
-  const { clock } = useSyncEngine({
+  const { clock, store } = useSyncEngine({
     manifest: manifest.data ?? null,
     video: videoEl,
     overlayCanvas: overlayEl,
     mapCanvas: mapEl,
     mapLabels,
     layers,
+    transform: correctionsTransform,
   });
   const state = useClockState(clock);
   const m = manifest.data;
@@ -143,12 +175,97 @@ export function WorkspacePage() {
       else if (e.key === ',' || e.key === '<') clock.step(e.shiftKey ? -5 * fps : -1);
       else if (e.key === '.' || e.key === '>') clock.step(e.shiftKey ? 5 * fps : 1);
       else if (e.key === 'f' || e.key === 'F') void stageRef.current?.requestFullscreen();
+      else if (e.key === 'Escape' && mergeFrom !== null) setMergeFrom(null);
       else return;
       e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [clock, fps]);
+  }, [clock, fps, mergeFrom]);
+
+  /* ------------------------------------------------ SCR-22 track picking */
+  const frameMs = Math.round(msForFrame(frame, fps));
+  const frameLenMs = Math.max(1, Math.round(1000 / fps));
+
+  const teamLabelFor = useCallback(
+    (trackId: number): string => {
+      const lookup = store?.frame(frame);
+      const row = lookup?.frame?.objs?.find((o) => o[OBJ.trackId] === trackId);
+      if (row && row[OBJ.cls] === OBJ_CLS.referee) return t('trackEdits.referee', 'Referee');
+      const cluster = row?.[OBJ.team];
+      const team = m?.teams.find((x) => x.cluster === cluster);
+      return team?.name ?? t('trackEdits.unknownTeam', 'Unknown team');
+    },
+    [store, frame, m?.teams, t],
+  );
+
+  const pickAtVideo = useCallback(
+    (clientX: number, clientY: number): number | null => {
+      const stage = stageRef.current;
+      if (!stage || !m || !store) return null;
+      const box = stage.getBoundingClientRect();
+      const rect = fitContain(box.width, box.height, m.width, m.height);
+      if (rect.scale <= 0) return null;
+      const px = (clientX - box.left - rect.offsetX) / rect.scale;
+      const py = (clientY - box.top - rect.offsetY) / rect.scale;
+      return pickVideoTrack(store.frame(frame).frame?.objs, px, py);
+    },
+    [store, frame, m],
+  );
+
+  const pickAtMap = useCallback(
+    (clientX: number, clientY: number): number | null => {
+      if (!mapEl || !store) return null;
+      const box = mapEl.getBoundingClientRect();
+      const tr = mapTransform(box.width, box.height);
+      if (tr.scale <= 0) return null;
+      const mx = (clientX - box.left - tr.ox) / tr.scale;
+      const my = (clientY - box.top - tr.oy) / tr.scale;
+      const dots = (store.frame(frame).frame?.objs ?? [])
+        .filter((o) => o[OBJ.cls] !== OBJ_CLS.ball && o[OBJ.px] != null && o[OBJ.py] != null)
+        .map((o) => ({ trackId: o[OBJ.trackId], x: o[OBJ.px] as number, y: o[OBJ.py] as number }));
+      return pickMapTrack(dots, mx, my);
+    },
+    [mapEl, store, frame],
+  );
+
+  const openMenuAt = useCallback(
+    (trackId: number, clientX: number, clientY: number, source: 'video' | 'map') => {
+      setMenu({ trackId, x: clientX, y: clientY, source });
+    },
+    [],
+  );
+
+  // Blocked corrections (another job ran past them): the client starts the edit job
+  // once that job has finished (contract: pending && !job → POST /corrections/apply).
+  const appliedForJob = useRef<string | null>(null);
+  const latestJob = video.data?.latest_job;
+  useEffect(() => {
+    const st = corrections.state;
+    if (!canEdit || !st || !st.pending || st.job || !latestJob) return;
+    if (latestJob.status !== 'done' && latestJob.status !== 'failed') return;
+    if (appliedForJob.current === latestJob.id) return;
+    appliedForJob.current = latestJob.id;
+    void applyCorrections(videoId).then(() =>
+      queryClient.invalidateQueries({ queryKey: ['results', videoId, 'corrections'] }),
+    );
+  }, [canEdit, corrections.state, latestJob, queryClient, videoId]);
+
+  const openHeatmap = useCallback(
+    (trackId: number) => {
+      void navigate({
+        params: { videoId, tab: 'heatmaps' },
+        search: (s) => ({ ...s, track: trackId }),
+      });
+    },
+    [navigate, videoId],
+  );
+
+  const cancelTouch = useCallback(() => {
+    window.clearTimeout(touchTimer.current);
+    touchTimer.current = undefined;
+  }, []);
+  useEffect(() => () => window.clearTimeout(touchTimer.current), []);
 
   const title = video.data?.title ?? videoId;
   const pitch = m?.pitch.status;
@@ -311,10 +428,32 @@ export function WorkspacePage() {
       {!notReady && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div className={cn('flex min-w-0 flex-col gap-2', pane === 'map' && 'max-lg:hidden')}>
-            <p className="m-0 font-mono text-caption text-fg-3" aria-live="off">
-              {t('workspace.frameInfo', { fps, frame, total: m?.frame_count ?? 0 })}
-              {state?.approximate ? ` · ${t('workspace.approximateSync')}` : ''}
+            <p
+              className="m-0 flex flex-wrap items-center gap-2 font-mono text-caption text-fg-3"
+              aria-live="off"
+            >
+              <span>
+                {t('workspace.frameInfo', { fps, frame, total: m?.frame_count ?? 0 })}
+                {state?.approximate ? ` · ${t('workspace.approximateSync')}` : ''}
+              </span>
+              {canEdit && <CorrectionsBadge videoId={videoId} state={corrections.state} />}
             </p>
+            {canEdit && mergeFrom !== null && (
+              <Banner
+                tone="info"
+                className="mb-1"
+                actions={
+                  <Button variant="ghost" size="sm" onClick={() => setMergeFrom(null)}>
+                    {tc('actions.cancel')}
+                  </Button>
+                }
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <MousePointerClick size={15} aria-hidden="true" />
+                  {t('trackEdits.mergePicking', 'Click the same player elsewhere · Esc to cancel')}
+                </span>
+              </Banner>
+            )}
             <div
               ref={stageRef}
               className="relative aspect-video overflow-hidden rounded-xl bg-black"
@@ -335,6 +474,47 @@ export function WorkspacePage() {
                     ref={setOverlayEl}
                     className="pointer-events-none absolute inset-0 h-full w-full"
                   />
+                  {canEdit && (
+                    <div
+                      role="application"
+                      aria-label={t('trackEdits.title', 'Fix track')}
+                      className={cn(
+                        'absolute inset-0 touch-none',
+                        mergeFrom !== null && 'cursor-crosshair',
+                      )}
+                      style={{ WebkitTouchCallout: 'none' }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        const hit = pickAtVideo(e.clientX, e.clientY);
+                        if (hit !== null) openMenuAt(hit, e.clientX, e.clientY, 'video');
+                      }}
+                      onClick={(e) => {
+                        if (mergeFrom === null) return;
+                        const hit = pickAtVideo(e.clientX, e.clientY);
+                        if (hit !== null && hit !== mergeFrom) {
+                          openMenuAt(hit, e.clientX, e.clientY, 'video');
+                        }
+                      }}
+                      onTouchStart={(e) => {
+                        const touch = e.touches[0];
+                        if (!touch) return;
+                        const { clientX, clientY } = touch;
+                        cancelTouch();
+                        touchTimer.current = window.setTimeout(() => {
+                          const hit = pickAtVideo(clientX, clientY);
+                          if (hit !== null) {
+                            if (mergeFrom !== null && hit !== mergeFrom) {
+                              openMenuAt(hit, clientX, clientY, 'video');
+                            } else if (mergeFrom === null) {
+                              openMenuAt(hit, clientX, clientY, 'video');
+                            }
+                          }
+                        }, 500);
+                      }}
+                      onTouchMove={cancelTouch}
+                      onTouchEnd={cancelTouch}
+                    />
+                  )}
                 </>
               ) : (
                 <Skeleton className="h-full w-full" />
@@ -403,11 +583,34 @@ export function WorkspacePage() {
             <h2 className="m-0 text-caption font-semibold tracking-wide text-fg-2 uppercase">
               {t('player.tacticalMap')}
             </h2>
-            <canvas
-              ref={setMapEl}
-              className="aspect-[105/68] w-full rounded-lg"
-              data-testid="tactical-map"
-            />
+            <div
+              className={cn('relative', canEdit && mergeFrom !== null && 'cursor-crosshair')}
+              onContextMenu={
+                canEdit
+                  ? (e) => {
+                      e.preventDefault();
+                      const hit = pickAtMap(e.clientX, e.clientY);
+                      if (hit !== null) openMenuAt(hit, e.clientX, e.clientY, 'map');
+                    }
+                  : undefined
+              }
+              onClick={
+                canEdit && mergeFrom !== null
+                  ? (e) => {
+                      const hit = pickAtMap(e.clientX, e.clientY);
+                      if (hit !== null && hit !== mergeFrom) {
+                        openMenuAt(hit, e.clientX, e.clientY, 'map');
+                      }
+                    }
+                  : undefined
+              }
+            >
+              <canvas
+                ref={setMapEl}
+                className="aspect-[105/68] w-full rounded-lg"
+                data-testid="tactical-map"
+              />
+            </div>
           </Card>
         </div>
       )}
@@ -532,6 +735,38 @@ export function WorkspacePage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {canEdit && menu && m && (
+        <>
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 z-[89]"
+            onClick={() => setMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu(null);
+            }}
+          />
+          <TrackCorrectionMenu
+            videoId={videoId}
+            anchor={menu}
+            teamLabel={teamLabelFor(menu.trackId)}
+            teams={m.teams}
+            frameMs={frameMs}
+            frameLenMs={frameLenMs}
+            mergeFrom={mergeFrom}
+            onEnterMerge={(from) => {
+              setMenu(null);
+              setMergeFrom(from);
+            }}
+            onOpenHeatmap={openHeatmap}
+            onClose={() => {
+              setMenu(null);
+              setMergeFrom(null);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
