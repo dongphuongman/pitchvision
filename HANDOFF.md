@@ -110,12 +110,19 @@ derived jobs, exports, notifications).
   tab (pass map + list, ▶ seeks 1 s before). ESP–CZE on Compose: 44/56 %, 21 passes (13 completed), spot-checked
   on frames. The pretrained detector misses many balls and fires on boots (ball cleaning drops ~25 %); a
   dedicated ball model (FR-403) is what will raise pass counts. Pass network needs ReID (M2).
+- M3-BE-03 data exports (2026-10-08): `kind: "data"` exports (JSON or ZIP of CSVs, 5 / 25 Hz, range) through the
+  existing export pipeline (`pitchvision_worker.data_export`, migration 0012); rows carry `shot_type` + `estimated`;
+  stats / passes frozen at request time. Web: SCR-25 Data tab, SCR-20f Data tab (`?export=data&format=csv`).
+  Compose ESP–CZE: JSON 2.6 MB in 3 s, 25 Hz ZIP in 10 s. API keys (SCR-20f E04–E06) not done — needs the PO (Pro).
+  Gotchas: `docker compose up --build` can race on the shared worker image ("already exists") — build first
+  (`docker compose build cpu-worker api web`); Playwright browsers live in ~/Library/Caches/ms-playwright
+  (reinstall: `pnpm -C apps/web exec playwright install chromium`).
 - Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
 0. Pick up from here: label frames with the tool (needs a person, ~300 frames) → GPU run (README recipe) to replace
    PnLCalib; M3 next: validate stats vs official numbers (M3-CV-04, needs a full match analysed on a GPU box),
-   export JSON/CSV with shot_type / estimated flags (M3-BE-03).
+   API keys for the data API (needs the PO: Pro plan), stats compare / halves once the match clock exists (M2).
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.

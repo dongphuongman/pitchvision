@@ -218,6 +218,16 @@ Possession = own spells + completed passes in flight. API: `/stats` teams carry 
 `GET /results/{v}/passes?cluster=&completed=`. Team = the S5 track team (later SCR-14 team fixes don't re-assign
 possession; physical totals do).
 
+**Data exports (M3-BE-03).** `POST /api/v1/exports {kind: "data", data_format: json|csv, rate_hz: 5|25, from_ms,
+to_ms}` (any plan; quality / watermark don't apply). The API freezes into `ExportSpec` the shots, the video title /
+duration and the stats as `GET /stats` (min_observed_s 0) + `/passes` return them; `cpu.render_export` branches to
+`pitchvision_worker.data_export` → `keys.export_key(…, "json"|"zip")`. Schema `pitchvision.data/v1`: tracking rows
+`t_ms, frame, shot_type, track_id, team, role, x_m, y_m, h_quality, estimated, conf, box_*` (team / role with the
+SCR-14 fixes; x/y empty when h_quality < 0.5; estimated = S5-interpolated) + teams (possession, passes, observed
+distance, `distance_match_estimated_m`), players (per track), passes, shots, possession timeline. JSON = one
+document (tracking as columns + rows); CSV = ZIP of tracking / teams / players / passes / shots CSVs + README +
+meta.json. Migration 0012 widens `exports.kind`.
+
 **Stills.** `cpu.extract_frame {org_id, video_id, t_ms}` (`pitchvision_worker.frames`): t snapped to the 25 fps grid,
 ffmpeg input-seeks normalized.mp4 through a 5-min presigned URL, JPEG cached at `keys.frame_key` (`media/…/frames/
 {t_ms:09d}.jpg`, erased with the video). The API calls it synchronously (`PV_FRAME_TASK_TIMEOUT_S`, 20 s) only when
