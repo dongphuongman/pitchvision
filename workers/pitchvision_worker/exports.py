@@ -35,6 +35,7 @@ from sqlalchemy import select, text, update
 from pitchvision_worker import notify, repository
 from pitchvision_worker.celery_app import QUEUE_CPU, TASK_SWEEP_EXPORTS, app
 from pitchvision_worker.config import WorkerConfig
+from pitchvision_worker.data_export import build_data_export
 from pitchvision_worker.export_render import RenderCancelled, RenderError, render
 from pitchvision_worker.repository import exports, org_tx, videos
 from pitchvision_worker.storage import ObjectStore
@@ -153,6 +154,8 @@ def run_render_export(org_id: str, export_id: str, deps: ExportDeps, *, row_wait
     try:
         spec = ExportSpec.model_validate(row["spec"])
         tracks_key = keys.job_results_prefix(org_id, vid, spec.job_id) + TRACKS_NAME
+        if spec.kind == "data":
+            return _run_data_export(org_id, vid, export_id, spec, tracks_key, deps)
         video_key = keys.normalized_key(org_id, vid)
         if not deps.store.exists(tracks_key) or not deps.store.exists(video_key):
             raise RenderError("EXPORT_FAILED", "the analysis files are gone (video re-analysed or deleted)",
@@ -185,6 +188,27 @@ def run_render_export(org_id: str, export_id: str, deps: ExportDeps, *, row_wait
         log.exception("export %s crashed", eid)
         mark_failed(deps.engine, org, eid, "INTERNAL", repr(e), True)
         return "failed"
+
+
+def _run_data_export(org_id: str, vid: str, export_id: str, spec: ExportSpec, tracks_key: str, deps: ExportDeps
+                     ) -> str:  # fmt: skip
+    """kind = data (M3-BE-03): tracks.parquet + the frozen stats → JSON / ZIP of CSVs (``data_export``)."""
+    org, eid = uuid.UUID(org_id), uuid.UUID(export_id)
+    if not deps.store.exists(tracks_key):
+        raise RenderError("EXPORT_FAILED", "the analysis files are gone (video re-analysed or deleted)",
+                          retryable=False)  # fmt: skip
+    ext = "json" if spec.data_format == "json" else "zip"
+    with tempfile.TemporaryDirectory(prefix="pv-export-", dir=deps.tmp_root) as tmp:
+        tracks = deps.store.download(tracks_key, Path(tmp) / "tracks.parquet")
+        out = Path(tmp) / f"export.{ext}"
+        res = build_data_export(spec, tracks, out, on_progress=lambda pct: set_progress(deps.engine, org, eid, pct))
+        object_key = keys.export_key(org_id, vid, export_id, ext)
+        size = deps.store.upload(object_key, out)
+    if not mark_done(deps.engine, org, eid, object_key, size, spec.ttl_days):
+        deps.store.client.delete_object(Bucket=deps.store.bucket, Key=object_key)
+        return "cancelled"
+    log.info("export %s: data %s, %d rows at %d Hz, %d bytes", eid, ext, res.rows, spec.rate_hz, size)
+    return "done"
 
 
 @app.task(name=TASK_RENDER_EXPORT, queue=QUEUE_CPU, bind=True, acks_late=False, max_retries=ROW_WAIT_TRIES + 1)

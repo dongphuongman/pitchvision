@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pitchvision_schemas import ExportKind, ExportLayers, ExportLayout
+from pitchvision_schemas import DataFormat, DataRate, ExportKind, ExportLayers, ExportLayout
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pitchvision_api.db.models import Export
@@ -23,6 +23,9 @@ class ExportCreate(BaseModel):
     layers: ExportLayers = ExportLayers()
     layout: ExportLayout = "video"
     quality: Literal[720, 1080] = 720
+    # kind = data (SCR-25 E11): JSON document or ZIP of CSVs; tracking rows at 5 Hz or every frame (25 Hz)
+    data_format: DataFormat = "json"
+    rate_hz: DataRate = 5
 
     @model_validator(mode="after")
     def _range(self) -> "ExportCreate":
@@ -46,6 +49,8 @@ class ExportOut(BaseModel):
     quality: int
     watermark: bool
     layers: dict[str, bool]
+    data_format: str | None = None
+    rate_hz: int | None = None
     error: dict[str, Any] | None
     created_by: uuid.UUID | None
     created_at: datetime
@@ -62,6 +67,8 @@ class ExportOut(BaseModel):
                    from_ms=int(spec.get("from_ms", 0)), to_ms=int(spec.get("to_ms", 0)),
                    layout=str(spec.get("layout", "video")), quality=int(spec.get("out_height", 720)),
                    watermark=bool(spec.get("watermark", False)), layers=dict(spec.get("layers") or {}),
+                   data_format=spec.get("data_format") if e.kind == "data" else None,
+                   rate_hz=spec.get("rate_hz") if e.kind == "data" else None,
                    error=e.error, created_by=e.created_by, created_at=e.created_at, finished_at=e.finished_at,
                    expires_at=e.expires_at)  # fmt: skip
 

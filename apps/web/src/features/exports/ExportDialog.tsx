@@ -38,6 +38,9 @@ export interface ExportDialogProps {
   layers: OverlayLayers;
   /** Current playback position — the custom range starts here. */
   currentMs: number;
+  /** Tab to open on (SCR-25 E02–E03; SCR-20f opens Data with a preset format). */
+  kind?: 'video' | 'data';
+  dataFormat?: 'json' | 'csv';
 }
 
 /**
@@ -52,6 +55,8 @@ export function ExportDialog({
   manifest,
   layers: overlay,
   currentMs,
+  kind: initialKind = 'video',
+  dataFormat: initialFormat = 'json',
 }: ExportDialogProps) {
   const { t } = useTranslation('video');
   const navigate = useNavigate();
@@ -70,6 +75,9 @@ export function ExportDialog({
   const [layers, setLayers] = useState<ExportLayers>(() => ({ ...overlay, trails: false }));
   const [layout, setLayout] = useState<Layout>('video');
   const [quality, setQuality] = useState<Quality>('720');
+  const [kind, setKind] = useState<'video' | 'data'>(initialKind);
+  const [format, setFormat] = useState<'json' | 'csv'>(initialFormat);
+  const [rate, setRate] = useState<'5' | '25'>('5');
   const [key] = useState(() => crypto.randomUUID());
 
   const range = useMemo(() => {
@@ -85,14 +93,16 @@ export function ExportDialog({
       createExport(
         {
           video_id: videoId,
-          kind: 'video',
           from_ms: range.from_ms,
           to_ms: range.to_ms,
+          kind,
           layers,
           layout,
-          quality: quality === '1080' ? 1080 : 720,
+          quality: quality === '1080' ? 1080 : 720, // ignored for data
+          data_format: format,
+          rate_hz: rate === '25' ? 25 : 5, // ignored for video
         },
-        key,
+        `${key}-${kind}`,
       ),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: exportKeys.all });
@@ -146,10 +156,11 @@ export function ExportDialog({
     >
       <div className="flex flex-col gap-4">
         <SegmentedControl<'video' | 'data' | 'pdf' | 'map'>
-          value="video"
+          value={kind}
+          onValueChange={(v) => (v === 'video' || v === 'data') && setKind(v)}
           options={[
             { value: 'video', label: t('exports.dialog.tabs.video') },
-            { value: 'data', label: t('exports.dialog.tabs.data'), disabled: true },
+            { value: 'data', label: t('exports.dialog.tabs.data') },
             { value: 'pdf', label: t('exports.dialog.tabs.pdf'), disabled: true },
             { value: 'map', label: t('exports.dialog.tabs.map'), disabled: true },
           ]}
@@ -188,59 +199,101 @@ export function ExportDialog({
           )}
         </fieldset>
 
-        <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-          <legend className="mb-1.5 text-control font-semibold">
-            {t('exports.dialog.layers')}
-          </legend>
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {LAYER_KEYS.map((k) => (
-              <Checkbox
-                key={k}
-                label={t(`exports.dialog.layer.${k}`)}
-                checked={layers[k]}
-                onCheckedChange={(v) => setLayers((prev) => ({ ...prev, [k]: v === true }))}
+        {kind === 'data' && (
+          <>
+            <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+              <legend className="mb-1.5 text-control font-semibold">
+                {t('exports.dialog.format')}
+              </legend>
+              <SegmentedControl<'json' | 'csv'>
+                value={format}
+                onValueChange={setFormat}
+                options={[
+                  { value: 'json', label: 'JSON' },
+                  { value: 'csv', label: t('exports.dialog.csvZip') },
+                ]}
               />
-            ))}
-          </div>
-        </fieldset>
+            </fieldset>
+            <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+              <legend className="mb-1.5 text-control font-semibold">
+                {t('exports.dialog.rate')}
+              </legend>
+              <SegmentedControl<'5' | '25'>
+                value={rate}
+                onValueChange={setRate}
+                options={[
+                  { value: '5', label: '5 Hz' },
+                  { value: '25', label: t('exports.dialog.everyFrame') },
+                ]}
+              />
+            </fieldset>
+            <p className="m-0 text-xs text-fg-3">{t('exports.dialog.dataHint')}</p>
+          </>
+        )}
 
-        <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-          <legend className="mb-1.5 text-control font-semibold">
-            {t('exports.dialog.layout')}
-          </legend>
-          <SegmentedControl<Layout>
-            value={layout}
-            onValueChange={setLayout}
-            options={[
-              { value: 'video', label: t('exports.dialog.videoOnly') },
-              { value: 'video_map', label: t('exports.dialog.videoMap'), disabled: !mapAvailable },
-            ]}
-          />
-          {!mapAvailable && <p className="m-0 text-xs text-fg-3">{t('exports.dialog.noMap')}</p>}
-        </fieldset>
+        {kind === 'video' && (
+          <>
+            <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+              <legend className="mb-1.5 text-control font-semibold">
+                {t('exports.dialog.layers')}
+              </legend>
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {LAYER_KEYS.map((k) => (
+                  <Checkbox
+                    key={k}
+                    label={t(`exports.dialog.layer.${k}`)}
+                    checked={layers[k]}
+                    onCheckedChange={(v) => setLayers((prev) => ({ ...prev, [k]: v === true }))}
+                  />
+                ))}
+              </div>
+            </fieldset>
 
-        <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-          <legend className="mb-1.5 text-control font-semibold">
-            {t('exports.dialog.quality')}
-          </legend>
-          <SegmentedControl<Quality>
-            value={quality}
-            onValueChange={(q) => {
-              // E09: 1080p on Free opens the upgrade screen instead.
-              if (q === '1080' && !proQuality) {
-                openUpgrade('quality', ['export']);
-                return;
-              }
-              setQuality(q);
-            }}
-            options={[
-              { value: '720', label: '720p' },
-              { value: '1080', label: opt('1080p', !proQuality) },
-            ]}
-          />
-        </fieldset>
+            <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+              <legend className="mb-1.5 text-control font-semibold">
+                {t('exports.dialog.layout')}
+              </legend>
+              <SegmentedControl<Layout>
+                value={layout}
+                onValueChange={setLayout}
+                options={[
+                  { value: 'video', label: t('exports.dialog.videoOnly') },
+                  {
+                    value: 'video_map',
+                    label: t('exports.dialog.videoMap'),
+                    disabled: !mapAvailable,
+                  },
+                ]}
+              />
+              {!mapAvailable && (
+                <p className="m-0 text-xs text-fg-3">{t('exports.dialog.noMap')}</p>
+              )}
+            </fieldset>
 
-        {watermark && (
+            <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+              <legend className="mb-1.5 text-control font-semibold">
+                {t('exports.dialog.quality')}
+              </legend>
+              <SegmentedControl<Quality>
+                value={quality}
+                onValueChange={(q) => {
+                  // E09: 1080p on Free opens the upgrade screen instead.
+                  if (q === '1080' && !proQuality) {
+                    openUpgrade('quality', ['export']);
+                    return;
+                  }
+                  setQuality(q);
+                }}
+                options={[
+                  { value: '720', label: '720p' },
+                  { value: '1080', label: opt('1080p', !proQuality) },
+                ]}
+              />
+            </fieldset>
+          </>
+        )}
+
+        {kind === 'video' && watermark && (
           <Banner tone="info">
             {t('exports.dialog.watermark')}{' '}
             <button

@@ -2,16 +2,21 @@
 renders (``cpu.render_export``). Everything the render needs is in ``ExportSpec`` — the worker never re-reads the
 manifest or the teams table, so a rename after "Start export" doesn't change a running export.
 
-M1 renders ``kind = video`` only (Data M3, PDF M4, tactical-map video M2 — UIUX SCR-25 E02–E05).
+``kind = video`` (M1) renders the annotated MP4; ``kind = data`` (M3-BE-03, SCR-25 tab Data / SCR-20f) writes the
+raw tracking + stats as JSON or a ZIP of CSVs, every tracking row flagged with its ``shot_type`` and whether it is
+``estimated`` (interpolated). PDF (M4) and the tactical-map video (M2) come later (UIUX SCR-25 E02–E05).
 """
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pitchvision_schemas.manifest import PitchStatus, TeamInfo, TrackOverride
+from pitchvision_schemas.shots import Shot
 
-ExportKind = Literal["video"]
+ExportKind = Literal["video", "data"]
+DataFormat = Literal["json", "csv"]
+DataRate = Literal[5, 25]
 ExportStatus = Literal["queued", "running", "done", "failed", "cancelled"]
 ExportLayout = Literal["video", "video_map"]
 EXPORT_HEIGHTS = (720, 1080)
@@ -51,6 +56,14 @@ class ExportSpec(BaseModel):
     teams: list[TeamInfo] = Field(default_factory=list)
     track_overrides: list[TrackOverride] = Field(default_factory=list)  # SCR-14 E06 fixes, drawn like the player
     pitch_status: PitchStatus = "unavailable"
+    # kind = data (SCR-25 E11): format + sampling rate, the shots (→ each row's shot_type) and the stats as the user
+    # saw them when exporting (GET /results/{v}/stats + /passes), so the file matches the screen
+    data_format: DataFormat = "json"
+    rate_hz: DataRate = 5
+    video_title: str | None = None
+    duration_ms: int | None = None
+    shots: list[Shot] = Field(default_factory=list)
+    stats: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def _range(self) -> "ExportSpec":

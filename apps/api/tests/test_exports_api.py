@@ -72,6 +72,8 @@ async def _set(db: Db, org: uuid.UUID, export_id: str, **values: Any) -> None:
 def test_export_filename() -> None:
     assert export_filename("France vs Switzerland!", 0, 25_000, 25_000) == "france_vs_switzerland_full.mp4"
     assert export_filename(None, 2_040_000, 2_092_000, 5_400_000) == "video_34m00-34m52.mp4"
+    assert export_filename("HIGHLIGHTS | TÂY BAN NHA - CỘNG HÒA SÉC | Đức", 0, 10, 10, "json") == (
+        "highlights_tay_ban_nha_cong_hoa_sec_duc_full.json")
 
 
 async def test_create_freezes_spec_and_enqueues(client: httpx.AsyncClient, migrated: Db, s3: S3,
@@ -102,6 +104,32 @@ async def test_create_freezes_spec_and_enqueues(client: httpx.AsyncClient, migra
     pro = await client.post(URL, json={"video_id": str(vid), "quality": 1080}, headers=h(org, plan="pro"))
     assert pro.status_code == 202 and pro.json()["watermark"] is False and pro.json()["quality"] == 1080
     assert pro.json()["filename"] == "match_full.mp4" and pro.json()["to_ms"] == 25_000
+
+
+async def test_data_export_freezes_stats_and_shots(client: httpx.AsyncClient, migrated: Db, s3: S3,
+                                                  tasks: FakeTasks) -> None:  # fmt: skip
+    """M3-BE-03: kind = data → .json / .zip, any plan (no quality / watermark rules), the stats as shown now."""
+    org = uuid.uuid4()
+    vid, _ = await _analysed(migrated, s3, org)
+    r = await client.post(URL, json={"video_id": str(vid), "kind": "data", "quality": 1080, "rate_hz": 25},
+                          headers=h(org))  # fmt: skip
+    assert r.status_code == 202, r.text  # 1080 is ignored for data: no PLAN_REQUIRED on Free
+    e = r.json()
+    assert (e["kind"], e["filename"], e["data_format"], e["rate_hz"]) == ("data", "match_full.json", "json", 25)
+    csv_ = (await client.post(URL, json={"video_id": str(vid), "kind": "data", "data_format": "csv"},
+                              headers=h(org))).json()  # fmt: skip
+    assert (csv_["filename"], csv_["rate_hz"]) == ("match_full.zip", 5)
+    assert tasks.sent[-1][0] == TASK_RENDER_EXPORT
+
+    async def spec(s: Any) -> ExportSpec:
+        return ExportSpec.model_validate((await s.get(Export, uuid.UUID(e["id"]))).spec)
+
+    sp = await _exec(migrated, org, spec)
+    assert sp.kind == "data" and sp.rate_hz == 25 and sp.video_title == "match" and sp.duration_ms == 25_000
+    assert [str(x.type) for x in sp.shots] == ["main_wide"]
+    assert sp.stats is not None and sp.stats["available"] is False and sp.stats["passes"] == []
+    bad = await client.post(URL, json={"video_id": str(vid), "kind": "data", "rate_hz": 10}, headers=h(org))
+    assert_problem(bad, 422, "VALIDATION_FAILED")
 
 
 async def test_create_refusals(client: httpx.AsyncClient, migrated: Db, s3: S3) -> None:

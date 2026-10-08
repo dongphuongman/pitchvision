@@ -3878,7 +3878,10 @@
           },
           "kind": {
             "type": "string",
-            "const": "video",
+            "enum": [
+              "video",
+              "data"
+            ],
             "title": "Kind",
             "default": "video"
           },
@@ -3935,6 +3938,24 @@
             ],
             "title": "Quality",
             "default": 720
+          },
+          "data_format": {
+            "type": "string",
+            "enum": [
+              "json",
+              "csv"
+            ],
+            "title": "Data Format",
+            "default": "json"
+          },
+          "rate_hz": {
+            "type": "integer",
+            "enum": [
+              5,
+              25
+            ],
+            "title": "Rate Hz",
+            "default": 5
           }
         },
         "additionalProperties": false,
@@ -4111,6 +4132,28 @@
             },
             "type": "object",
             "title": "Layers"
+          },
+          "data_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Format"
+          },
+          "rate_hz": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Hz"
           },
           "error": {
             "anyOf": [

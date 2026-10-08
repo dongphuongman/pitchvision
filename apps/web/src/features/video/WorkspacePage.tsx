@@ -47,6 +47,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/ui';
+import { DataTab } from './DataTab';
 import { HeatmapsTab } from './HeatmapsTab';
 import { PassingTab } from './PassingTab';
 import { StatsPanel } from './StatsPanel';
@@ -229,8 +230,13 @@ export function WorkspacePage() {
           open
           onOpenChange={(open) => {
             if (!open)
-              void navigate({ search: (prev) => ({ ...prev, export: undefined }), replace: true });
+              void navigate({
+                search: (prev) => ({ ...prev, export: undefined, format: undefined }),
+                replace: true,
+              });
           }}
+          kind={exportTab}
+          dataFormat={search.format}
           videoId={videoId}
           manifest={m}
           layers={layers}
@@ -470,6 +476,18 @@ export function WorkspacePage() {
               <Skeleton className="h-16" />
             )}
           </Card>
+        </TabsContent>
+        <TabsContent value="data">
+          {m ? (
+            <DataTab
+              manifest={m}
+              onExport={(format) =>
+                void navigate({ search: (prev) => ({ ...prev, export: 'data', format }) })
+              }
+            />
+          ) : (
+            <Skeleton className="h-40" />
+          )}
         </TabsContent>
         <TabsContent value="passing">
           {m ? (

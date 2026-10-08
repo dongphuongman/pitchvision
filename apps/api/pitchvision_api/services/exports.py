@@ -9,8 +9,10 @@ Any member may export (UIUX: Viewer = view + export); cancel / retry / delete: t
 """
 
 import re
+import unicodedata
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from pitchvision_schemas import TERMINAL_EXPORT, ErrorCode, ExportSpec
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +26,7 @@ from pitchvision_api.repositories import videos as videos_repo
 from pitchvision_api.repositories.exports import StatusFilter
 from pitchvision_api.schemas.exports import ExportCreate, ExportDownload, ExportList, ExportOut
 from pitchvision_api.services import results as results_service
+from pitchvision_api.services import stats as stats_service
 from pitchvision_api.services.storage import Storage
 from pitchvision_api.services.tasks import QUEUE_CPU, TASK_RENDER_EXPORT, TaskQueue, TaskUnavailable
 from pitchvision_api.services.videos import not_found
@@ -49,7 +52,10 @@ def _mmss(ms: int) -> str:
 
 def export_filename(title: str | None, from_ms: int, to_ms: int, duration_ms: int, ext: str = "mp4") -> str:
     """``fra_sui_full.mp4`` / ``fra_sui_34m00-34m52.mp4`` (SCR-26 "File")."""
-    slug = re.sub(r"[^a-z0-9]+", "_", (title or "").lower()).strip("_")[:60] or "video"
+    # "Tây Ban Nha – Cộng hoà Séc" → tay_ban_nha_cong_hoa_sec (strip accents; đ has no decomposition)
+    plain = unicodedata.normalize("NFKD", (title or "").replace("đ", "d").replace("Đ", "D"))
+    plain = "".join(ch for ch in plain if not unicodedata.combining(ch))
+    slug = re.sub(r"[^a-z0-9]+", "_", plain.lower()).strip("_")[:60] or "video"
     span = "full" if from_ms == 0 and to_ms >= duration_ms else f"{_mmss(from_ms)}-{_mmss(to_ms)}"
     return f"{slug}_{span}.{ext}"
 
@@ -67,7 +73,7 @@ async def create(session: AsyncSession, storage: Storage, tasks: TaskQueue, sett
     if video is None:
         raise not_found()
     limits = principal.limits
-    if body.quality > limits.export_max_height:
+    if body.kind == "video" and body.quality > limits.export_max_height:
         raise ApiError(ErrorCode.PLAN_REQUIRED, 402, "Upgrade to export in 1080p",
                        f"Your {principal.plan.value.capitalize()} plan exports up to {limits.export_max_height}p.",
                        extensions={"reason": "export_quality", "plan": principal.plan.value})  # fmt: skip
@@ -79,19 +85,32 @@ async def create(session: AsyncSession, storage: Storage, tasks: TaskQueue, sett
     to_ms = min(body.to_ms or m.duration_ms, m.duration_ms)
     if from_ms >= to_ms:
         raise _invalid("Empty range", f"The range must lie inside the video (0–{m.duration_ms} ms).", "range")
-    if body.layout == "video_map" and m.pitch.status == "unavailable":
+    if body.kind == "video" and body.layout == "video_map" and m.pitch.status == "unavailable":
         raise _invalid("No tactical map", "This analysis has no pitch calibration, so there is no map to show "
                        "next to the video.", "no_pitch_map")  # fmt: skip
     spec = ExportSpec(kind=body.kind, job_id=m.job_id, revision=m.revision, from_ms=from_ms, to_ms=to_ms, fps=m.fps,
                       width=m.width, height=m.height, out_height=body.quality, layout=body.layout, layers=body.layers,
                       watermark=limits.export_watermark, ttl_days=limits.export_ttl_days, teams=m.teams,
-                      track_overrides=m.track_overrides,
-                      pitch_status=m.pitch.status)  # fmt: skip
-    name = export_filename(video.title, from_ms, to_ms, m.duration_ms)
+                      track_overrides=m.track_overrides, pitch_status=m.pitch.status,
+                      **await _data_fields(session, principal, video, body, m))  # fmt: skip
+    ext = "mp4" if body.kind == "video" else ("json" if body.data_format == "json" else "zip")
+    name = export_filename(video.title, from_ms, to_ms, m.duration_ms, ext)
     row = await repo.add(session, Export(org_id=principal.org_id, video_id=video.id, kind=body.kind, filename=name,
                                          spec=spec.model_dump(mode="json"), created_by=principal.user_id))  # fmt: skip
     await _enqueue(tasks, row)  # the worker waits for the row if it is faster than this commit
     return ExportOut.of(row, _now(), video.title)
+
+
+async def _data_fields(session: AsyncSession, principal: Principal, video: Any, body: ExportCreate, m: Any
+                       ) -> dict[str, Any]:  # fmt: skip
+    """kind = data: the shots (each row's shot_type) and the stats as GET /stats + /passes return them now."""
+    if body.kind != "data":
+        return {}
+    stats = await stats_service.stats(session, principal, video.id, 0.0)
+    passes = await stats_service.passes(session, principal, video.id, None, None)
+    return {"data_format": body.data_format, "rate_hz": body.rate_hz, "video_title": video.title,
+            "duration_ms": m.duration_ms, "shots": m.shots,
+            "stats": {**stats.model_dump(mode="json"), "passes": [p.model_dump(mode="json") for p in passes.items]}}
 
 
 async def get(session: AsyncSession, principal: Principal, export_id: uuid.UUID) -> ExportOut:

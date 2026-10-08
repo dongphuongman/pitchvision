@@ -154,7 +154,8 @@ export function accountHandlers(acct: MockAccount, videos: MockVideoDb) {
       const body = (await request.json()) as ExportCreate;
       const video = videos.videos.find((v) => v.id === body.video_id);
       if (!video) return problem(404, 'NOT_FOUND');
-      if (body.quality === 1080 && acct.usage.export_max_height < 1080) {
+      const data = body.kind === 'data';
+      if (!data && body.quality === 1080 && acct.usage.export_max_height < 1080) {
         return problem(402, 'PLAN_REQUIRED', { reason: 'export_quality', plan: acct.usage.plan });
       }
       seq += 1;
@@ -164,10 +165,14 @@ export function accountHandlers(acct: MockAccount, videos: MockVideoDb) {
         id: `exp-${String(seq)}`,
         video_id: video.id,
         video_title: video.title ?? null,
-        kind: 'video',
+        kind: body.kind,
         status: 'queued',
         progress: 0,
-        filename: `${(video.title ?? 'video').toLowerCase().replace(/[^a-z0-9]+/g, '_')}_full.mp4`,
+        filename: `${(video.title ?? 'video').toLowerCase().replace(/[^a-z0-9]+/g, '_')}_full.${
+          data ? (body.data_format === 'csv' ? 'zip' : 'json') : 'mp4'
+        }`,
+        data_format: data ? body.data_format : null,
+        rate_hz: data ? body.rate_hz : null,
         size_bytes: null,
         from_ms: from,
         to_ms: to,

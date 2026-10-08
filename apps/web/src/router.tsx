@@ -406,7 +406,8 @@ const calibrateRoute = createRoute({
 
 interface WorkspaceSearch {
   t?: number;
-  export?: 'video';
+  export?: 'video' | 'data';
+  format?: 'json' | 'csv';
   team?: number;
   track?: number;
   avg?: 1;
@@ -432,7 +433,8 @@ const workspaceRoute = createRoute({
   // heatmap view can be shared: ?team=0|1 &track=<id> &avg=1.
   validateSearch: (s: Record<string, unknown>): WorkspaceSearch => ({
     t: seconds(s.t),
-    export: s.export === 'video' ? 'video' : undefined,
+    export: s.export === 'video' || s.export === 'data' ? s.export : undefined,
+    format: s.format === 'json' || s.format === 'csv' ? s.format : undefined,
     team:
       s.team === 0 || s.team === 1 || s.team === '0' || s.team === '1' ? Number(s.team) : undefined,
     track: trackId(s.track),

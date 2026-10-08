@@ -1114,6 +1114,12 @@ export interface components {
     /** ExportCreate */
     ExportCreate: {
       /**
+       * Data Format
+       * @default json
+       * @enum {string}
+       */
+      data_format: 'json' | 'csv';
+      /**
        * From Ms
        * @description Range start; omitted = start of the video (Full match)
        */
@@ -1121,9 +1127,9 @@ export interface components {
       /**
        * Kind
        * @default video
-       * @constant
+       * @enum {string}
        */
-      kind: 'video';
+      kind: 'video' | 'data';
       /**
        * @default {
        *       "boxes": true,
@@ -1146,6 +1152,12 @@ export interface components {
        * @enum {integer}
        */
       quality: 720 | 1080;
+      /**
+       * Rate Hz
+       * @default 5
+       * @enum {integer}
+       */
+      rate_hz: 5 | 25;
       /**
        * To Ms
        * @description Range end (exclusive); omitted = end of the video
@@ -1213,6 +1225,8 @@ export interface components {
       created_at: string;
       /** Created By */
       created_by: string | null;
+      /** Data Format */
+      data_format?: string | null;
       /** Error */
       error: {
         [key: string]: unknown;
@@ -1242,6 +1256,8 @@ export interface components {
       progress: number;
       /** Quality */
       quality: number;
+      /** Rate Hz */
+      rate_hz?: number | null;
       /** Size Bytes */
       size_bytes: number | null;
       /**

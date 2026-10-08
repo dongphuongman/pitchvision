@@ -385,7 +385,7 @@ class Export(Base):
     __tablename__ = "exports"
     __table_args__ = (
         _video_fk(),
-        CheckConstraint("kind IN ('video')"),
+        CheckConstraint("kind IN ('video', 'data')", name="exports_kind_check"),
         CheckConstraint("status IN ('queued', 'running', 'done', 'failed', 'cancelled')"),
         CheckConstraint("progress BETWEEN 0 AND 100"),
         Index("ix_exports_org_created", "org_id", "created_at", "id"),

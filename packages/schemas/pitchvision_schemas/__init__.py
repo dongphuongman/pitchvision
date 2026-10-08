@@ -7,6 +7,8 @@ from pitchvision_schemas.errors import ErrorCode, Problem
 from pitchvision_schemas.exports import (
     EXPORT_HEIGHTS,
     TERMINAL_EXPORT,
+    DataFormat,
+    DataRate,
     ExportKind,
     ExportLayers,
     ExportLayout,
@@ -73,6 +75,8 @@ __all__ = [
     "Coverage",
     "CpuStage",
     "CpuTask",
+    "DataFormat",
+    "DataRate",
     "ErrorCode",
     "ErrorMessage",
     "ExportKind",

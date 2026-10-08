@@ -103,6 +103,27 @@ describe('SCR-20 Analysis workspace', () => {
     expect(screen.getByRole('button', { name: 'Download PNG' })).toBeEnabled();
   });
 
+  it('SCR-20f Data → SCR-25 Data tab: CSV preset, 25 Hz, starts a data export (M3-BE-03)', async () => {
+    const v = seed({ status: 'done', progress: 100, pitch_calibration: 'ok' });
+    const { router } = renderApp(`/videos/${v.id}/data`, { auth: testSession() });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Download CSV' }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ export: 'data', format: 'csv' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Export' });
+    expect(within(dialog).getByRole('radio', { name: 'Data' })).toBeChecked();
+    expect(within(dialog).getByRole('radio', { name: 'CSV (ZIP)' })).toBeChecked();
+    expect(within(dialog).queryByText('Layers')).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: '25 Hz (every frame)' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Start export' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const posted = mock.videos.log.find((l) => l.startsWith('POST /api/v1/exports'));
+    expect(posted).toContain('"kind":"data"');
+    expect(posted).toContain('"data_format":"csv"');
+    expect(posted).toContain('"rate_hz":25');
+  });
+
   it('< 1024 px: Video / Map / Both chooses which pane shows (UIUX §09)', async () => {
     const v = seed({ status: 'done', progress: 100, pitch_calibration: 'ok' });
     const user = userEvent.setup();

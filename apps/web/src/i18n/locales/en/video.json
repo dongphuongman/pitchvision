@@ -38,7 +38,8 @@
       "label": "Analysis sections",
       "overview": "Overview",
       "heatmaps": "Heatmaps",
-      "passing": "Passing"
+      "passing": "Passing",
+      "data": "Data"
     },
     "placeholder": "Video, tactical map and timeline arrive with the sync engine (M1-FE-08 – M1-FE-12).",
     "position": "Position {{time}}",
@@ -168,7 +169,12 @@
       "upgrade": "Upgrade",
       "start": "Start export",
       "started": "Export started",
-      "viewExports": "View exports"
+      "viewExports": "View exports",
+      "format": "Format",
+      "csvZip": "CSV (ZIP)",
+      "rate": "Tracking rate",
+      "everyFrame": "25 Hz (every frame)",
+      "dataHint": "Tracking rows with pitch positions, each flagged with its camera shot and whether it was interpolated, plus the match stats and passes."
     }
   },
   "corrections": {
@@ -388,5 +394,13 @@
     "fromTo": "Track {{from}} → Track {{to}}",
     "watch": "Watch the pass at {{time}}",
     "note": "Passes are inferred from the ball and the players on the main camera. The pass network between players needs player identities across shots and arrives with player recognition."
+  },
+  "data": {
+    "summary": "Raw tracking data · schema pitchvision.data/v1 · {{frames}} frames · {{duration}}",
+    "tracking": "Every tracked player, goalkeeper, referee and the ball: pitch position (metres), box on the video, confidence.",
+    "flags": "Each row says which camera shot it comes from (positions exist on the main camera only) and whether it was estimated by interpolation.",
+    "stats": "Team and per-track stats, possession and passes, exactly as shown in this analysis; full-match distances are marked as estimates.",
+    "json": "Download JSON",
+    "csv": "Download CSV"
   }
 }
