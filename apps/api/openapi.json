@@ -1156,7 +1156,7 @@
           "results"
         ],
         "summary": "List Players",
-        "description": "Tracks of the video's analysis, longest on screen first (`role` filters, repeatable). SCR-14 E06 lists the\ngoalkeepers and referees.",
+        "description": "Tracks of the video's analysis, longest on screen first (`role` filters, repeatable). SCR-14 E06 lists the\ngoalkeepers and referees; the player overlay fetches all (names for its labels).",
         "operationId": "list_players_api_v1_results__video_id__players_get",
         "security": [
           {
@@ -1198,7 +1198,7 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 500,
+              "maximum": 2000,
               "minimum": 1,
               "default": 50,
               "title": "Limit"
@@ -1243,7 +1243,7 @@
           "results"
         ],
         "summary": "Patch Players",
-        "description": "SCR-14 E06 \"Fix assignment\": set role + team of tracks. Display-only — tiles keep the detection; the\nmanifest's `track_overrides` carry the fix (re-fetch the manifest). 422 `reason`: unknown_track /\nunknown_cluster.",
+        "description": "SCR-14 E06 \"Fix assignment\" + SCR-21 Assign: set role / team / name / jersey of tracks (omitted fields are\nkept; explicit null clears name / jersey). Display-only — tiles keep the detection; the manifest's\n`track_overrides` carry the fix (re-fetch the manifest). 422 `reason`: unknown_track / unknown_cluster.",
         "operationId": "patch_players_api_v1_results__video_id__players_patch",
         "security": [
           {
@@ -5680,13 +5680,21 @@
             "title": "Track Id"
           },
           "role": {
-            "type": "string",
-            "enum": [
-              "player",
-              "goalkeeper",
-              "referee"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "player",
+                  "goalkeeper",
+                  "referee"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Role"
+            "title": "Role",
+            "description": "omitted = keep the current role"
           },
           "team": {
             "anyOf": [
@@ -5700,13 +5708,39 @@
               }
             ],
             "title": "Team",
-            "description": "required for player / goalkeeper; ignored for referee"
+            "description": "omitted = keep; null clears (referees always null)"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "omitted = keep; null / blank clears"
+          },
+          "jersey": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 99.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jersey",
+            "description": "omitted = keep; null clears"
           }
         },
         "type": "object",
         "required": [
-          "track_id",
-          "role"
+          "track_id"
         ],
         "title": "PlayerFix"
       },
@@ -5759,6 +5793,42 @@
             "type": "boolean",
             "title": "Confirmed",
             "description": "the role / team was set by a user (SCR-14 E06)"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "user-assigned player name (SCR-21 Assign; OCR fills jersey)"
+          },
+          "jersey": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jersey",
+            "description": "shirt number, manual or OCR-voted (S6)"
+          },
+          "jersey_conf": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jersey Conf",
+            "description": "OCR vote confidence; null = manual / unknown"
           },
           "seconds": {
             "type": "number",

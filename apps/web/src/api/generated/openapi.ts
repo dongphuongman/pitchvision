@@ -521,7 +521,7 @@ export interface paths {
     /**
      * List Players
      * @description Tracks of the video's analysis, longest on screen first (`role` filters, repeatable). SCR-14 E06 lists the
-     *     goalkeepers and referees.
+     *     goalkeepers and referees; the player overlay fetches all (names for its labels).
      */
     get: operations['list_players_api_v1_results__video_id__players_get'];
     put?: never;
@@ -531,9 +531,9 @@ export interface paths {
     head?: never;
     /**
      * Patch Players
-     * @description SCR-14 E06 "Fix assignment": set role + team of tracks. Display-only — tiles keep the detection; the
-     *     manifest's `track_overrides` carry the fix (re-fetch the manifest). 422 `reason`: unknown_track /
-     *     unknown_cluster.
+     * @description SCR-14 E06 "Fix assignment" + SCR-21 Assign: set role / team / name / jersey of tracks (omitted fields are
+     *     kept; explicit null clears name / jersey). Display-only — tiles keep the detection; the manifest's
+     *     `track_overrides` carry the fix (re-fetch the manifest). 422 `reason`: unknown_track / unknown_cluster.
      */
     patch: operations['patch_players_api_v1_results__video_id__players_patch'];
     trace?: never;
@@ -1870,13 +1870,23 @@ export interface components {
     /** PlayerFix */
     PlayerFix: {
       /**
-       * Role
-       * @enum {string}
+       * Jersey
+       * @description omitted = keep; null clears
        */
-      role: 'player' | 'goalkeeper' | 'referee';
+      jersey?: number | null;
+      /**
+       * Name
+       * @description omitted = keep; null / blank clears
+       */
+      name?: string | null;
+      /**
+       * Role
+       * @description omitted = keep the current role
+       */
+      role?: ('player' | 'goalkeeper' | 'referee') | null;
       /**
        * Team
-       * @description required for player / goalkeeper; ignored for referee
+       * @description omitted = keep; null clears (referees always null)
        */
       team?: number | null;
       /** Track Id */
@@ -1897,6 +1907,21 @@ export interface components {
        * @description the role / team was set by a user (SCR-14 E06)
        */
       confirmed: boolean;
+      /**
+       * Jersey
+       * @description shirt number, manual or OCR-voted (S6)
+       */
+      jersey?: number | null;
+      /**
+       * Jersey Conf
+       * @description OCR vote confidence; null = manual / unknown
+       */
+      jersey_conf?: number | null;
+      /**
+       * Name
+       * @description user-assigned player name (SCR-21 Assign; OCR fills jersey)
+       */
+      name?: string | null;
       /** Role */
       role: string | null;
       /**

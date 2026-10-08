@@ -59,18 +59,18 @@ async def get_pitch_template(response: Response, principal: CurrentPrincipal) ->
 @router.get("/{video_id}/players")
 async def list_players(video_id: uuid.UUID, principal: CurrentPrincipal, session: DbSession,
                        role: Annotated[list[Literal["player", "goalkeeper", "referee"]], Query()] = [],  # noqa: B006
-                       limit: Annotated[int, Query(ge=1, le=500)] = 50) -> PlayerList:  # fmt: skip
+                       limit: Annotated[int, Query(ge=1, le=2000)] = 50) -> PlayerList:  # fmt: skip
     """Tracks of the video's analysis, longest on screen first (`role` filters, repeatable). SCR-14 E06 lists the
-    goalkeepers and referees."""
+    goalkeepers and referees; the player overlay fetches all (names for its labels)."""
     return await corrections.players(session, principal, video_id, list(role), limit)
 
 
 @router.patch("/{video_id}/players")
 async def patch_players(video_id: uuid.UUID, body: PlayersPatch, principal: EditorPrincipal, session: DbSession
                         ) -> PlayerList:  # fmt: skip
-    """SCR-14 E06 "Fix assignment": set role + team of tracks. Display-only — tiles keep the detection; the
-    manifest's `track_overrides` carry the fix (re-fetch the manifest). 422 `reason`: unknown_track /
-    unknown_cluster."""
+    """SCR-14 E06 "Fix assignment" + SCR-21 Assign: set role / team / name / jersey of tracks (omitted fields are
+    kept; explicit null clears name / jersey). Display-only — tiles keep the detection; the manifest's
+    `track_overrides` carry the fix (re-fetch the manifest). 422 `reason`: unknown_track / unknown_cluster."""
     return await corrections.patch_players(session, principal, video_id, body)
 
 

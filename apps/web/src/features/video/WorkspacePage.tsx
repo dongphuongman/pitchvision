@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { applyCorrections, postRepitch, type CorrectionOut } from '@/api/corrections';
+import { applyCorrections, postRepitch, type CorrectionOut, playersQuery } from '@/api/corrections';
 import { useMeta } from '@/api/queries';
 import { manifestQuery, mediaQuery } from '@/api/results';
 import type { ShotType, Tile } from '@/api/types';
@@ -103,6 +103,16 @@ export function WorkspacePage() {
   const queryClient = useQueryClient();
   // SCR-22 live corrections (editors only need to write; reading is cheap for everyone).
   const corrections = useCorrectionsState(videoId, canEdit);
+  // SCR-21 Assign: player names/jerseys for overlay + tactical map labels.
+  const players = useQuery(playersQuery(videoId));
+  const playerNames = useMemo(() => {
+    const items = players.data?.items;
+    if (!items) return new Map<number, string>();
+    const entries = items
+      .filter((p): p is typeof p & { name: string } => p.name != null)
+      .map((p) => [p.track_id, p.name] as [number, string]);
+    return new Map<number, string>(entries);
+  }, [players.data?.items]);
 
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [overlayEl, setOverlayEl] = useState<HTMLCanvasElement | null>(null);
@@ -143,6 +153,7 @@ export function WorkspacePage() {
     mapLabels,
     layers,
     transform: correctionsTransform,
+    playerNames,
   });
   const state = useClockState(clock);
   const m = manifest.data;

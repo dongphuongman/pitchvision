@@ -211,6 +211,9 @@ class PlayerOut(BaseModel):
     role: str | None
     team: int | None = Field(description="cluster 0 / 1, null = no team")
     confirmed: bool = Field(description="the role / team was set by a user (SCR-14 E06)")
+    name: str | None = Field(None, description="user-assigned player name (SCR-21 Assign; OCR fills jersey)")
+    jersey: int | None = Field(None, description="shirt number, manual or OCR-voted (S6)")
+    jersey_conf: float | None = Field(None, description="OCR vote confidence; null = manual / unknown")
     seconds: float = Field(description="time on screen")
     t0_ms: int | None
     t1_ms: int | None
@@ -222,14 +225,11 @@ class PlayerList(BaseModel):
 
 class PlayerFix(BaseModel):
     track_id: int
-    role: PlayerRole
-    team: int | None = Field(None, ge=0, le=1, description="required for player / goalkeeper; ignored for referee")
+    role: PlayerRole | None = Field(None, description="omitted = keep the current role")
+    team: int | None = Field(None, ge=0, le=1, description="omitted = keep; null clears (referees always null)")
+    name: str | None = Field(None, max_length=40, description="omitted = keep; null / blank clears")
+    jersey: int | None = Field(None, ge=0, le=99, description="omitted = keep; null clears")
 
-    @model_validator(mode="after")
-    def _team(self) -> "PlayerFix":
-        if self.role != "referee" and self.team is None:
-            raise ValueError("players and goalkeepers need a team")
-        return self
 
 
 class PlayersPatch(BaseModel):

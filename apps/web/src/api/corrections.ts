@@ -154,6 +154,20 @@ export function keyRolesQuery(videoId: string) {
   });
 }
 
+/** SCR-21 Assign + overlay labels: all tracks with names / jerseys. */
+export function playersQuery(videoId: string) {
+  return queryOptions({
+    queryKey: ['results', videoId, 'players', 'all'] as const,
+    queryFn: async ({ signal }): Promise<PlayerList> => {
+      const { data } = await api.GET('/api/v1/results/{video_id}/players', {
+        params: { path: { video_id: videoId }, query: { limit: 2000 } },
+        signal,
+      });
+      return required(data, 'players');
+    },
+  });
+}
+
 /** E06 "Fix assignment" (display-only; refetch the manifest afterwards). */
 export async function patchPlayers(videoId: string, changes: PlayerFix[]): Promise<PlayerList> {
   const { data } = await api.PATCH('/api/v1/results/{video_id}/players', {

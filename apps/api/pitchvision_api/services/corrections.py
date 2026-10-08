@@ -111,19 +111,23 @@ FPS = 25
 
 
 async def players(session: AsyncSession, principal: Principal, video_id: uuid.UUID, roles: list[str],
-                  limit: int) -> PlayerList:  # fmt: skip
+                   limit: int) -> PlayerList:  # fmt: skip
     if await videos_repo.get(session, principal.org_id, video_id) is None:
         raise not_found()
     rows = await repo.players(session, principal.org_id, video_id, roles, limit)
     return PlayerList(items=[PlayerOut(track_id=p.track_id, role=p.role, team=cluster, confirmed=p.confirmed,
+                                       name=p.name, jersey=p.jersey, jersey_conf=p.jersey_conf,
                                        seconds=round((p.frames or 0) / FPS, 1), t0_ms=p.t0_ms, t1_ms=p.t1_ms)
-                             for p, cluster in rows])  # fmt: skip
+                              for p, cluster in rows])  # fmt: skip
 
 
 async def patch_players(session: AsyncSession, principal: Principal, video_id: uuid.UUID, body: PlayersPatch
                         ) -> PlayerList:  # fmt: skip
+    """SCR-14 E06 fixes + SCR-21 Assign (name / jersey): display-level, confirmed. Omitted fields are kept;
+    explicit null clears name / jersey (and team, except players and goalkeepers still need one)."""
     video = await _locked_video(session, principal, video_id)
     by_cluster = {t.cluster: t for t in await repo.teams(session, principal.org_id, video_id) if t.cluster is not None}
+    by_id = {t.id: t for t in by_cluster.values()}
     found = {p.track_id: p for p in await repo.players_by_track(session, principal.org_id, video_id,
                                                                  [c.track_id for c in body.changes])}  # fmt: skip
     missing = sorted({c.track_id for c in body.changes} - set(found))
@@ -131,10 +135,24 @@ async def patch_players(session: AsyncSession, principal: Principal, video_id: u
         raise _invalid("Unknown track", f"The analysis has no track {missing[0]}.", "unknown_track")
     for c in body.changes:
         p = found[c.track_id]
-        team = None if c.role == "referee" or c.team is None else by_cluster.get(c.team)
-        if c.role != "referee" and team is None:
-            raise _invalid("Unknown team", f"The analysis has no team cluster {c.team}.", "unknown_cluster")
-        p.role, p.team_id, p.confirmed = c.role, team.id if team else None, True
+        fields = c.model_fields_set
+        role = c.role if "role" in fields else (p.role or "player")
+        if role == "referee":
+            team = None
+        elif "team" in fields:
+            if c.team is None:
+                raise _invalid("No team", "Players and goalkeepers need a team.", "unknown_cluster")
+            team = by_cluster.get(c.team)
+            if team is None:
+                raise _invalid("Unknown team", f"The analysis has no team cluster {c.team}.", "unknown_cluster")
+        else:
+            team = by_id.get(p.team_id) if p.team_id else None
+        if "name" in fields:
+            stripped = c.name.strip() if c.name else ""
+            p.name = stripped or None  # blank clears
+        if "jersey" in fields:
+            p.jersey, p.jersey_conf = (c.jersey, None) if c.jersey is not None else (None, None)
+        p.role, p.team_id, p.confirmed = role, team.id if team else None, True
     await session.flush()
     await _record(session, principal, video, "players", {"changes": [c.model_dump() for c in body.changes]})
     return await players(session, principal, video_id, ["goalkeeper", "referee"], 200)

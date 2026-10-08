@@ -76,6 +76,8 @@ export interface SyncEngineOptions {
   decoder?: () => TileDecoder;
   /** SCR-22 optimistic corrections applied to tiles before indexing. */
   transform?: (tile: Tile) => Tile;
+  /** SCR-21 Assign: track_id → user-assigned name for overlay/tactical map labels. */
+  playerNames?: ReadonlyMap<number, string>;
 }
 
 /**
@@ -84,7 +86,7 @@ export interface SyncEngineOptions {
  * the TileStore before the frame arrives so stale prefetches are cancelled.
  */
 export function useSyncEngine(opts: SyncEngineOptions) {
-  const { manifest, video, overlayCanvas, mapCanvas, mapLabels } = opts;
+  const { manifest, video, overlayCanvas, mapCanvas, mapLabels, playerNames } = opts;
   const clock = usePlaybackClock(video, manifest?.fps ?? 25);
   const store = useTileStore(manifest, {
     fetch: opts.fetch,
@@ -92,9 +94,16 @@ export function useSyncEngine(opts: SyncEngineOptions) {
     transform: opts.transform,
   });
   const overlayRef = useRef<OverlayRenderer | null>(null);
+  const mapRef = useRef<TacticalMapRenderer | null>(null);
   const redrawRef = useRef<(() => void) | null>(null);
   const layers = opts.layers ?? DEFAULT_LAYERS;
   const layersRef = useRef(layers);
+  const playerNamesRef = useRef(playerNames);
+
+  // Keep playerNamesRef.current in sync with opts.playerNames without violating ref rules.
+  useEffect(() => {
+    playerNamesRef.current = playerNames;
+  }, [playerNames]);
 
   useEffect(() => {
     if (!clock || !store || !manifest || !video) return;
@@ -119,10 +128,15 @@ export function useSyncEngine(opts: SyncEngineOptions) {
       // Before the tile arrives the manifest still knows the shot (map can say "replay").
       const shot = lookup.shot ?? shotAt(manifest.shots, msForFrame(frameIdx, manifest.fps))?.type;
       const frame = fix(lookup.frame);
-      overlay?.render(frame, lookup.loaded ? shot : undefined);
-      map?.render(frame, shot === 'main_wide' && !lookup.loaded ? undefined : shot);
+      overlay?.render(frame, lookup.loaded ? shot : undefined, playerNamesRef.current);
+      map?.render(
+        frame,
+        shot === 'main_wide' && !lookup.loaded ? undefined : shot,
+        playerNamesRef.current,
+      );
     };
     overlayRef.current = overlay;
+    mapRef.current = map;
     redrawRef.current = draw;
     const offClock = clock.subscribe(draw);
     const offSeek = clock.onSeek((f) => store.seek(f));
@@ -137,6 +151,7 @@ export function useSyncEngine(opts: SyncEngineOptions) {
       overlay?.dispose();
       map?.dispose();
       overlayRef.current = null;
+      mapRef.current = null;
       redrawRef.current = null;
     };
   }, [clock, store, manifest, video, overlayCanvas, mapCanvas, mapLabels]);

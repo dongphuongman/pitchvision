@@ -214,7 +214,13 @@
     "undo": "Undo",
     "failed": "Could not save. Try again.",
     "updating": "Stats updating…",
-    "apply": "Apply updates"
+    "apply": "Apply updates",
+    "assignPlayer": "Assign player…",
+    "assign": "Assign",
+    "assignConfirm": "Assign name and shirt number to track {{id}}",
+    "name": "Name",
+    "jersey": "Shirt number",
+    "assigned": "Player assigned"
   },
   "teams": {
     "title": "Confirm teams",

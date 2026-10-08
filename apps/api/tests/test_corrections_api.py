@@ -397,14 +397,59 @@ async def test_attack_direction_and_player_fixes_reach_the_manifest(client: http
     bad = {"changes": [{"track_id": 999, "role": "referee"}]}
     p = assert_problem(await client.patch(f"{url}/players", json=bad, headers=who(org)), 422, "VALIDATION_FAILED")
     assert p["reason"] == "unknown_track"
-    assert_problem(await client.patch(f"{url}/players", json={"changes": [{"track_id": 9, "role": "goalkeeper"}]},
-                                      headers=who(org)), 422, "VALIDATION_FAILED")  # fmt: skip
+    null_team = {"changes": [{"track_id": 9, "role": "goalkeeper", "team": None}]}
+    assert_problem(await client.patch(f"{url}/players", json=null_team, headers=who(org)), 422, "VALIDATION_FAILED")
+    # omitted fields are kept: role-only re-assert keeps team 0
+    role_only = {"changes": [{"track_id": 9, "role": "goalkeeper"}]}
+    r = await client.patch(f"{url}/players", json=role_only, headers=who(org))
+    assert r.status_code == 200, r.text
+    assert next(p for p in r.json()["items"] if p["track_id"] == 9)["team"] == 0
 
     m = (await client.get(f"{url}/manifest", headers=who(org, "viewer"))).json()
     assert [(x["cluster"], x["attack_h1"]) for x in m["teams"]] == [(0, "right"), (1, "left")]
     assert m["track_overrides"] == [{"track_id": 4, "team": -1, "cls": 2}, {"track_id": 9, "team": 0, "cls": 1}]
     types = [c.type for c in await _rows(migrated, org, Correction, video_id=vid)]
-    assert sorted(types) == ["players", "teams"]
+    assert sorted(types) == ["players", "players", "teams"]  # fixes + the role-only re-assert
+
+
+# ---------------------------------------------------------------- SCR-21 Assign
+async def test_players_assign_name_and_jersey(client: httpx.AsyncClient, migrated: Db) -> None:
+    """SCR-21 Assign (name + shirt number): partial PATCH, blank/null clears, manual set drops the OCR vote."""
+    org = uuid.uuid4()
+    vid, _job = await _analysed(migrated, org)
+    url = f"/api/v1/results/{vid}"
+
+    async def add(s: Any) -> None:
+        teams = {t.cluster: t for t in (await s.scalars(select(Team).where(Team.video_id == vid))).all()}
+        s.add(Player(video_id=vid, org_id=org, track_id=1, role="player", frames=5000, t0_ms=0, t1_ms=200_000,
+                     team_id=teams[0].id, jersey=10, jersey_conf=0.94))  # fmt: skip
+        await s.flush()
+
+    await _exec(migrated, org, add)
+    get = (await client.get(f"{url}/players", headers=who(org, "viewer"))).json()["items"]
+    assert [(p["track_id"], p["name"], p["jersey"], round(p["jersey_conf"], 2)) for p in get] == [(1, None, 10, 0.94)]
+
+    assign = {"changes": [{"track_id": 1, "name": "  Kylian Mbappé ", "jersey": 10}]}
+    r = await client.patch(f"{url}/players", json=assign, headers=who(org))
+    assert r.status_code == 200, r.text
+    get = (await client.get(f"{url}/players", headers=who(org, "viewer"))).json()["items"]
+    assert [(p["name"], p["jersey"], p["jersey_conf"], p["confirmed"]) for p in get] == [
+        ("Kylian Mbappé", 10, None, True)]  # stripped; the manual number replaces the OCR vote
+    corr = (await _rows(migrated, org, Correction, video_id=vid, type="players"))[-1]
+    (change,) = corr.payload["changes"]
+    assert (change["track_id"], change["name"], change["jersey"]) == (1, "  Kylian Mbappé ", 10)
+
+    # blank name and null jersey clear; team / role are untouched
+    clear = {"changes": [{"track_id": 1, "name": "   ", "jersey": None}]}
+    assert (await client.patch(f"{url}/players", json=clear, headers=who(org))).status_code == 200
+    (only,) = (await client.get(f"{url}/players", headers=who(org, "viewer"))).json()["items"]
+    assert (only["name"], only["jersey"], only["team"], only["role"]) == (None, None, 0, "player")
+
+    long = {"changes": [{"track_id": 1, "name": "x" * 41}]}
+    assert_problem(await client.patch(f"{url}/players", json=long, headers=who(org)), 422, "VALIDATION_FAILED")
+    bad_jersey = {"changes": [{"track_id": 1, "jersey": 100}]}
+    assert_problem(await client.patch(f"{url}/players", json=bad_jersey, headers=who(org)), 422,
+                   "VALIDATION_FAILED")
 
 
 async def test_repitch_starts_a_derived_job(client: httpx.AsyncClient, migrated: Db, tasks: FakeTasks) -> None:

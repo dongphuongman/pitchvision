@@ -122,17 +122,17 @@ derived jobs, exports, notifications).
   one debounced `edit` job per burst (`detail.apply_after` +30 s) → CPU `edit_tracks`
   (`pitchvision_worker.stages.edit_tracks`) re-applies the whole live list to the nearest NON-edit ancestor's
   tracks → tiles / load_db / manifest, no notification. Contract: `docs/contracts/pipeline-stages.md` "Track
-   corrections". Compose ESP–CZE: 3 ops applied in 52 s; undo-all restored 1025 tracks / 25 844 rows (that run caught
-   "undo did nothing" — edits stacked on the previous edit; fixed with `_tracks_base`). SCR-22 UI done (M2-FE-03,
-   committed + pushed 08/10). Re-analysis clearing done the same day: creating / retrying `analyze` / `team_rerun`
-   marks live track edits undone (`repositories.results.clear_track_edits`; recalibrate / repitch / edit keep them);
-   Python 975 test. Not done: Assign player (needs Roster SCR-21).
+corrections". Compose ESP–CZE: 3 ops applied in 52 s; undo-all restored 1025 tracks / 25 844 rows (that run caught
+    "undo did nothing" — edits stacked on the previous edit; fixed with `_tracks_base`). SCR-22 UI done (M2-FE-03,
+    committed + pushed 08/10). Re-analysis clearing done the same day: creating / retrying `analyze` / `team_rerun`
+    marks live track edits undone (`repositories.results.clear_track_edits`; recalibrate / repitch / edit keep them);
+    Python 975 test. SCR-21 Assign gọn (08/10): popover Assign trong menu SCR-22, tên/jersey lên overlay video + tactical map, web 295 test xanh. Not done: Roster full (trang inline + DLG-09 + import-from-match) — cần PO.
 - Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
-0. Pick up from here: M2-FE-03 SCR-22 UI + re-analysis clearing xong, đã push 08/10 (Python 975, web 295). Còn lại: label frames với tool (needs a person, ~300 frames) → GPU run (README recipe) để thay PnLCalib; M3 next: validate stats vs official numbers (M3-CV-04, needs a full match analysed on a GPU box),
+0. Pick up from here: M2-FE-03 SCR-22 UI + re-analysis clearing + SCR-21 Assign gọn xong, đã push 08/10 (Python 975, web 295). Còn lại: label frames với tool (needs a person, ~300 frames) → GPU run (README recipe) để thay PnLCalib; M3 next: validate stats vs official numbers (M3-CV-04, needs a full match analysed on a GPU box),
    API keys cho data API (needs the PO: Pro), stats compare / halves once the match clock exists (M2).
-   Doable now without anyone: Assign player trong menu SCR-22 (cần Roster SCR-21).
+   Doable now without anyone: Roster full (trang inline + DLG-09 paste lineup + import-from-match) — cần PO.
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.

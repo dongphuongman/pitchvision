@@ -49,6 +49,8 @@ export interface OverlayOptions {
   /** team cluster → colour (manifest.teams). */
   teamColors: ReadonlyMap<number, string>;
   layers?: OverlayLayers;
+  /** track_id → user-assigned name (SCR-21 Assign). */
+  playerNames?: ReadonlyMap<number, string>;
 }
 
 export function teamColorMap(teams: readonly TeamInfo[]): Map<number, string> {
@@ -101,8 +103,14 @@ export function computeOverlay(
       out.push({ kind: 'box', x, y, w, h, color, dashed: cls === OBJ_CLS.referee });
     }
     if (layers.labels) {
-      const id = `${cls === OBJ_CLS.goalkeeper ? 'GK ' : ''}#${o[OBJ.trackId]}`;
-      const text = layers.conf ? `${id} ${o[OBJ.conf].toFixed(2)}` : id;
+      const trackId = o[OBJ.trackId];
+      const name = opts.playerNames?.get(trackId);
+      const id = `${cls === OBJ_CLS.goalkeeper ? 'GK ' : ''}#${trackId}`;
+      const text = name
+        ? `${name} (${id}${layers.conf ? ` ${o[OBJ.conf].toFixed(2)}` : ''})`
+        : layers.conf
+          ? `${id} ${o[OBJ.conf].toFixed(2)}`
+          : id;
       labels.push({ kind: 'label', x, y: y - 3, text, color });
     }
   }
@@ -153,7 +161,11 @@ export class OverlayRenderer {
   private readonly ro: ResizeObserver;
   private rect: ContentRect = { scale: 0, offsetX: 0, offsetY: 0, width: 0, height: 0 };
   private dpr = 1;
-  private last: { frame: TileFrame | undefined; shot: ShotType | undefined } | null = null;
+  private last: {
+    frame: TileFrame | undefined;
+    shot: ShotType | undefined;
+    playerNames?: ReadonlyMap<number, string>;
+  } | null = null;
   layers: OverlayLayers = DEFAULT_LAYERS;
 
   constructor(
@@ -189,12 +201,17 @@ export class OverlayRenderer {
     if (this.last) this.render(this.last.frame, this.last.shot);
   };
 
-  render(frame: TileFrame | undefined, shot: ShotType | undefined): OverlayCommand[] {
-    this.last = { frame, shot };
+  render(
+    frame: TileFrame | undefined,
+    shot: ShotType | undefined,
+    playerNames?: ReadonlyMap<number, string>,
+  ): OverlayCommand[] {
+    this.last = { frame, shot, playerNames };
     const cmds = computeOverlay(frame, shot, {
       rect: this.rect,
       teamColors: this.source.teamColors,
       layers: this.layers,
+      playerNames,
     });
     const ctx = this.canvas.getContext('2d');
     if (ctx) paintOverlay(ctx, cmds, this.dpr);

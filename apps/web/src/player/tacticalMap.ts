@@ -51,6 +51,7 @@ export interface MapDot {
   color: string;
   kind: 'player' | 'goalkeeper' | 'referee' | 'ball';
   trackId: number;
+  name?: string;
 }
 
 export interface MapScene {
@@ -73,7 +74,11 @@ const KIND: Record<number, MapDot['kind']> = {
 export function computeMapScene(
   frame: TileFrame | undefined,
   shot: ShotType | undefined,
-  opts: { teamColors: ReadonlyMap<number, string>; hqThreshold?: number },
+  opts: {
+    teamColors: ReadonlyMap<number, string>;
+    hqThreshold?: number;
+    playerNames?: ReadonlyMap<number, string>;
+  },
 ): MapScene {
   if (shot === undefined) return { state: 'no_data', dots: [], hq: null };
   if (shot !== 'main_wide') return { state: 'not_available', shot, dots: [], hq: null };
@@ -88,12 +93,14 @@ export function computeMapScene(
     const py = o[OBJ.py];
     if (px === null || py === null) continue;
     const cls = o[OBJ.cls];
+    const trackId = o[OBJ.trackId];
     dots.push({
       x: px,
       y: py,
       color: objectColor(cls, o[OBJ.team], opts.teamColors),
       kind: KIND[cls] ?? 'player',
-      trackId: o[OBJ.trackId],
+      trackId,
+      name: opts.playerNames?.get(trackId),
     });
   }
   return { state: 'ok', dots, hq };
@@ -177,6 +184,18 @@ export function paintMap(
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = d.kind === 'ball' ? '#0b0f14' : 'rgba(255,255,255,.9)';
     ctx.stroke();
+    if (d.name && d.kind !== 'ball') {
+      ctx.font = '500 11px Inter Variable, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      const nameX = X(d.x);
+      const nameY = Y(d.y) - r - 4;
+      const tw = ctx.measureText(d.name).width + 8;
+      ctx.fillStyle = 'rgba(5,9,13,.72)';
+      ctx.fillRect(nameX - tw / 2, nameY - 14, tw, 15);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(d.name, nameX, nameY);
+    }
   }
   const label =
     scene.state === 'low_confidence'
@@ -201,7 +220,11 @@ export function paintMap(
 export class TacticalMapRenderer {
   private readonly ro: ResizeObserver;
   private dpr = 1;
-  private last: { frame: TileFrame | undefined; shot: ShotType | undefined } | null = null;
+  private last: {
+    frame: TileFrame | undefined;
+    shot: ShotType | undefined;
+    playerNames: ReadonlyMap<number, string> | undefined;
+  } | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -220,12 +243,16 @@ export class TacticalMapRenderer {
     this.dpr = globalThis.devicePixelRatio || 1;
     this.canvas.width = Math.round(this.canvas.clientWidth * this.dpr);
     this.canvas.height = Math.round(this.canvas.clientHeight * this.dpr);
-    if (this.last) this.render(this.last.frame, this.last.shot);
+    if (this.last) this.render(this.last.frame, this.last.shot, this.last.playerNames);
   }
 
-  render(frame: TileFrame | undefined, shot: ShotType | undefined): MapScene {
-    this.last = { frame, shot };
-    const scene = computeMapScene(frame, shot, this.opts);
+  render(
+    frame: TileFrame | undefined,
+    shot: ShotType | undefined,
+    playerNames?: ReadonlyMap<number, string>,
+  ): MapScene {
+    this.last = { frame, shot, playerNames };
+    const scene = computeMapScene(frame, shot, { ...this.opts, playerNames });
     const ctx = this.canvas.getContext('2d');
     if (ctx) paintMap(ctx, scene, this.opts.labels, this.dpr);
     return scene;

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { applyCorrections, patchPlayers, type CorrectionIn } from '@/api/corrections';
 import type { TeamInfo } from '@/api/types';
-import { Badge, Button, toast } from '@/ui';
+import { Badge, Button, Input, toast } from '@/ui';
 import { usePostCorrection } from './trackEdits';
 
 export interface TrackMenuAnchor {
@@ -79,8 +79,28 @@ export function TrackCorrectionMenu({
       onClose();
     },
   });
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignName, setAssignName] = useState('');
+  const [assignJersey, setAssignJersey] = useState('');
+  const assignFix = useMutation({
+    mutationFn: (args: { name: string | null; jersey: number | null }) =>
+      patchPlayers(videoId, [
+        {
+          track_id: anchor.trackId,
+          role: 'player',
+          ...(args.name !== null ? { name: args.name } : {}),
+          ...(args.jersey !== null ? { jersey: args.jersey } : {}),
+        },
+      ]),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['results', videoId] });
+      toast({ title: t('trackEdits.assigned'), tone: 'success' });
+      setAssignOpen(false);
+      onClose();
+    },
+  });
 
-  const err = post.isError || teamFix.isError;
+  const err = post.isError || teamFix.isError || assignFix.isError;
   const w = 264;
   const x = Math.max(8, Math.min(anchor.x, window.innerWidth - w - 8));
   const y = Math.max(8, Math.min(anchor.y, window.innerHeight - 320));
@@ -178,6 +198,20 @@ export function TrackCorrectionMenu({
         {t('trackEdits.referee')}
       </button>
 
+      <button
+        type="button"
+        role="menuitem"
+        className={item}
+        disabled={busy}
+        onClick={() => {
+          setAssignName('');
+          setAssignJersey('');
+          setAssignOpen(true);
+        }}
+      >
+        {t('trackEdits.assignPlayer')}
+      </button>
+
       <p className="m-0 px-2.5 pt-2 text-caption font-semibold text-fg-3 uppercase">
         {t('trackEdits.correct')}
       </p>
@@ -218,6 +252,48 @@ export function TrackCorrectionMenu({
           {t('trackEdits.splitAt')}
         </button>
       )}
+      {assignOpen ? (
+        <div className="px-2.5 py-1.5">
+          <p className="text-body-sm m-0 mb-1.5">
+            {t('trackEdits.assignConfirm', { id: anchor.trackId })}
+          </p>
+          <div className="mb-1.5 flex flex-col gap-1.5">
+            <Input
+              aria-label={t('trackEdits.name')}
+              className="bg-surface text-body-sm rounded-md border border-line px-2 py-1.5"
+              placeholder="Kylian Mbappé"
+              value={assignName}
+              onChange={(e) => setAssignName(e.target.value)}
+            />
+            <Input
+              aria-label={t('trackEdits.jersey')}
+              className="bg-surface text-body-sm rounded-md border border-line px-2 py-1.5"
+              inputMode="numeric"
+              placeholder="10"
+              value={assignJersey}
+              onChange={(e) => setAssignJersey(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="primary"
+              loading={assignFix.isPending}
+              onClick={() =>
+                assignFix.mutate({
+                  name: assignName.trim() || null,
+                  jersey: assignJersey.trim() === '' ? null : Number(assignJersey),
+                })
+              }
+            >
+              {t('trackEdits.assign')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setAssignOpen(false)}>
+              {t('trackEdits.cancel')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <button
         type="button"
         role="menuitem"
