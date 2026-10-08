@@ -160,3 +160,21 @@ async def corrections(session: AsyncSession, org_id: uuid.UUID, video_id: uuid.U
                                      Correction.type.in_(types))
             .order_by(Correction.revision, Correction.created_at, Correction.id))  # fmt: skip
     return list((await session.scalars(stmt)).all())
+
+
+async def clear_track_edits(
+    session: AsyncSession, org_id: uuid.UUID, video_id: uuid.UUID, types: tuple[str, ...]
+) -> int:
+    """Mark the live corrections of ``types`` undone; returns how many were cleared.
+
+    A re-tracking job (``analyze`` / ``team_rerun``, created or retried) makes their track ids stale, so the
+    edit pipeline and the UI must stop applying them. History is kept (same as Undo) — readers only see
+    non-undone rows. Recalibrate / repitch / edit jobs reuse tracks and never call this.
+    """
+    n = 0
+    for c in await corrections(session, org_id, video_id, types):
+        if not c.payload.get("undone"):
+            c.payload = {**c.payload, "undone": True}
+            n += 1
+    await session.flush()
+    return n

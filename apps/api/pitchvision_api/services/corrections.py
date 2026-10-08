@@ -40,7 +40,7 @@ from pitchvision_api.schemas.results import (
     PlayersPatch,
     TeamsPatch,
 )
-from pitchvision_api.schemas.track_edits import CorrectionOut, CorrectionsState, MergeIn, RemoveIn, SplitIn
+from pitchvision_api.schemas.track_edits import EDIT_TYPES, CorrectionOut, CorrectionsState, MergeIn, RemoveIn, SplitIn
 from pitchvision_api.services import jobs as jobs_service
 from pitchvision_api.services import saved_teams
 from pitchvision_api.services.tasks import TaskQueue
@@ -149,6 +149,7 @@ async def manual_teams(session: AsyncSession, tasks: TaskQueue, settings: Settin
     if parent is None:
         raise _no_analysis("Run an analysis first; manual team samples re-run its team detection.")
     seeds = {team: [s.model_dump(mode="json") for s in picks] for team, picks in sorted(body.samples.items())}
+    await repo.clear_track_edits(session, principal.org_id, video.id, EDIT_TYPES)  # re-tracks: old ids die
     corr = await _record(session, principal, video, "team_samples", {"samples": seeds, "parent_job_id": str(parent.id)})
     job = await jobs_service.create_derived(session, tasks, settings, principal, video, parent, "team_rerun",
                                             {"team_seeds": seeds, "correction_id": str(corr.id)})  # fmt: skip
@@ -245,7 +246,6 @@ async def calibration_state(session: AsyncSession, principal: Principal, video_i
 
 
 # ---------------------------------------------------------------- SCR-22 track corrections (M2-BE-01)
-EDIT_TYPES = ("merge", "split", "remove")
 EDIT_DEBOUNCE_S = 30
 
 

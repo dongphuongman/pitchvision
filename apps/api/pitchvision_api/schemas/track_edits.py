@@ -39,6 +39,10 @@ class RemoveIn(BaseModel):
 
 CorrectionIn = Annotated[MergeIn | SplitIn | RemoveIn, Field(discriminator="type")]
 
+#: Correction types that name concrete tracks of one analysis run. A new ``analyze`` / ``team_rerun`` job
+#: re-tracks, so these go stale and are marked undone on re-analysis (recalibrate / repitch / edit keep them).
+EDIT_TYPES: tuple[str, ...] = ("merge", "split", "remove")
+
 
 class CorrectionOut(BaseModel):
     id: uuid.UUID

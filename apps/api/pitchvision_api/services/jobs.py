@@ -22,8 +22,10 @@ from pitchvision_api.auth import Principal
 from pitchvision_api.db.models import Job, Video
 from pitchvision_api.errors import ApiError
 from pitchvision_api.repositories import jobs as repo
+from pitchvision_api.repositories import results as results_repo
 from pitchvision_api.repositories import videos as videos_repo
 from pitchvision_api.schemas.jobs import JobCreate, job_error
+from pitchvision_api.schemas.track_edits import EDIT_TYPES
 from pitchvision_api.services import quota
 from pitchvision_api.services.tasks import (
     QUEUE_ORCHESTRATE,
@@ -95,6 +97,7 @@ async def create(
     if (active := await repo.active_for_video(session, principal.org_id, video.id)) is not None:
         raise _active_conflict(active)
     await quota.ensure(session, principal, quota.minutes_of(video.duration_ms))
+    await results_repo.clear_track_edits(session, principal.org_id, video.id, EDIT_TYPES)  # re-tracks: old ids die
     try:
         job = await repo.add(
             session,
@@ -215,6 +218,9 @@ async def retry(session: AsyncSession, tasks: TaskQueue, principal: Principal, j
     if (job.detail or {}).get("kind", "analyze") == "analyze":  # a failed job wasn't charged; its retry is
         video = await videos_repo.get(session, principal.org_id, job.video_id)
         await quota.ensure(session, principal, quota.minutes_of(video.duration_ms if video else None))
+    kind = (job.detail or {}).get("kind", "analyze")
+    if kind in ("analyze", "team_rerun"):  # retry re-tracks: corrections made meanwhile name dead ids
+        await results_repo.clear_track_edits(session, principal.org_id, job.video_id, EDIT_TYPES)
     await repo.reset_failed_tasks(session, principal.org_id, job.id)
     job.status = JobStatus.queued.value
     job.stage = None  # the WS snapshot / latest_job must not report the failed stage as running

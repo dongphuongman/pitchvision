@@ -4,11 +4,12 @@ import uuid
 from typing import Any
 
 import httpx
-from pitchvision_api.db.models import Job, Player
+from pitchvision_api.db.models import Correction, Job, Player
+from sqlalchemy import select
 
 from .conftest import Db
 from .test_app import assert_problem
-from .test_corrections_api import _analysed, _rows, client, tasks  # noqa: F401 — pytest fixtures
+from .test_corrections_api import SEEDS, _analysed, _pts, _rows, client, tasks  # noqa: F401 — pytest fixtures
 from .test_ingest_api import FakeTasks, who
 from .test_jobs_api import _exec, idem
 
@@ -76,3 +77,93 @@ async def test_pending_while_another_job_runs(client: httpx.AsyncClient, migrate
     s = (await client.post(url, json={"type": "merge", "from": 2, "into": 1}, headers=idem(org))).json()
     assert s["pending"] is True and s["job"] is None  # recorded; it waits for the running job
     assert (await client.post(f"{url}/apply", headers=who(org))).json()["job"] is None  # still blocked
+
+
+async def _finish_queued(db: Db, org: uuid.UUID, vid: uuid.UUID) -> None:
+    """Mark the video's queued edit job done, so a new analysis / calibration can start."""
+
+    async def go(s: Any) -> None:
+        job = (await s.scalars(select(Job).where(Job.video_id == vid, Job.status == "queued"))).one()
+        job.status = "done"
+        await s.flush()
+
+    await _exec(db, org, go)
+
+
+async def test_reanalyze_clears_track_edits(client: httpx.AsyncClient, migrated: Db, tasks: FakeTasks) -> None:  # noqa: F811
+    """A new `analyze` re-tracks: the old merge/split/remove name dead ids, so they are marked undone (kept)."""
+    org = uuid.uuid4()
+    vid, _parent = await _analysed(migrated, org)
+    await _players(migrated, org, vid, 1, 2)
+    url = f"/api/v1/results/{vid}/corrections"
+    r = await client.post(url, json={"type": "merge", "from": 2, "into": 1}, headers=idem(org))
+    assert r.status_code == 202 and len(r.json()["items"]) == 1
+    await _finish_queued(migrated, org, vid)
+    r = await client.post("/api/v1/jobs", json={"video_id": str(vid)}, headers=idem(org))
+    assert r.status_code == 202, r.text
+    assert (await client.get(url, headers=who(org, "viewer"))).json() == {
+        "items": [],
+        "pending": False,
+        "job": None,
+        "apply_after": None,
+    }
+    rows = await _rows(migrated, org, Correction, video_id=vid, type="merge")
+    assert len(rows) == 1 and rows[0].payload.get("undone") is True
+
+
+async def test_team_rerun_clears_track_edits(client: httpx.AsyncClient, migrated: Db, tasks: FakeTasks) -> None:  # noqa: F811
+    """`team_rerun` re-tracks with new seeds: stale track edits die, its own team_samples record stays live."""
+    org = uuid.uuid4()
+    vid, _parent = await _analysed(migrated, org)
+    await _players(migrated, org, vid, 1, 2)
+    url = f"/api/v1/results/{vid}/corrections"
+    r = await client.post(url, json={"type": "split", "track": 1, "at_ms": 5000}, headers=idem(org))
+    assert r.status_code == 202
+    await _finish_queued(migrated, org, vid)
+    r = await client.post(f"/api/v1/results/{vid}/teams/manual", json={"samples": SEEDS}, headers=idem(org))
+    assert r.status_code == 202, r.text
+    state = (await client.get(url, headers=who(org, "viewer"))).json()
+    assert state["items"] == [] and state["pending"] is False
+    by_type = {c.type: c for c in await _rows(migrated, org, Correction, video_id=vid)}
+    assert by_type["split"].payload.get("undone") is True
+    assert "undone" not in by_type["team_samples"].payload
+
+
+async def test_retry_analyze_clears_track_edits(client: httpx.AsyncClient, migrated: Db, tasks: FakeTasks) -> None:  # noqa: F811
+    """Corrections made against the finished analysis while its re-analysis failed die on retry."""
+    org = uuid.uuid4()
+    vid, _parent = await _analysed(migrated, org)
+    await _players(migrated, org, vid, 1, 2)
+
+    async def failed(s: Any) -> uuid.UUID:
+        j = Job(video_id=vid, org_id=org, image_tag="t", config={},
+                status="failed", error={"code": "INTERNAL", "retryable": True, "detail": "x"})  # fmt: skip
+        s.add(j)
+        await s.flush()
+        jid: uuid.UUID = j.id
+        return jid
+
+    jid = await _exec(migrated, org, failed)
+    url = f"/api/v1/results/{vid}/corrections"
+    r = await client.post(url, json={"type": "merge", "from": 2, "into": 1}, headers=idem(org))
+    assert r.status_code == 202
+    await _finish_queued(migrated, org, vid)
+    r = await client.post(f"/api/v1/jobs/{jid}/retry", headers=who(org))
+    assert r.status_code == 202, r.text
+    assert (await client.get(url, headers=who(org, "viewer"))).json()["items"] == []
+
+
+async def test_recalibrate_keeps_track_edits(client: httpx.AsyncClient, migrated: Db, tasks: FakeTasks) -> None:  # noqa: F811
+    """Recalibration reuses tracks (recompute reads the unedited ancestor): edits stay live and pending."""
+    org = uuid.uuid4()
+    vid, _parent = await _analysed(migrated, org)
+    await _players(migrated, org, vid, 1, 2)
+    url = f"/api/v1/results/{vid}/corrections"
+    assert (await client.post(url, json={"type": "merge", "from": 2, "into": 1}, headers=idem(org))).status_code == 202
+    await _finish_queued(migrated, org, vid)
+    r = await client.post(f"/api/v1/results/{vid}/calibration", json={"points": _pts(), "scope": "shot"},
+                          headers=idem(org))  # fmt: skip
+    assert r.status_code == 202, r.text
+    state = (await client.get(url, headers=who(org, "viewer"))).json()
+    assert [c["type"] for c in state["items"]] == ["merge"] and state["pending"] is True
+    assert state["job"] is None  # the running job is the recalibration, not an edit

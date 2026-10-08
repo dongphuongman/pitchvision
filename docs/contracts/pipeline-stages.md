@@ -182,7 +182,9 @@ like S5, pitch verdict = that ancestor's. `recompute` also reads the unedited an
 or repitch after edits leaves the corrections `pending` (no edit job yet): the client calls
 `POST /corrections/apply` once that job is done (also used when a correction arrived while another job ran).
 Team / role fixes stay display-level (`PATCH /players`). Corrections are keyed by the analysis' track ids: a new
-`analyze` / `team_rerun` re-tracks, so old corrections no longer match (to clear on re-analysis — not done yet).
+`analyze` / `team_rerun` re-tracks, so creating (or retrying) one marks the live track edits undone — history kept,
+the UI list empties, nothing stale applies to the new tiles (`repositories.results.clear_track_edits`; recalibrate /
+repitch / edit reuse tracks and never clear).
 Compose ESP–CZE: 3 corrections in one burst → applied 52 s after the first (30 s debounce + ~20 s CPU).
 
 **Manual H (recompute).** `cv_core.pitch.fit_homography` on the ≥ 4 (≤ 8) image ↔ template pairs (all clicked on
