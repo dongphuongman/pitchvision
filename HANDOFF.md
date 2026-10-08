@@ -129,11 +129,9 @@ derived jobs, exports, notifications).
 - Local Mac `.env` now has `PV_CPU_CONCURRENCY=1` + `PV_ALLOW_RESEARCH_MODELS=1` (pitch model ~2.3 GB per process).
 
 ## Next (doable on the Mac)
-0. Pick up from here: label frames with the tool (needs a person, ~300 frames) → GPU run (README recipe) to replace
-   PnLCalib; M3 next: validate stats vs official numbers (M3-CV-04, needs a full match analysed on a GPU box),
-   API keys for the data API (needs the PO: Pro plan), stats compare / halves once the match clock exists (M2).
-   Doable now without anyone: SCR-22 track editing UI on video / map + Undo toast (M2-FE-03) on the new
-   corrections API (optimistic on the tiles, then refetch the manifest when the edit job completes).
+0. Pick up from here: M2-FE-03 SCR-22 UI xong (08/10, chưa commit): menu chuột phải / nhấn giữ trên video + map (đổi đội, merge-pick, split, xoá khung/track/khoảng, heatmap), optimistic tiles, toast Undo, badge pending + auto-/manual `/apply`; web 295 vitest xanh (`--maxWorkers=4`; chạy full 32 worker mặc định flaky 2 test chậm trên máy yếu). Còn lại: label frames với tool (needs a person, ~300 frames) → GPU run (README recipe) để thay PnLCalib; M3 next: validate stats vs official numbers (M3-CV-04, needs a full match analysed on a GPU box),
+   API keys cho data API (needs the PO: Pro), stats compare / halves once the match clock exists (M2).
+   Doable now without anyone: Assign player trong menu SCR-22 (cần Roster SCR-21), xoá corrections cũ khi re-analysis (track ids đổi).
 1. Confirm CI is green (`gh run list --limit 1`). GitHub runners were slow on 2026-10-06 (runs queued 30–60 min).
 2. Optional: Compose smoke of Data & privacy (export zip arrives in Mailpit; delete org → rows + objects gone after
    the first sweep; set `PV_PRIVACY_SWEEP_S=60` to see it quickly). D01 (training opt-in) waits for PRD Q5.
