@@ -8,17 +8,14 @@ import {
   type CorrectionIn,
   type CorrectionsState,
 } from '@/api/corrections';
+import type { TileFrame } from '@/api/types';
 import { OBJ, OBJ_CLS } from '@/player/tileCodec';
 import { toast } from '@/ui';
 
 /* ------------------------------------------------------------------ pure hit-test */
 
 /** Source-pixel point → smallest containing box's track (ball ignored). */
-export function pickVideoTrack(
-  objs: readonly (readonly number[])[] | undefined,
-  px: number,
-  py: number,
-): number | null {
+export function pickVideoTrack(objs: TileFrame['objs'], px: number, py: number): number | null {
   if (!objs) return null;
   let best: number | null = null;
   let bestArea = Infinity;

@@ -26,6 +26,8 @@ export type Manifest = ManifestSchema.Manifest;
 export type TeamInfo = ManifestSchema.TeamInfo;
 export type Tile = TileSchema.Tile;
 export type TileFrame = TileSchema.TileFrame;
+/** One object row: [track_id, cls, team, x1, y1, x2, y2, conf, px, py]. */
+export type Objs = TileSchema.Objs;
 export type ShotTimeline = ShotTimelineSchema.ShotTimeline;
 export type Shot = ShotTimelineSchema.Shot;
 export type ShotType = ShotTimelineSchema.ShotType;

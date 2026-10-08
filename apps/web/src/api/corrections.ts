@@ -314,7 +314,8 @@ export async function postCorrection(
     headers: { 'Idempotency-Key': idempotencyKey },
     body,
   });
-  return required(data, 'correction');
+  // The 202 goes through the idempotency envelope, so the OpenAPI schema is untyped: the body is the state.
+  return required(data, 'correction') as CorrectionsState;
 }
 
 /** SCR-22 Undo toast: the correction stops applying; results follow with the next edit job. */

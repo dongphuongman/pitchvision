@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import type { Objs } from '@/api/types';
 import { pickMapTrack, pickVideoTrack } from './trackEdits';
 
 describe('pickVideoTrack (SCR-22 hit-test)', () => {
   // [track_id, cls, team, x1, y1, x2, y2, conf, px, py]
-  const objs: [number, number, number, number, number, number, number, number, null, null][] = [
+  const objs: Objs = [
     [1, 0, 0, 10, 20, 30, 80, 0.9, null, null],
     [2, 0, 1, 100, 100, 140, 180, 0.8, null, null],
     [9, 3, 0, 12, 22, 20, 30, 0.5, null, null], // ball inside track 1: ignored

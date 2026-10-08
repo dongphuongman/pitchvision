@@ -110,20 +110,3 @@ export function applyCorrectionsToTile(tile: Tile, corrections: readonly LiveCor
   if (frames.every((fr, i) => fr === tile.frames[i])) return tile;
   return { ...tile, frames };
 }
-
-/** Track ids visible in a frame (players only by default; ball has track -1 or its own id). */
-export function tracksInFrame(
-  objs: readonly (readonly number[])[] | undefined,
-  opts: { includeBall?: boolean } = {},
-): number[] {
-  if (!objs) return [];
-  const out = new Set<number>();
-  for (const o of objs) {
-    const id = o[0];
-    const cls = o[1];
-    if (typeof id !== 'number') continue;
-    if (!opts.includeBall && cls === 3) continue;
-    out.add(id);
-  }
-  return [...out].sort((a, b) => a - b);
-}
