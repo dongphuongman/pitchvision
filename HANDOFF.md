@@ -169,3 +169,4 @@ Broadcast-first; GPU hybrid; EN-first; R2 (EU jurisdiction); detector D-FINE (Ap
 - R2 spike: bucket `pitchvision-spike`, object-R/W token expiring 2026-11-04, creds in `spikes/sp07_upload/.env` (gitignored).
 - Golden set: `data/golden/raw/*.mp4` (19 matches × 15 min, internal R&D only). SP-09 labels in `spikes/results/sp09/`.
 - Quick checks: `uv run pytest -q`, `uv run ruff check packages apps workers eval`, `uv run lint-imports`, `pnpm web:check`, `pnpm web:e2e`.
+- Web typecheck lesson (08/10): bare `tsc --noEmit` in `apps/web` checks almost nothing (solution-style tsconfig) — always use `pnpm typecheck` (`tsc -b --noEmit`), same as CI. CI caught 20 strict errors in SCR-22 code that local `tsc` missed; fixed + pushed same day.
