@@ -359,6 +359,73 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/results/{video_id}/corrections': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Corrections
+     * @description Live track corrections (SCR-22), oldest first — apply them in order on top of the tiles. `pending`: some are
+     *     not in the results yet (`job` = the edit job that will apply them, starting at `apply_after`).
+     */
+    get: operations['get_corrections_api_v1_results__video_id__corrections_get'];
+    put?: never;
+    /**
+     * Post Correction
+     * @description Merge / split / remove a track (SCR-22 E03–E05; `remove` without a range = "Not a player"). Recorded at once;
+     *     an `edit` job re-applies all corrections (tiles, positions, stats under a new revision) 30 s after the last one.
+     *     Requires `Idempotency-Key`. 422 `reason`: unknown_track · same_track · range.
+     */
+    post: operations['post_correction_api_v1_results__video_id__corrections_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/results/{video_id}/corrections/{correction_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Undo Correction
+     * @description Undo (SCR-22 toast "Undo"): the correction stops applying; the results follow with the next edit job.
+     */
+    delete: operations['undo_correction_api_v1_results__video_id__corrections__correction_id__delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/results/{video_id}/corrections/apply': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Apply Corrections
+     * @description Start the edit job for pending corrections (after the job that blocked them has finished). No-op otherwise.
+     */
+    post: operations['apply_corrections_api_v1_results__video_id__corrections_apply_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/results/{video_id}/heatmap': {
     parameters: {
       query?: never;
@@ -1026,6 +1093,52 @@ export interface components {
       /** Part Number */
       part_number: number;
     };
+    /** CorrectionOut */
+    CorrectionOut: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Payload
+       * @description merge {from, into} · split {track, at_ms, new_track} · remove {track, from_ms?, to_ms?}
+       */
+      payload: {
+        [key: string]: unknown;
+      };
+      /** Revision */
+      revision: number;
+      /** Type */
+      type: string;
+      /** Undone */
+      undone: boolean;
+    };
+    /** CorrectionsState */
+    CorrectionsState: {
+      /**
+       * Apply After
+       * @description when the queued edit job starts (debounce)
+       */
+      apply_after?: string | null;
+      /**
+       * Items
+       * @description live corrections, oldest first (apply in this order)
+       */
+      items: components['schemas']['CorrectionOut'][];
+      /** @description the edit job that will apply them, when one is queued / running */
+      job?: components['schemas']['JobOut'] | null;
+      /**
+       * Pending
+       * @description corrections not in the latest results yet (an edit job will / should run)
+       */
+      pending: boolean;
+    };
     /** Coverage */
     Coverage: {
       /**
@@ -1431,7 +1544,7 @@ export interface components {
        * @default analyze
        * @enum {string}
        */
-      kind: 'analyze' | 'team_rerun' | 'recalibrate' | 'repitch';
+      kind: 'analyze' | 'team_rerun' | 'recalibrate' | 'repitch' | 'edit';
       /**
        * Parent Job Id
        * @description derived jobs: the job whose finished stages they reuse
@@ -1604,6 +1717,21 @@ export interface components {
       video_url: string;
       /** Width */
       width: number;
+    };
+    /**
+     * MergeIn
+     * @description SCR-22 E03: ``from`` becomes ``into`` (the same player seen twice).
+     */
+    MergeIn: {
+      /** From */
+      from: number;
+      /** Into */
+      into: number;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'merge';
     };
     /** Meta */
     Meta: {
@@ -1875,6 +2003,23 @@ export interface components {
       type: string;
     };
     /**
+     * RemoveIn
+     * @description SCR-22 E05 / "Not a player": drop the track in ``[from_ms, to_ms)`` (whole track when both are omitted).
+     */
+    RemoveIn: {
+      /** From Ms */
+      from_ms?: number | null;
+      /** To Ms */
+      to_ms?: number | null;
+      /** Track */
+      track: number;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'remove';
+    };
+    /**
      * SampleCrop
      * @description One player crop inside ``TeamList.sample_sheet`` (CSS sprite: ``background-position: -x px -y px``).
      */
@@ -1979,6 +2124,21 @@ export interface components {
     SignParts: {
       /** Part Numbers */
       part_numbers: number[];
+    };
+    /**
+     * SplitIn
+     * @description SCR-22 E04: frames of ``track`` at / after ``at_ms`` become a new track (the server picks its id).
+     */
+    SplitIn: {
+      /** At Ms */
+      at_ms: number;
+      /** Track */
+      track: number;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'split';
     };
     /** StatsOut */
     StatsOut: {
@@ -3382,6 +3542,177 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['FrameOut'];
+        };
+      };
+    };
+  };
+  get_corrections_api_v1_results__video_id__corrections_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorrectionsState'];
+        };
+      };
+    };
+  };
+  post_correction_api_v1_results__video_id__corrections_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Required. Unique per request. */
+        'Idempotency-Key'?: string | null;
+      };
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json':
+          | components['schemas']['MergeIn']
+          | components['schemas']['SplitIn']
+          | components['schemas']['RemoveIn'];
+      };
+    };
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+    };
+  };
+  undo_correction_api_v1_results__video_id__corrections__correction_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        correction_id: string;
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorrectionsState'];
+        };
+      };
+    };
+  };
+  apply_corrections_api_v1_results__video_id__corrections_apply_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        video_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Client Error */
+      '4XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Server Error */
+      '5XX': {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CorrectionsState'];
         };
       };
     };

@@ -184,6 +184,17 @@ def _recompute(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> Stage
     return StageOutput(result if isinstance(result, dict) else {"output": result})
 
 
+def _edit_tracks(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
+    """Track corrections (job kind edit, M2-BE-01): parent tracks + params.corrections → tracks.parquet under this
+    job's tracks/ prefix (same place S5 writes)."""
+    run_edit = contract_fn("edit_tracks", "run_edit_tracks")
+    p = _task_params(task)
+    out = run_edit(inputs["tracks"], out_dir, corrections=p.get("corrections") or [])
+    result = jsonable(out)
+    result = result if isinstance(result, dict) else {"output": result}
+    return StageOutput({**result, "pitch": p.get("pitch") or {"status": "unavailable"}})  # same shape as S5's
+
+
 def _tiles(task: StageTask, inputs: dict[str, Path], out_dir: Path) -> StageOutput:
     """S7: tiles go to keys.tile_key(org, video, job, revision, n) — outside the task's output_prefix."""
     run_tiles = contract_fn("tiles", "run_tiles")
@@ -240,6 +251,7 @@ STAGES: dict[str, StageFn] = {
     "pitch": _pitch,
     "stitch": _stitch,
     "recompute": _recompute,
+    "edit_tracks": _edit_tracks,
     "tiles": _tiles,
     "load_db": LoadDbStage(),
 }

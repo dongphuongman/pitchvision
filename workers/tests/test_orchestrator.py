@@ -12,6 +12,7 @@ import json
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -529,6 +530,52 @@ def test_recalibrate_job_reprojects_on_cpu_under_a_new_revision(h: Harness) -> N
     assert xy[0] == xy[1] == 6000 and 30 < xy[2] <= xy[3] < 45
     # a recalibration never asks to confirm teams again
     assert h.notifications()[-1] == ("job_ready", h.user, job_id, "pending")
+
+
+def test_edit_job_waits_for_the_debounce_then_applies_the_corrections_on_cpu(h: Harness) -> None:
+    """M2-BE-01: an edit job re-applies the video's live track corrections to the parent's tracks (no GPU)."""
+    h.setup()
+    h.advance()
+    h.run_submitted()
+    org, vid, parent = str(h.org), str(h.video_id), str(h.job_id)
+    unedited = {r[0] for r in h.sql("SELECT DISTINCT track_id FROM positions_org WHERE video_id = :v")}
+    with org_tx(h.db, h.org) as conn:
+        for rev, typ, payload in ((1, "merge", {"from": 2, "into": 1}), (2, "remove", {"track": 3}),
+                                  (3, "remove", {"track": 4, "undone": True})):  # fmt: skip
+            conn.execute(text("INSERT INTO corrections (video_id, org_id, revision, type, payload) "
+                              "VALUES (:v, :o, :r, :t, CAST(:p AS jsonb))"),
+                         {"v": h.video_id, "o": h.org, "r": rev, "t": typ, "p": json.dumps(payload)})  # fmt: skip
+    later = (h.clock.now + timedelta(seconds=30)).isoformat()
+    c = _derived(h, "edit", {"apply_after": later}, bump_revision=True)
+    c.advance()
+    assert c.backend.submitted == []  # still debouncing
+    c.clock.tick(31)
+    c.advance()
+    assert [t.stage for _, t in c.backend.submitted] == ["edit_tracks"]
+    task = c.backend.submitted[0][1]
+    assert task.inputs["tracks"] == keys.job_results_prefix(org, vid, parent) + "tracks/tracks.parquet"
+    assert [o["type"] for o in task.params["corrections"]] == ["merge", "remove"]  # the undone one is not applied
+    c.run_submitted()
+    job = c.job()
+    assert job["status"] == "done" and job["detail"]["kind"] == "edit" and len(job["detail"]["correction_ids"]) == 2
+    assert job["detail"]["pitch_calibration"] == "unavailable"  # the parent's
+    ids = {r[0] for r in h.sql("SELECT DISTINCT track_id FROM positions_org WHERE video_id = :v")}
+    assert 2 not in ids and 3 not in ids and 1 in ids
+    assert all(n[2] != str(job["id"]) for n in h.notifications())  # no "ready" notification / email per burst
+
+    # undo everything: the next edit (parent = the edit above) re-applies the empty list to the UNEDITED tracks
+    with org_tx(h.db, h.org) as conn:
+        conn.execute(text("UPDATE corrections SET payload = payload || '{\"undone\": true}' WHERE video_id = :v"),
+                     {"v": h.video_id})  # fmt: skip
+    again = _derived(c, "edit", {}, bump_revision=True)
+    again.backend.submitted.clear()
+    again.advance()
+    task = again.backend.submitted[0][1]
+    assert task.params["corrections"] == [] and task.params["base_job_id"] == parent
+    assert task.inputs["tracks"] == keys.job_results_prefix(org, vid, parent) + "tracks/tracks.parquet"
+    again.run_submitted()
+    assert again.job()["status"] == "done"
+    assert {r[0] for r in h.sql("SELECT DISTINCT track_id FROM positions_org WHERE video_id = :v")} == unedited
 
 
 def test_recalibrate_with_bad_points_fails_permanently(h: Harness) -> None:

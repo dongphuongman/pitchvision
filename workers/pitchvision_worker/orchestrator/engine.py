@@ -58,7 +58,7 @@ from pitchvision_schemas import (
     keys,
 )
 from pitchvision_schemas.jobs import can_transition
-from sqlalchemy import Connection, Engine
+from sqlalchemy import Connection, Engine, text
 
 from pitchvision_worker import events, notify
 from pitchvision_worker.compute.base import StageFailure, StageTask, classify, success_key
@@ -80,10 +80,14 @@ log = logging.getLogger(__name__)
 NORMALIZE, SHOTS, PLAN, CALIBRATE = "normalize", "shots", "plan", "calibrate"
 STITCH, TILES, LOAD_DB, MANIFEST = "stitch", "tiles", "load_db", "manifest"
 RECOMPUTE = "recompute"  # recalibrate jobs: manual-H re-projection in place of S5
+EDIT = "edit_tracks"  # edit jobs (M2-BE-01): the user's track corrections applied in place of S5
+REUSE_TRACKS = ("recalibrate", "edit")  # derived jobs that rework the parent's tracks.parquet (no S4)
+EDIT_DEBOUNCE_S = 30  # AD §8.4: corrections in a burst are applied by one job
 INHERITED = {"team_rerun": (NORMALIZE, SHOTS, PLAN), "recalibrate": (NORMALIZE, SHOTS, PLAN, CALIBRATE),
              # + every infer:NNN of the parent: only the pitch stage runs again (a pitch model became available)
-             "repitch": (NORMALIZE, SHOTS, PLAN, CALIBRATE)}
-DETAIL_KEEP = ("kind", "parent_job_id", "inherit", "team_seeds", "calibration", "correction_id")  # set by the API
+             "repitch": (NORMALIZE, SHOTS, PLAN, CALIBRATE), "edit": (NORMALIZE, SHOTS, PLAN, CALIBRATE)}
+DETAIL_KEEP = ("kind", "parent_job_id", "inherit", "team_seeds", "calibration", "correction_id",  # set by the API
+               "apply_after", "correction_ids")  # edit jobs: debounce (API) / what was applied (engine)
 SEEDS_FILE = "team_seeds.json"
 POST_STAGES = (STITCH, TILES, LOAD_DB, MANIFEST)  # S5, S7, S8 (cpu tasks) + the manifest (inline, last)
 DETECTIONS_FILE = "detections.parquet"  # S4 output under keys.segment_prefix (contract)
@@ -96,7 +100,7 @@ POLL_AFTER_S = 60  # check backend/_SUCCESS for dispatched tasks silent for this
 STALE_QUEUED_S = 6 * 3600  # = broker visibility timeout: a message still PENDING after this is considered lost
 RUNNING_GRACE_S = 600
 TIMEOUT_S = {NORMALIZE: 3 * 3600, SHOTS: 2 * 3600, CALIBRATE: 1800, "infer": 1800, "pitch": 1800, STITCH: 1800,
-             TILES: 1800, LOAD_DB: 1800, RECOMPUTE: 1800}  # fmt: skip
+             TILES: 1800, LOAD_DB: 1800, RECOMPUTE: 1800, EDIT: 1800}  # fmt: skip
 WEIGHTS = {NORMALIZE: 5.0, SHOTS: 5.0, CALIBRATE: 5.0, "infer": 80.0, "post": 5.0}  # AD §8.2: S4 is 80 %
 TERMINAL = {JobStatus.done, JobStatus.failed, JobStatus.cancelled}
 
@@ -224,7 +228,8 @@ class _Run:
                 self._to(JobStatus.done)
                 store.update_job(self.conn, self.id, finished_at=self.now, error=None)
                 self.events.append(events.completed(self.id, self.video_id))
-                self._notify_done()
+                if self.kind != "edit":  # the user is in the workspace making the corrections: WS is enough
+                    self._notify_done()
         except _JobFailed:
             pass
         finally:
@@ -255,7 +260,7 @@ class _Run:
     def _notify_done(self) -> None:
         """SCR-51: "<video> is ready", or "confirm teams" while the teams aren't confirmed (not after a
         recalibration — teams didn't change)."""
-        needs_teams = self.kind != "recalibrate" and not notify.teams_confirmed(self.conn, self.video_id)
+        needs_teams = self.kind not in REUSE_TRACKS and not notify.teams_confirmed(self.conn, self.video_id)
         notify.add(self.conn, org_id=self.org, user_id=self.job["created_by"],
                    type_="needs_teams" if needs_teams else "job_ready", video_id=self.video_id,
                    data={"job_id": str(self.id), "kind": self.kind,
@@ -269,6 +274,18 @@ class _Run:
             return uuid.UUID(str(raw)) if raw else None
         except ValueError:
             return None
+
+    def _tracks_base(self) -> str:
+        """The job whose tracks.parquet this job reworks: the parent, skipping edit jobs — corrections are always
+        re-applied in full to UNEDITED tracks (else an undone correction would stay baked in)."""
+        job_id = self._parent_id()
+        for _ in range(64):  # chains are short; the bound only guards against a cycle
+            row = store.get_job(self.conn, job_id) if job_id else None
+            detail = (row["detail"] if row else None) or {}
+            if detail.get("kind") != "edit" or not detail.get("parent_job_id"):
+                break
+            job_id = uuid.UUID(str(detail["parent_job_id"]))
+        return str(job_id)
 
     def _inherit_from_parent(self) -> None:
         """Copy the parent's finished stages this kind reuses (once; recorded in ``detail.inherit``)."""
@@ -301,8 +318,8 @@ class _Run:
             if not self.deps.pitch_available():
                 self._fail_job(StageFailure(ErrorCode.HOMOGRAPHY_UNAVAILABLE, "no pitch model is available on this "
                                             "deployment", retryable=False))  # fmt: skip
-        if self.kind == "recalibrate":
-            missing = [k for k in INHERITED["recalibrate"] if k not in self.inherit]
+        if self.kind in REUSE_TRACKS:
+            missing = [k for k in INHERITED[self.kind] if k not in self.inherit]
             if missing or parent["status"] != JobStatus.done.value:
                 self._fail_job(StageFailure(ErrorCode.INTERNAL, f"parent job {parent_id} is {parent['status']} / "
                                             f"lacks {missing}: nothing to recalibrate", retryable=False))  # fmt: skip
@@ -312,7 +329,20 @@ class _Run:
 
     def _tracks_task(self) -> str:
         """The post stage producing this job's tracks.parquet: S5 stitch, or the manual-H recompute."""
-        return RECOMPUTE if self.kind == "recalibrate" else STITCH
+        return RECOMPUTE if self.kind == "recalibrate" else EDIT if self.kind == "edit" else STITCH
+
+    def _debouncing(self) -> bool:
+        """edit jobs wait ``detail.apply_after`` (the API pushes it back on every new correction)."""
+        raw = self.detail.get("apply_after")
+        return bool(raw) and datetime.fromisoformat(str(raw)) > self.now
+
+    def _corrections(self) -> list[dict[str, Any]]:
+        """The video's live track corrections, oldest first (re-applied in full: the operations are idempotent)."""
+        rows = self.conn.execute(text(
+            "SELECT id, type, payload FROM corrections WHERE video_id = :v AND type IN ('merge', 'split', 'remove') "
+            "AND NOT coalesce((payload->>'undone')::boolean, false) ORDER BY revision, created_at, id"),
+            {"v": self.video_id})  # fmt: skip
+        return [{**(p or {}), "id": str(i), "type": t} for i, t, p in rows]
 
     def _post_stages(self) -> tuple[str, ...]:
         return (self._tracks_task(), TILES, LOAD_DB, MANIFEST)
@@ -397,7 +427,7 @@ class _Run:
 
     def _inferring(self) -> bool:
         self.stage = "infer"
-        if self.kind == "recalibrate":  # detections are reused through the parent's tracks.parquet
+        if self.kind in REUSE_TRACKS:  # detections are reused through the parent's tracks.parquet
             return True
         states = [self._ensure(infer_key(s["index"])) for s in self._segments()]
         pitch_states = [self._ensure(pitch_key(s["index"])) for s in self._segments()] if self._pitch_enabled() else []
@@ -418,6 +448,8 @@ class _Run:
     def _postprocess(self) -> bool:
         """stitch (or recompute) → tiles + load_db → manifest. True once the manifest is written (job can be done)."""
         self.stage = self._tracks_task()
+        if self.kind == "edit" and EDIT not in self.tasks and self._debouncing():
+            return False
         if not self._ensure_done(self._tracks_task()):
             return False
         states = {k: self._ensure(k) for k in (TILES, LOAD_DB)}
@@ -531,7 +563,7 @@ class _Run:
                 self.deps.store.put_bytes(inputs["seeds"], json.dumps(self.detail["team_seeds"]).encode())
             return GpuTask(task_id=GpuTask.make_id(job, CALIBRATE), stage="calibrate", output_prefix=self._prefix(key),
                            inputs=inputs, timeout_s=TIMEOUT_S[CALIBRATE], **common)  # fmt: skip
-        if key in (STITCH, TILES, LOAD_DB, RECOMPUTE):
+        if key in (STITCH, TILES, LOAD_DB, RECOMPUTE, EDIT):
             return self._build_post(key, common)
         index = int(key.split(":")[1])
         if key.startswith("pitch:"):
@@ -561,8 +593,21 @@ class _Run:
             return CpuTask(task_id=CpuTask.make_id(job, STITCH), stage="stitch", output_prefix=self._prefix(key),
                            inputs=inputs, params={**ids, "segments": self._segments()}, timeout_s=TIMEOUT_S[STITCH],
                            **common)  # fmt: skip
+        if key == EDIT:
+            base = self._tracks_base()
+            ops = self._corrections()
+            self.detail["correction_ids"] = [o["id"] for o in ops]  # what this job applies (API: pending = not here)
+            store.update_job(self.conn, self.id, detail=self.detail)
+            inputs = {"tracks": keys.job_results_prefix(org, vid, base) + "tracks/" + TRACKS_FILE}
+            pitch = self.conn.execute(text(
+                "SELECT payload->'pitch' FROM job_tasks WHERE job_id = :j AND task_key IN ('stitch', 'recompute') "
+                "AND status = 'done' LIMIT 1"), {"j": base}).scalar()  # edits keep the base's pitch
+            return CpuTask(task_id=CpuTask.make_id(job, EDIT), stage="edit_tracks", output_prefix=self._prefix(key),
+                           inputs=inputs, params={**ids, "base_job_id": base, "corrections": ops,
+                                                  "pitch": pitch or {"status": "unavailable"}},
+                           timeout_s=TIMEOUT_S[EDIT], **common)  # fmt: skip
         if key == RECOMPUTE:
-            parent = str(self._parent_id())
+            parent = self._tracks_base()  # after an edit: its unedited tracks (the corrections follow, see API)
             inputs = {"tracks": keys.job_results_prefix(org, vid, parent) + "tracks/" + TRACKS_FILE, "shots": shots,
                       "normalized": keys.normalized_key(org, vid)}  # decoded over the calibrated shot only
             return CpuTask(task_id=CpuTask.make_id(job, RECOMPUTE), stage="recompute",
@@ -600,7 +645,7 @@ class _Run:
             return keys.segment_prefix(str(self.org), str(self.video_id), job, int(key.split(":")[1]))
         if key.startswith("pitch:"):  # own _SUCCESS, next to the segment's detections
             return keys.segment_prefix(str(self.org), str(self.video_id), job, int(key.split(":")[1])) + "pitch/"
-        if key in (STITCH, RECOMPUTE):
+        if key in (STITCH, RECOMPUTE, EDIT):
             return results + "tracks/"  # contract: results/…/jobs/{job}/tracks/tracks.parquet
         return results + f"stages/{key}/"
 
@@ -696,10 +741,10 @@ class _Run:
     def _progress(self) -> None:
         done = {k for k, r in self.tasks.items() if r["status"] == "done"}
         pct = sum(WEIGHTS[k] for k in (NORMALIZE, SHOTS, CALIBRATE) if k in done)
-        segs = self._segments() if self.kind != "recalibrate" else []
+        segs = self._segments() if self.kind not in REUSE_TRACKS else []
         counts: tuple[int, int, int] | None = None
         eta_s: int | None = None
-        if self.kind == "recalibrate":
+        if self.kind in REUSE_TRACKS:
             pct += WEIGHTS["infer"]  # reused from the parent
         if segs:
             # repitch: the infer segments are inherited — the segment work left is the pitch stage

@@ -25,6 +25,7 @@ from pitchvision_api.schemas.results import (
     TrackPage,
 )
 from pitchvision_api.schemas.stats import HeatmapOut, PassList, StatsOut
+from pitchvision_api.schemas.track_edits import CorrectionIn, CorrectionsState
 from pitchvision_api.services import corrections
 from pitchvision_api.services import results as service
 from pitchvision_api.services import stats as stats_service
@@ -184,6 +185,37 @@ async def get_tracks(
 ) -> TrackPage:
     """5 Hz positions for analysts (AD §10.2) — the player uses the manifest + tiles instead. Keyset-paged."""
     return await service.tracks(session, principal, video_id, from_ms, to_ms, limit, cursor)
+
+
+@router.get("/{video_id}/corrections")
+async def get_corrections(video_id: uuid.UUID, principal: CurrentPrincipal, session: DbSession) -> CorrectionsState:
+    """Live track corrections (SCR-22), oldest first — apply them in order on top of the tiles. `pending`: some are
+    not in the results yet (`job` = the edit job that will apply them, starting at `apply_after`)."""
+    return await corrections.corrections_state(session, principal, video_id)
+
+
+@router.post("/{video_id}/corrections", status_code=202, dependencies=JOBS_LIMIT)
+async def post_correction(video_id: uuid.UUID, body: CorrectionIn, request: Request, principal: EditorPrincipal,
+                          session: DbSession, settings: SettingsDep, idem: Idem) -> JSONResponse:  # fmt: skip
+    """Merge / split / remove a track (SCR-22 E03–E05; `remove` without a range = "Not a player"). Recorded at once;
+    an `edit` job re-applies all corrections (tiles, positions, stats under a new revision) 30 s after the last one.
+    Requires `Idempotency-Key`. 422 `reason`: unknown_track · same_track · range."""
+    state = await corrections.add_correction(session, _tasks(request), settings, principal, video_id, body)
+    return await idem.respond(state, status_code=202)
+
+
+@router.delete("/{video_id}/corrections/{correction_id}", status_code=202)
+async def undo_correction(video_id: uuid.UUID, correction_id: uuid.UUID, request: Request,
+                          principal: EditorPrincipal, session: DbSession, settings: SettingsDep) -> CorrectionsState:
+    """Undo (SCR-22 toast "Undo"): the correction stops applying; the results follow with the next edit job."""
+    return await corrections.undo_correction(session, _tasks(request), settings, principal, video_id, correction_id)
+
+
+@router.post("/{video_id}/corrections/apply", status_code=202, dependencies=JOBS_LIMIT)
+async def apply_corrections(video_id: uuid.UUID, request: Request, principal: EditorPrincipal, session: DbSession,
+                            settings: SettingsDep) -> CorrectionsState:  # fmt: skip
+    """Start the edit job for pending corrections (after the job that blocked them has finished). No-op otherwise."""
+    return await corrections.apply_corrections(session, _tasks(request), settings, principal, video_id)
 
 
 @router.get("/{video_id}/stats")

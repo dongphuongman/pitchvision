@@ -2111,6 +2111,297 @@
         }
       }
     },
+    "/api/v1/results/{video_id}/corrections": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Get Corrections",
+        "description": "Live track corrections (SCR-22), oldest first — apply them in order on top of the tiles. `pending`: some are\nnot in the results yet (`job` = the edit job that will apply them, starting at `apply_after`).",
+        "operationId": "get_corrections_api_v1_results__video_id__corrections_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionsState"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Post Correction",
+        "description": "Merge / split / remove a track (SCR-22 E03–E05; `remove` without a range = \"Not a player\"). Recorded at once;\nan `edit` job re-applies all corrections (tiles, positions, stats under a new revision) 30 s after the last one.\nRequires `Idempotency-Key`. 422 `reason`: unknown_track · same_track · range.",
+        "operationId": "post_correction_api_v1_results__video_id__corrections_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required. Unique per request.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Required. Unique per request."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/MergeIn"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SplitIn"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RemoveIn"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "merge": "#/components/schemas/MergeIn",
+                    "split": "#/components/schemas/SplitIn",
+                    "remove": "#/components/schemas/RemoveIn"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/results/{video_id}/corrections/{correction_id}": {
+      "delete": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Undo Correction",
+        "description": "Undo (SCR-22 toast \"Undo\"): the correction stops applying; the results follow with the next edit job.",
+        "operationId": "undo_correction_api_v1_results__video_id__corrections__correction_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          },
+          {
+            "name": "correction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Correction Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionsState"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/results/{video_id}/corrections/apply": {
+      "post": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Apply Corrections",
+        "description": "Start the edit job for pending corrections (after the job that blocked them has finished). No-op otherwise.",
+        "operationId": "apply_corrections_api_v1_results__video_id__corrections_apply_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionsState"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Client Error"
+          },
+          "5XX": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/results/{video_id}/stats": {
       "get": {
         "tags": [
@@ -3699,6 +3990,95 @@
         ],
         "title": "CompletedPart"
       },
+      "CorrectionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload",
+            "description": "merge {from, into} · split {track, at_ms, new_track} · remove {track, from_ms?, to_ms?}"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "undone": {
+            "type": "boolean",
+            "title": "Undone"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "payload",
+          "revision",
+          "undone",
+          "created_at"
+        ],
+        "title": "CorrectionOut"
+      },
+      "CorrectionsState": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionOut"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "live corrections, oldest first (apply in this order)"
+          },
+          "pending": {
+            "type": "boolean",
+            "title": "Pending",
+            "description": "corrections not in the latest results yet (an edit job will / should run)"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the edit job that will apply them, when one is queued / running"
+          },
+          "apply_after": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apply After",
+            "description": "when the queued edit job starts (debounce)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "pending"
+        ],
+        "title": "CorrectionsState"
+      },
       "Coverage": {
         "properties": {
           "main_wide_pct": {
@@ -4516,7 +4896,8 @@
               "analyze",
               "team_rerun",
               "recalibrate",
-              "repitch"
+              "repitch",
+              "edit"
             ],
             "title": "Kind",
             "description": "analyze · team_rerun (SCR-14 manual teams: re-runs S3 with the user's seeds, then S4…) · recalibrate (SCR-15 manual pitch calibration: CPU re-projection + new tiles revision, no GPU)",
@@ -4965,6 +5346,33 @@
           "height"
         ],
         "title": "MediaOut"
+      },
+      "MergeIn": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "merge",
+            "title": "Type"
+          },
+          "from": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "From"
+          },
+          "into": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Into"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "from",
+          "into"
+        ],
+        "title": "MergeIn",
+        "description": "SCR-22 E03: ``from`` becomes ``into`` (the same player seen twice)."
       },
       "Meta": {
         "properties": {
@@ -5657,6 +6065,51 @@
         "title": "ProblemDetails",
         "description": "OpenAPI shape of every 4xx/5xx body: Problem + optional extensions."
       },
+      "RemoveIn": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "remove",
+            "title": "Type"
+          },
+          "track": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Track"
+          },
+          "from_ms": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Ms"
+          },
+          "to_ms": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "track"
+        ],
+        "title": "RemoveIn",
+        "description": "SCR-22 E05 / \"Not a player\": drop the track in ``[from_ms, to_ms)`` (whole track when both are omitted)."
+      },
       "SampleCrop": {
         "properties": {
           "x": {
@@ -5921,6 +6374,33 @@
           "url_expires_in"
         ],
         "title": "SignedParts"
+      },
+      "SplitIn": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "split",
+            "title": "Type"
+          },
+          "track": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Track"
+          },
+          "at_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "At Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "track",
+          "at_ms"
+        ],
+        "title": "SplitIn",
+        "description": "SCR-22 E04: frames of ``track`` at / after ``at_ms`` become a new track (the server picks its id)."
       },
       "StatsOut": {
         "properties": {

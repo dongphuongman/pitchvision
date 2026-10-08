@@ -14,6 +14,7 @@ pitch calibration. Every change is recorded in ``corrections`` (who, what, at wh
 """
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from itertools import combinations
 from typing import Any
 
@@ -39,6 +40,7 @@ from pitchvision_api.schemas.results import (
     PlayersPatch,
     TeamsPatch,
 )
+from pitchvision_api.schemas.track_edits import CorrectionOut, CorrectionsState, MergeIn, RemoveIn, SplitIn
 from pitchvision_api.services import jobs as jobs_service
 from pitchvision_api.services import saved_teams
 from pitchvision_api.services.tasks import TaskQueue
@@ -240,3 +242,113 @@ async def calibration_state(session: AsyncSession, principal: Principal, video_i
     return CalibrationState(
         pitch_calibration=status if status in ("ok", "degraded", "manual", "unavailable") else None,
         job_id=done.id if done else None, active_job=JobOut.of(active) if active else None, last_manual=manual)
+
+
+# ---------------------------------------------------------------- SCR-22 track corrections (M2-BE-01)
+EDIT_TYPES = ("merge", "split", "remove")
+EDIT_DEBOUNCE_S = 30
+
+
+def _correction_out(c: Correction) -> CorrectionOut:
+    return CorrectionOut(id=c.id, type=c.type, payload={k: v for k, v in c.payload.items() if k != "undone"},
+                         revision=c.revision, undone=bool(c.payload.get("undone")), created_at=c.created_at)
+
+
+async def _live(session: AsyncSession, principal: Principal, video_id: uuid.UUID) -> list[Correction]:
+    rows = await repo.corrections(session, principal.org_id, video_id, EDIT_TYPES)
+    return [c for c in rows if not c.payload.get("undone")]
+
+
+async def _applied_ids(session: AsyncSession, principal: Principal, video_id: uuid.UUID) -> set[str] | None:
+    """Correction ids the current results contain (the latest done edit job's), None when no edit job ever ran."""
+    job = await repo.latest_done_job(session, principal.org_id, video_id)
+    if job is None or (job.detail or {}).get("kind") != "edit":
+        return None
+    return {str(i) for i in (job.detail or {}).get("correction_ids") or []}
+
+
+async def corrections_state(session: AsyncSession, principal: Principal, video_id: uuid.UUID) -> CorrectionsState:
+    if await videos_repo.get(session, principal.org_id, video_id) is None:
+        raise not_found()
+    live = await _live(session, principal, video_id)
+    applied = await _applied_ids(session, principal, video_id) or set()
+    active = await jobs_repo.active_for_video(session, principal.org_id, video_id)
+    edit = active if active is not None and (active.detail or {}).get("kind") == "edit" else None
+    after = (edit.detail or {}).get("apply_after") if edit else None
+    return CorrectionsState(items=[_correction_out(c) for c in live], pending={str(c.id) for c in live} != applied,
+                            job=JobOut.of(edit) if edit else None,
+                            apply_after=datetime.fromisoformat(after) if after else None)  # fmt: skip
+
+
+async def _schedule(session: AsyncSession, tasks: TaskQueue, settings: Settings, principal: Principal, video: Video
+                    ) -> None:  # fmt: skip
+    """Queue (or push back) the edit job; while another job runs the corrections wait (state.pending)."""
+    after = (datetime.now(UTC) + timedelta(seconds=EDIT_DEBOUNCE_S)).isoformat()
+    active = await jobs_repo.active_for_video(session, principal.org_id, video.id)
+    if active is not None:
+        d = dict(active.detail or {})
+        if d.get("kind") == "edit" and "correction_ids" not in d:  # not dispatched yet: it will pick this one up
+            active.detail = {**d, "apply_after": after}
+            await session.flush()
+        return
+    parent = await repo.latest_done_job(session, principal.org_id, video.id)
+    if parent is None or video.status != "ready":
+        return
+    await jobs_service.create_derived(session, tasks, settings, principal, video, parent, "edit",
+                                      {"apply_after": after})  # fmt: skip
+
+
+async def add_correction(session: AsyncSession, tasks: TaskQueue, settings: Settings, principal: Principal,
+                         video_id: uuid.UUID, body: MergeIn | SplitIn | RemoveIn) -> CorrectionsState:  # fmt: skip
+    video = await _locked_video(session, principal, video_id)
+    if await repo.latest_done_job(session, principal.org_id, video_id) is None:
+        raise _no_analysis("Corrections edit a finished analysis.")
+    known = await repo.track_ids(session, principal.org_id, video_id)
+    live = await _live(session, principal, video_id)
+    born = {int(c.payload["new_track"]) for c in live if c.type == "split"}  # tracks made by earlier splits
+
+    def need(track: int) -> None:
+        if track not in known and track not in born:
+            raise _invalid("Unknown track", f"Track {track} is not in this analysis.", "unknown_track")
+
+    if isinstance(body, MergeIn):
+        need(body.from_track)
+        need(body.into)
+        if body.from_track == body.into:
+            raise _invalid("Same track", "Pick another track to merge with.", "same_track")
+        payload: dict[str, Any] = {"from": body.from_track, "into": body.into}
+    elif isinstance(body, SplitIn):
+        need(body.track)
+        new = max([*known, *born, 0]) + 1
+        payload = {"track": body.track, "at_ms": body.at_ms, "new_track": new}
+    else:
+        need(body.track)
+        if body.from_ms is not None and body.to_ms is not None and body.to_ms <= body.from_ms:
+            raise _invalid("Empty range", "to_ms must be after from_ms.", "range")
+        payload = {"track": body.track, "from_ms": body.from_ms, "to_ms": body.to_ms}
+    video.revision = int(video.revision) + 1  # ordering key of the corrections + the tiles revision of the edit job
+    await _record(session, principal, video, body.type, payload)
+    await _schedule(session, tasks, settings, principal, video)
+    return await corrections_state(session, principal, video_id)
+
+
+async def undo_correction(session: AsyncSession, tasks: TaskQueue, settings: Settings, principal: Principal,
+                          video_id: uuid.UUID, correction_id: uuid.UUID) -> CorrectionsState:  # fmt: skip
+    video = await _locked_video(session, principal, video_id)
+    row = next((c for c in await _live(session, principal, video_id) if c.id == correction_id), None)
+    if row is None:
+        raise not_found()
+    row.payload = {**row.payload, "undone": True}
+    video.revision = int(video.revision) + 1
+    await session.flush()
+    await _schedule(session, tasks, settings, principal, video)
+    return await corrections_state(session, principal, video_id)
+
+
+async def apply_corrections(session: AsyncSession, tasks: TaskQueue, settings: Settings, principal: Principal,
+                            video_id: uuid.UUID) -> CorrectionsState:  # fmt: skip
+    """Run what is pending (the client calls it when the job that blocked the corrections has finished)."""
+    video = await _locked_video(session, principal, video_id)
+    if (await corrections_state(session, principal, video_id)).pending:
+        await _schedule(session, tasks, settings, principal, video)
+    return await corrections_state(session, principal, video_id)

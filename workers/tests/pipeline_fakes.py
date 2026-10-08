@@ -169,6 +169,7 @@ class DevFakeStages:
 
         return {"normalize": self.normalize, "shots": self.shots, "calibrate": self.calibrate, "infer": self.infer,
                 "pitch": self.pitch, "stitch": STAGES["stitch"], "recompute": STAGES["recompute"],
+                "edit_tracks": STAGES["edit_tracks"],
                 "tiles": STAGES["tiles"],
                 "load_db": LoadDbStage(lambda: self.db)}  # fmt: skip
 

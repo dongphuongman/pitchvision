@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pitchvision_schemas.pipeline import PipelineConfig, Segment
 
 GpuStage = Literal["calibrate", "infer", "ocr", "pitch", "render", "shots"]
-CpuStage = Literal["normalize", "stitch", "recompute", "tiles", "load_db"]
+CpuStage = Literal["normalize", "stitch", "recompute", "edit_tracks", "tiles", "load_db"]
 TaskStatus = Literal["queued", "running", "done", "failed"]
 
 

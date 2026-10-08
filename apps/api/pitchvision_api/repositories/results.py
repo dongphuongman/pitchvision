@@ -147,3 +147,16 @@ async def confirmed_players(session: AsyncSession, org_id: uuid.UUID, video_id: 
             .where(Player.org_id == org_id, Player.video_id == video_id, Player.confirmed.is_(True))
             .order_by(Player.track_id))  # fmt: skip
     return [(r[0], r[1]) for r in (await session.execute(stmt)).all()]
+
+
+async def track_ids(session: AsyncSession, org_id: uuid.UUID, video_id: uuid.UUID) -> set[int]:
+    stmt = select(Player.track_id).where(Player.org_id == org_id, Player.video_id == video_id)
+    return set((await session.scalars(stmt)).all())
+
+
+async def corrections(session: AsyncSession, org_id: uuid.UUID, video_id: uuid.UUID, types: tuple[str, ...]
+                      ) -> list[Correction]:  # fmt: skip
+    stmt = (select(Correction).where(Correction.org_id == org_id, Correction.video_id == video_id,
+                                     Correction.type.in_(types))
+            .order_by(Correction.revision, Correction.created_at, Correction.id))  # fmt: skip
+    return list((await session.scalars(stmt)).all())
